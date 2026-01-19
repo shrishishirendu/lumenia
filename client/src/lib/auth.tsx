@@ -33,11 +33,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = () => {
-    window.location.href = "/api/auth/login";
+    window.location.href = "/api/login";
   };
 
   const logout = () => {
-    fetch("/api/auth/logout", { method: "POST" })
+    fetch("/api/logout", { method: "GET" })
       .then(() => {
         setUser(null);
         window.location.href = "/";
