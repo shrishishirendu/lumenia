@@ -10,7 +10,7 @@ export * from "./models/chat";
 // Student profiles with role information
 export const profiles = pgTable("profiles", {
   id: serial("id").primaryKey(),
-  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").notNull().unique().references(() => users.id, { onDelete: "cascade" }),
   role: text("role").notNull().default("student"), // student, parent, teacher, owner
   grade: integer("grade"), // 9, 10, 11, 12
   parentEmail: text("parent_email"),
