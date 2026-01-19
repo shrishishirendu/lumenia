@@ -29,6 +29,17 @@ export default function Classroom() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
+  const sessionIdRef = useRef<number | null>(null);
+  const messagesRef = useRef<Message[]>([]);
+
+  // Keep refs in sync with state
+  useEffect(() => {
+    sessionIdRef.current = sessionId;
+  }, [sessionId]);
+
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
 
   // Initialize session on mount
   useEffect(() => {
@@ -111,6 +122,17 @@ export default function Classroom() {
 
   const transcribeAndSend = async (audioBlob: Blob) => {
     try {
+      const currentSessionId = sessionIdRef.current;
+      if (!currentSessionId) {
+        console.error("No session available");
+        toast({
+          title: "Session Error",
+          description: "Please wait for the session to load and try again.",
+          variant: "destructive"
+        });
+        return;
+      }
+
       const base64 = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
         reader.onloadend = () => {
@@ -131,11 +153,38 @@ export default function Classroom() {
         const { text } = await transcribeRes.json();
         if (text && text.trim()) {
           setShowChat(true);
-          await sendMessage(text);
+          
+          // Add user message
+          const userMessage: Message = { role: "user", content: text };
+          setMessages(prev => [...prev, userMessage]);
+
+          // Send to AI and get response
+          const chatRes = await fetch("/api/tutor/chat", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              sessionId: currentSessionId,
+              message: text,
+              history: messagesRef.current
+            })
+          });
+
+          if (chatRes.ok) {
+            const data = await chatRes.json();
+            const assistantMessage: Message = { role: "assistant", content: data.response };
+            setMessages(prev => [...prev, assistantMessage]);
+            setCurrentHint(data.response);
+            speakText(data.response);
+          }
         }
       }
     } catch (error) {
       console.error("Transcription error:", error);
+      toast({
+        title: "Error",
+        description: "Failed to process voice input. Please try again.",
+        variant: "destructive"
+      });
     }
   };
 
