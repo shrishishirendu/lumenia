@@ -116,5 +116,77 @@ export async function registerRoutes(
     }
   });
 
+  // AI Tutoring chat endpoint
+  app.post("/api/tutor/chat", async (req: any, res) => {
+    try {
+      const { sessionId, message, history } = req.body;
+      
+      // Get session for context
+      const session = await tutoringStorage.getSession(sessionId);
+      if (!session) return res.status(404).json({ error: "Session not found" });
+
+      // Store user message
+      await tutoringStorage.createSessionMessage({
+        sessionId,
+        role: "user",
+        content: message
+      });
+
+      // Generate AI response using Socratic method
+      const { generateTutoringResponse } = await import("./ai-tutor");
+      const response = await generateTutoringResponse(
+        history || [],
+        message,
+        session.topic
+      );
+
+      // Store AI response
+      await tutoringStorage.createSessionMessage({
+        sessionId,
+        role: "assistant",
+        content: response
+      });
+
+      res.json({ response });
+    } catch (error) {
+      console.error("Error in tutoring chat:", error);
+      res.status(500).json({ error: "Failed to generate response" });
+    }
+  });
+
+  // Speech-to-text endpoint
+  app.post("/api/tutor/transcribe", async (req: any, res) => {
+    try {
+      const { audio } = req.body;
+      if (!audio) return res.status(400).json({ error: "Audio data required" });
+
+      const { transcribeSpeech } = await import("./ai-tutor");
+      const audioBuffer = Buffer.from(audio, "base64");
+      const text = await transcribeSpeech(audioBuffer);
+
+      res.json({ text });
+    } catch (error) {
+      console.error("Error transcribing audio:", error);
+      res.status(500).json({ error: "Failed to transcribe audio" });
+    }
+  });
+
+  // Text-to-speech endpoint
+  app.post("/api/tutor/speak", async (req: any, res) => {
+    try {
+      const { text } = req.body;
+      if (!text) return res.status(400).json({ error: "Text required" });
+
+      const { generateTextToSpeech } = await import("./ai-tutor");
+      const audioBuffer = await generateTextToSpeech(text);
+
+      res.set("Content-Type", "audio/mpeg");
+      res.send(audioBuffer);
+    } catch (error) {
+      console.error("Error generating speech:", error);
+      res.status(500).json({ error: "Failed to generate speech" });
+    }
+  });
+
   return httpServer;
 }
