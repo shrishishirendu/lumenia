@@ -188,5 +188,56 @@ export async function registerRoutes(
     }
   });
 
+  // Parent report endpoints
+  app.get("/api/parent/summary", async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+      
+      const profile = await tutoringStorage.getProfileByUserId(userId);
+      if (!profile) return res.status(404).json({ error: "Profile not found" });
+
+      const { generateProgressSummary } = await import("./report-generator");
+      const summary = await generateProgressSummary(profile.id);
+      res.json(summary);
+    } catch (error) {
+      console.error("Error generating summary:", error);
+      res.status(500).json({ error: "Failed to generate summary" });
+    }
+  });
+
+  app.post("/api/parent/generate-report", async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+      
+      const profile = await tutoringStorage.getProfileByUserId(userId);
+      if (!profile) return res.status(404).json({ error: "Profile not found" });
+
+      const { generateParentReport } = await import("./report-generator");
+      const report = await generateParentReport(profile.id);
+      res.json({ report });
+    } catch (error) {
+      console.error("Error generating report:", error);
+      res.status(500).json({ error: "Failed to generate report" });
+    }
+  });
+
+  app.get("/api/parent/reports", async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+      
+      const profile = await tutoringStorage.getProfileByUserId(userId);
+      if (!profile) return res.status(404).json({ error: "Profile not found" });
+
+      const reports = await tutoringStorage.getReportsByStudent(profile.id);
+      res.json(reports);
+    } catch (error) {
+      console.error("Error fetching reports:", error);
+      res.status(500).json({ error: "Failed to fetch reports" });
+    }
+  });
+
   return httpServer;
 }

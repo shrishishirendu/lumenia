@@ -2,10 +2,13 @@ import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
 import { motion } from "framer-motion";
 import { ArrowRight, CheckCircle2, Play } from "lucide-react";
+import { useAuth } from "@/lib/auth";
 import heroBg from "@assets/generated_images/abstract_education_tech_background.png";
 import teacherAvatar from "@assets/generated_images/photorealistic_female_teacher_avatar.png";
 
 export default function Landing() {
+  const { user, login } = useAuth();
+
   return (
     <div className="min-h-screen bg-background text-foreground font-sans overflow-hidden">
       {/* Background with Overlay */}
@@ -17,12 +20,21 @@ export default function Landing() {
       <header className="relative z-10 container mx-auto px-6 py-6 flex justify-between items-center">
         <div className="font-serif text-2xl font-bold tracking-tight">Virtual Human.</div>
         <div className="flex gap-4">
-            <Link href="/dashboard">
-                <Button variant="ghost">Log In</Button>
-            </Link>
-            <Link href="/classroom">
-                <Button className="rounded-full px-6">Start Learning</Button>
-            </Link>
+            {user ? (
+              <>
+                <Link href="/classroom">
+                  <Button className="rounded-full px-6">My Classroom</Button>
+                </Link>
+                <Link href="/dashboard">
+                  <Button variant="ghost">Dashboard</Button>
+                </Link>
+              </>
+            ) : (
+              <>
+                <Button variant="ghost" onClick={login} data-testid="button-login">Log In</Button>
+                <Button className="rounded-full px-6" onClick={login} data-testid="button-start-learning">Start Learning</Button>
+              </>
+            )}
             <Link href="/parent">
                 <Button variant="ghost" className="rounded-full px-6">Parents</Button>
             </Link>
