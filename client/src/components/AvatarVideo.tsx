@@ -99,15 +99,28 @@ export function AvatarVideo({ isSpeaking, isListening, emotion = "neutral", audi
   }, [isSpeaking, audioElement]);
 
   useEffect(() => {
-    if (!isSpeaking && !audioElement) {
+    if (isSpeaking && !audioElement) {
       const interval = setInterval(() => {
-        if (isSpeaking) {
-          setMouthState(prev => ((prev + 1) % 4) as 0 | 1 | 2 | 3);
-        }
-      }, 120);
+        setMouthState(prev => ((prev + 1) % 4) as 0 | 1 | 2 | 3);
+      }, 150);
       return () => clearInterval(interval);
     }
+    if (!isSpeaking) {
+      setMouthState(0);
+    }
   }, [isSpeaking, audioElement]);
+
+  useEffect(() => {
+    if (isSpeaking) {
+      const fallbackInterval = setInterval(() => {
+        setMouthState(prev => {
+          const next = Math.floor(Math.random() * 4) as 0 | 1 | 2 | 3;
+          return next;
+        });
+      }, 100);
+      return () => clearInterval(fallbackInterval);
+    }
+  }, [isSpeaking]);
 
   const mouthHeights = [0, 6, 12, 18];
   const mouthWidths = [24, 22, 20, 18];
@@ -127,43 +140,80 @@ export function AvatarVideo({ isSpeaking, isListening, emotion = "neutral", audi
       />
 
       {isSpeaking && (
-        <div className="absolute inset-0 z-20 pointer-events-none flex items-center justify-center">
+        <div className="absolute inset-0 z-20 pointer-events-none">
+          {/* Mouth animation container - positioned over face */}
           <div 
             className="absolute"
             style={{ 
-              top: '62%',
+              bottom: '28%',
               left: '50%',
-              transform: 'translateX(-50%)'
+              transform: 'translateX(-50%)',
             }}
           >
+            {/* Upper lip */}
             <motion.div
-              className="relative"
-              animate={{
-                height: mouthHeights[mouthState],
-                width: mouthWidths[mouthState],
-              }}
-              transition={{ duration: 0.05 }}
+              className="absolute"
               style={{
-                backgroundColor: 'rgba(80, 30, 30, 0.85)',
-                borderRadius: '50%',
-                boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.5), 0 0 8px rgba(0,0,0,0.3)',
+                width: 32,
+                height: 8,
+                backgroundColor: '#8B4557',
+                borderTopLeftRadius: 16,
+                borderTopRightRadius: 16,
+                left: '50%',
+                transform: 'translateX(-50%)',
+                top: 0,
               }}
             />
             
+            {/* Mouth opening - the animated part */}
             <motion.div
-              className="absolute -top-1 left-1/2 -translate-x-1/2"
               animate={{
-                width: mouthWidths[mouthState] + 4,
-                opacity: mouthState > 0 ? 0.6 : 0,
+                height: [4, 8 + mouthState * 6, 4],
+                scaleX: [1, 0.9 + mouthState * 0.05, 1],
               }}
-              transition={{ duration: 0.05 }}
+              transition={{ 
+                duration: 0.12,
+                ease: "easeInOut"
+              }}
               style={{
-                height: 3,
-                backgroundColor: 'rgba(180, 100, 100, 0.7)',
-                borderRadius: '2px',
+                width: 28,
+                backgroundColor: '#2D1518',
+                borderBottomLeftRadius: 14,
+                borderBottomRightRadius: 14,
+                marginTop: 6,
+                marginLeft: 2,
+                boxShadow: 'inset 0 4px 8px rgba(0,0,0,0.6)',
               }}
             />
+            
+            {/* Teeth hint */}
+            {mouthState >= 2 && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 0.9 }}
+                style={{
+                  position: 'absolute',
+                  top: 8,
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  width: 20,
+                  height: 4,
+                  backgroundColor: '#F8F8F8',
+                  borderRadius: 2,
+                }}
+              />
+            )}
           </div>
+          
+          {/* Speaking indicator ring around face */}
+          <motion.div
+            className="absolute inset-8 rounded-full border-2 border-indigo-400/30"
+            animate={{
+              scale: [1, 1.02, 1],
+              opacity: [0.3, 0.5, 0.3],
+            }}
+            transition={{ duration: 1.5, repeat: Infinity }}
+          />
         </div>
       )}
 
