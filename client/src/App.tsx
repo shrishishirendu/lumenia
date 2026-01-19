@@ -8,6 +8,7 @@ import Landing from "@/pages/Landing";
 import Classroom from "@/pages/Classroom";
 import Dashboard from "@/pages/Dashboard";
 import ParentPortal from "@/pages/ParentPortal";
+import Growth from "@/pages/Growth";
 
 function Router() {
   return (
@@ -16,6 +17,7 @@ function Router() {
       <Route path="/classroom" component={Classroom} />
       <Route path="/dashboard" component={Dashboard} />
       <Route path="/parent" component={ParentPortal} />
+      <Route path="/growth" component={Growth} />
       <Route component={NotFound} />
     </Switch>
   );

@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { LayoutDashboard, GraduationCap, LogOut, UserCircle } from "lucide-react";
+import { LayoutDashboard, GraduationCap, LogOut, UserCircle, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export function Nav() {
@@ -27,6 +27,17 @@ export function Nav() {
             title="Owner Dashboard"
           >
             <LayoutDashboard className="w-5 h-5" />
+          </Button>
+        </Link>
+        <Link href="/growth">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className={`w-full h-12 rounded-xl transition-all ${isActive('/growth') ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted'}`}
+            data-testid="nav-growth"
+            title="Growth Engine"
+          >
+            <TrendingUp className="w-5 h-5" />
           </Button>
         </Link>
         <Link href="/classroom">
