@@ -304,6 +304,7 @@ export default function Classroom() {
                     <AvatarVideo 
                         isSpeaking={isAvatarSpeaking} 
                         isListening={micActive && !isAvatarSpeaking}
+                        audioElement={audioRef.current}
                     />
                     
                     {/* Floating Controls Overlay */}
