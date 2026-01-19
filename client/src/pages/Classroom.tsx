@@ -130,6 +130,7 @@ export default function Classroom() {
       if (transcribeRes.ok) {
         const { text } = await transcribeRes.json();
         if (text && text.trim()) {
+          setShowChat(true);
           await sendMessage(text);
         }
       }
