@@ -162,8 +162,11 @@ export async function registerRoutes(
       if (!audio) return res.status(400).json({ error: "Audio data required" });
 
       const { transcribeSpeech } = await import("./ai-tutor");
+      const { convertWebmToWav } = await import("./audio-converter");
+      
       const audioBuffer = Buffer.from(audio, "base64");
-      const text = await transcribeSpeech(audioBuffer);
+      const wavBuffer = await convertWebmToWav(audioBuffer);
+      const text = await transcribeSpeech(wavBuffer);
 
       res.json({ text });
     } catch (error) {
@@ -181,7 +184,7 @@ export async function registerRoutes(
       const { generateTextToSpeech } = await import("./ai-tutor");
       const audioBuffer = await generateTextToSpeech(text);
 
-      res.set("Content-Type", "audio/mpeg");
+      res.set("Content-Type", "audio/wav");
       res.send(audioBuffer);
     } catch (error) {
       console.error("Error generating speech:", error);

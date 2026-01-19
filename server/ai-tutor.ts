@@ -93,23 +93,39 @@ export async function validateMathAnswer(
 }
 
 export async function generateTextToSpeech(text: string): Promise<Buffer> {
-  const response = await openai.audio.speech.create({
-    model: "tts-1",
-    voice: "nova", // Warm, professional female voice
-    input: text,
-    speed: 1.0,
+  // Use gpt-audio-mini with audio output modality for TTS
+  const response = await openai.chat.completions.create({
+    model: "gpt-audio-mini",
+    modalities: ["text", "audio"],
+    audio: { voice: "nova", format: "wav" },
+    messages: [
+      {
+        role: "system",
+        content: "You are a text-to-speech assistant. Simply speak the text given to you exactly as provided, with natural inflection and warmth. Do not add any additional words or commentary."
+      },
+      {
+        role: "user",
+        content: `Please read this aloud: "${text}"`
+      }
+    ],
   });
 
-  const buffer = Buffer.from(await response.arrayBuffer());
-  return buffer;
+  // Extract audio data from the response
+  const audioData = response.choices[0]?.message?.audio?.data;
+  if (!audioData) {
+    throw new Error("No audio data in response");
+  }
+  
+  return Buffer.from(audioData, "base64");
 }
 
 export async function transcribeSpeech(audioBuffer: Buffer): Promise<string> {
-  const file = new File([audioBuffer], "audio.webm", { type: "audio/webm" });
+  const file = new File([audioBuffer], "audio.wav", { type: "audio/wav" });
   
   const transcription = await openai.audio.transcriptions.create({
-    model: "whisper-1",
+    model: "gpt-4o-mini-transcribe",
     file,
+    response_format: "json",
   });
 
   return transcription.text;
