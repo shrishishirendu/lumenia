@@ -31,8 +31,12 @@ export default function Landing() {
               </>
             ) : (
               <>
-                <Button variant="ghost" onClick={login} data-testid="button-login">Log In</Button>
-                <Button className="rounded-full px-6" onClick={login} data-testid="button-start-learning">Start Learning</Button>
+                <a href="/api/login">
+                  <Button variant="ghost" data-testid="button-login">Log In</Button>
+                </a>
+                <a href="/api/login">
+                  <Button className="rounded-full px-6" data-testid="button-start-learning">Start Learning</Button>
+                </a>
               </>
             )}
             <Link href="/parent">

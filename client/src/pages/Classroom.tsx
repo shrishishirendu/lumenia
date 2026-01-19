@@ -38,7 +38,7 @@ export default function Classroom() {
         const profileRes = await fetch("/api/profile");
         if (profileRes.status === 401) {
           // Not logged in - redirect to login
-          window.location.href = "/api/login";
+          window.location.replace("/api/login");
           return;
         }
         if (profileRes.status === 404 || !profileRes.ok) {

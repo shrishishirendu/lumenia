@@ -19,11 +19,11 @@ export default function Onboarding() {
       .then(res => res.json())
       .then(data => {
         if (!data.loggedIn) {
-          window.location.href = "/api/login";
+          window.location.replace("/api/login");
         }
       })
       .catch(() => {
-        window.location.href = "/api/login";
+        window.location.replace("/api/login");
       });
   }, []);
 

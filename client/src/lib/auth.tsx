@@ -33,7 +33,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = () => {
-    window.location.href = "/api/login";
+    // Force a full page navigation, not SPA routing
+    window.location.replace("/api/login");
   };
 
   const logout = () => {
