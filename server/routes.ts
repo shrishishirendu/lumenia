@@ -27,6 +27,7 @@ export async function registerRoutes(
       if (!userId) return res.status(401).json({ error: "Unauthorized" });
       
       const profile = await tutoringStorage.getProfileByUserId(userId);
+      if (!profile) return res.status(404).json({ error: "Profile not found" });
       res.json(profile);
     } catch (error) {
       console.error("Error fetching profile:", error);
