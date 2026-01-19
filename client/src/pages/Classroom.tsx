@@ -314,7 +314,12 @@ export default function Classroom() {
                                 placeholder="Ask a question or share your work..."
                                 value={chatInput}
                                 onChange={(e) => setChatInput(e.target.value)}
-                                onKeyPress={(e) => e.key === "Enter" && sendMessage(chatInput)}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter" && chatInput.trim() && sessionId) {
+                                    e.preventDefault();
+                                    sendMessage(chatInput);
+                                  }
+                                }}
                                 disabled={!sessionId}
                                 data-testid="input-chat-message"
                             />
