@@ -48,7 +48,7 @@ export async function generateProgressSummary(studentId: number): Promise<{
 }> {
   const progressData = await tutoringStorage.getProgressByStudent(studentId);
 
-  const totalSessions = progressData.reduce((sum, p) => sum + p.problemsAttempted, 0);
+  const totalSessions = progressData.reduce((sum, p) => sum + (p.problemsAttempted || 0), 0);
   const topicsLearned = progressData.map(p => p.topic);
   const masteryAverage = progressData.length > 0 
     ? Math.round(progressData.reduce((sum, p) => sum + p.masteryLevel, 0) / progressData.length)

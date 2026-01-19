@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "@/lib/auth";
 import { Nav } from "@/components/Nav";
 import { AvatarVideo } from "@/components/AvatarVideo";
@@ -20,19 +20,33 @@ export default function Classroom() {
   const { toast } = useToast();
   const [sessionId, setSessionId] = useState<number | null>(null);
   const [micActive, setMicActive] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
   const [isAvatarSpeaking, setIsAvatarSpeaking] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [chatInput, setChatInput] = useState("");
   const [showChat, setShowChat] = useState(false);
   const [currentHint, setCurrentHint] = useState("Let's start with a simple problem. Are you ready?");
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
 
   // Initialize session on mount
   useEffect(() => {
-    if (!user) return;
-
     const initSession = async () => {
       try {
+        // First check if user has a profile
+        const profileRes = await fetch("/api/profile");
+        if (profileRes.status === 401) {
+          // Not logged in - redirect to login
+          window.location.href = "/api/auth/login";
+          return;
+        }
+        if (profileRes.status === 404 || !profileRes.ok) {
+          // No profile - redirect to onboarding
+          window.location.href = "/onboarding";
+          return;
+        }
+
         const response = await fetch("/api/sessions", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -54,7 +68,79 @@ export default function Classroom() {
     };
 
     initSession();
-  }, [user]);
+  }, []);
+
+  // Voice recording functions
+  const startRecording = useCallback(async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        audioChunksRef.current.push(event.data);
+      };
+
+      mediaRecorder.onstop = async () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+        stream.getTracks().forEach(track => track.stop());
+        await transcribeAndSend(audioBlob);
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+      setMicActive(true);
+    } catch (error) {
+      console.error("Failed to start recording:", error);
+      toast({
+        title: "Microphone Error",
+        description: "Could not access microphone. Please check permissions.",
+        variant: "destructive"
+      });
+    }
+  }, []);
+
+  const stopRecording = useCallback(() => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      setMicActive(false);
+    }
+  }, [isRecording]);
+
+  const transcribeAndSend = async (audioBlob: Blob) => {
+    try {
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64 = (reader.result as string).split(',')[1];
+        
+        const transcribeRes = await fetch("/api/tutor/transcribe", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ audio: base64 })
+        });
+
+        if (transcribeRes.ok) {
+          const { text } = await transcribeRes.json();
+          if (text && text.trim()) {
+            await sendMessage(text);
+          }
+        }
+      };
+      reader.readAsDataURL(audioBlob);
+    } catch (error) {
+      console.error("Transcription error:", error);
+    }
+  };
+
+  const toggleMic = () => {
+    if (isRecording) {
+      stopRecording();
+    } else {
+      startRecording();
+    }
+  };
 
   const sendMessage = async (text: string) => {
     if (!sessionId || !text.trim()) return;
@@ -144,13 +230,13 @@ export default function Classroom() {
                     <MessageSquare className="w-4 h-4" /> Chat
                 </Button>
                 <Button 
-                    className={`gap-2 transition-all ${micActive ? 'bg-red-500 hover:bg-red-600 text-white' : ''}`}
-                    onClick={() => setMicActive(!micActive)}
-                    disabled
+                    className={`gap-2 transition-all ${isRecording ? 'bg-red-500 hover:bg-red-600 text-white animate-pulse' : ''}`}
+                    onClick={toggleMic}
+                    disabled={isAvatarSpeaking}
                     data-testid="button-toggle-mic"
                 >
-                    {micActive ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
-                    {micActive ? "Mute Mic" : "Voice (Coming Soon)"}
+                    {isRecording ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+                    {isRecording ? "Stop Recording" : "Speak to Ms. Chen"}
                 </Button>
             </div>
         </header>

@@ -10,11 +10,13 @@ import Classroom from "@/pages/Classroom";
 import Dashboard from "@/pages/Dashboard";
 import ParentPortal from "@/pages/ParentPortal";
 import Growth from "@/pages/Growth";
+import Onboarding from "@/pages/Onboarding";
 
 function Router() {
   return (
     <Switch>
       <Route path="/" component={Landing} />
+      <Route path="/onboarding" component={Onboarding} />
       <Route path="/classroom" component={Classroom} />
       <Route path="/dashboard" component={Dashboard} />
       <Route path="/parent" component={ParentPortal} />
