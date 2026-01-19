@@ -111,24 +111,28 @@ export default function Classroom() {
 
   const transcribeAndSend = async (audioBlob: Blob) => {
     try {
-      const reader = new FileReader();
-      reader.onloadend = async () => {
-        const base64 = (reader.result as string).split(',')[1];
-        
-        const transcribeRes = await fetch("/api/tutor/transcribe", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ audio: base64 })
-        });
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const result = reader.result as string;
+          resolve(result.split(',')[1]);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(audioBlob);
+      });
+      
+      const transcribeRes = await fetch("/api/tutor/transcribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ audio: base64 })
+      });
 
-        if (transcribeRes.ok) {
-          const { text } = await transcribeRes.json();
-          if (text && text.trim()) {
-            await sendMessage(text);
-          }
+      if (transcribeRes.ok) {
+        const { text } = await transcribeRes.json();
+        if (text && text.trim()) {
+          await sendMessage(text);
         }
-      };
-      reader.readAsDataURL(audioBlob);
+      }
     } catch (error) {
       console.error("Transcription error:", error);
     }
