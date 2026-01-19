@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { LayoutDashboard, GraduationCap, LogOut } from "lucide-react";
+import { LayoutDashboard, GraduationCap, LogOut, UserCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export function Nav() {
@@ -24,6 +24,7 @@ export function Nav() {
             size="icon" 
             className={`w-full h-12 rounded-xl transition-all ${isActive('/dashboard') ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted'}`}
             data-testid="nav-dashboard"
+            title="Owner Dashboard"
           >
             <LayoutDashboard className="w-5 h-5" />
           </Button>
@@ -34,8 +35,20 @@ export function Nav() {
             size="icon" 
             className={`w-full h-12 rounded-xl transition-all ${isActive('/classroom') ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted'}`}
             data-testid="nav-classroom"
+            title="Student Classroom"
           >
             <GraduationCap className="w-5 h-5" />
+          </Button>
+        </Link>
+        <Link href="/parent">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className={`w-full h-12 rounded-xl transition-all ${isActive('/parent') ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted'}`}
+            data-testid="nav-parent"
+            title="Parent Portal"
+          >
+            <UserCircle className="w-5 h-5" />
           </Button>
         </Link>
       </div>

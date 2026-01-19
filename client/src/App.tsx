@@ -7,6 +7,7 @@ import NotFound from "@/pages/not-found";
 import Landing from "@/pages/Landing";
 import Classroom from "@/pages/Classroom";
 import Dashboard from "@/pages/Dashboard";
+import ParentPortal from "@/pages/ParentPortal";
 
 function Router() {
   return (
@@ -14,6 +15,7 @@ function Router() {
       <Route path="/" component={Landing} />
       <Route path="/classroom" component={Classroom} />
       <Route path="/dashboard" component={Dashboard} />
+      <Route path="/parent" component={ParentPortal} />
       <Route component={NotFound} />
     </Switch>
   );

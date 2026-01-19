@@ -23,6 +23,9 @@ export default function Landing() {
             <Link href="/classroom">
                 <Button className="rounded-full px-6">Start Learning</Button>
             </Link>
+            <Link href="/parent">
+                <Button variant="ghost" className="rounded-full px-6">Parents</Button>
+            </Link>
         </div>
       </header>
 
