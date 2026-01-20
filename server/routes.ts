@@ -188,8 +188,8 @@ export async function registerRoutes(
       const { convertWebmToWav } = await import("./audio-converter");
       
       const audioBuffer = Buffer.from(audio, "base64");
-      const inputFormat = mimeType?.includes("mp4") ? "mp4" : "webm";
-      const wavBuffer = await convertWebmToWav(audioBuffer, inputFormat);
+      console.log("Received audio for transcription, mimeType:", mimeType, "size:", audioBuffer.length);
+      const wavBuffer = await convertWebmToWav(audioBuffer, mimeType || "audio/webm");
       const text = await transcribeSpeech(wavBuffer);
 
       console.log("Transcribed text:", text);
