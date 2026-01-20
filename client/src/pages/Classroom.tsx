@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "@/lib/auth";
 import { Nav } from "@/components/Nav";
-import { AvatarVideo } from "@/components/AvatarVideo";
+import AnimatedAvatar from "@/components/AnimatedAvatar";
 import { Whiteboard } from "@/components/Whiteboard";
 import { VoiceVisualizer } from "@/components/VoiceVisualizer";
 import { Button } from "@/components/ui/button";
@@ -311,7 +311,7 @@ export default function Classroom() {
       setCurrentSpeechText(text);
       
       // D-ID avatar will handle audio via video playback
-      // Only use TTS fallback if D-ID fails (handled by AvatarVideo component)
+      // TTS is handled by AnimatedAvatar component with lip-sync animation
       // The avatar video onSpeakingComplete callback will reset the speaking state
       
     } catch (error) {
@@ -493,23 +493,15 @@ export default function Classroom() {
             {/* Left: Avatar / Teacher View */}
             <div className={`${showChat ? 'lg:col-span-4' : 'lg:col-span-5'} flex flex-col gap-4 min-h-0`}>
                 <Card className="flex-1 relative overflow-hidden bg-black rounded-2xl border-0 shadow-2xl ring-1 ring-white/10">
-                    <AvatarVideo 
+                    <AnimatedAvatar 
                         isSpeaking={isAvatarSpeaking} 
-                        isListening={micActive && !isAvatarSpeaking}
-                        textToSpeak={currentSpeechText}
+                        textToSpeak={currentSpeechText || null}
                         onSpeakingComplete={handleAvatarSpeakingComplete}
                         subject={selectedSubject}
                     />
                     
-                    {/* Floating Controls Overlay */}
-                    <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black/80 to-transparent pt-20 flex justify-between items-end">
-                        <div className="text-white">
-                            <h3 className="font-medium text-lg">{selectedSubject === "english" ? "Mr. Mitchell" : "Ms. Chen"}</h3>
-                            <div className="flex items-center gap-2 text-white/70 text-sm">
-                                <div className={`w-2 h-2 rounded-full ${micActive && !isAvatarSpeaking ? 'bg-green-500 animate-pulse' : isAvatarSpeaking ? 'bg-blue-500 animate-pulse' : 'bg-gray-500'}`} />
-                                {micActive && !isAvatarSpeaking ? "Listening to you..." : isAvatarSpeaking ? "Speaking..." : "Ready"}
-                            </div>
-                        </div>
+                    {/* Voice Visualizer Overlay */}
+                    <div className="absolute bottom-24 right-4">
                         <VoiceVisualizer isActive={isAvatarSpeaking || (micActive && !isAvatarSpeaking)} mode={isAvatarSpeaking ? "speaking" : "listening"} />
                     </div>
                 </Card>
