@@ -1,5 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
+import path from "path";
+import express from "express";
 import { setupAuth, registerAuthRoutes } from "./replit_integrations/auth";
 import { registerChatRoutes } from "./replit_integrations/chat";
 import { registerAudioRoutes } from "./replit_integrations/audio";
@@ -10,6 +12,9 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+  // Serve static avatar image for D-ID
+  app.use("/static/avatar", express.static(path.join(process.cwd(), "attached_assets/generated_images")));
+
   // Setup authentication first (MUST be before other routes)
   await setupAuth(app);
   registerAuthRoutes(app);
@@ -246,14 +251,16 @@ export async function registerRoutes(
   // D-ID Avatar endpoints
   app.post("/api/avatar/talk", async (req: any, res) => {
     try {
-      const { text, imageUrl } = req.body;
+      const { text } = req.body;
       if (!text) return res.status(400).json({ error: "Text required" });
 
+      // Construct public URL for Ms. Chen's avatar
+      const protocol = req.headers['x-forwarded-proto'] || 'https';
+      const host = req.headers['host'] || req.headers['x-forwarded-host'];
+      const msChenAvatarUrl = `${protocol}://${host}/static/avatar/photorealistic_female_teacher_avatar.png`;
+
       const { createTalkingAvatar } = await import("./did-avatar");
-      const result = await createTalkingAvatar(
-        text,
-        imageUrl || "https://create-images-results.d-id.com/DefaultPresenters/Emma_f/v1_image.jpeg"
-      );
+      const result = await createTalkingAvatar(text, msChenAvatarUrl);
       res.json(result);
     } catch (error) {
       console.error("Error creating talking avatar:", error);
@@ -263,11 +270,13 @@ export async function registerRoutes(
 
   app.post("/api/avatar/stream/start", async (req: any, res) => {
     try {
-      const { imageUrl } = req.body;
+      // Construct public URL for Ms. Chen's avatar
+      const protocol = req.headers['x-forwarded-proto'] || 'https';
+      const host = req.headers['host'] || req.headers['x-forwarded-host'];
+      const msChenAvatarUrl = `${protocol}://${host}/static/avatar/photorealistic_female_teacher_avatar.png`;
+
       const { createStreamingSession } = await import("./did-avatar");
-      const result = await createStreamingSession(
-        imageUrl || "https://create-images-results.d-id.com/DefaultPresenters/Emma_f/v1_image.jpeg"
-      );
+      const result = await createStreamingSession(msChenAvatarUrl);
       res.json(result);
     } catch (error) {
       console.error("Error starting avatar stream:", error);
