@@ -290,3 +290,85 @@ export async function transcribeSpeech(audioBuffer: Buffer): Promise<string> {
 
   return transcription.text;
 }
+
+export async function analyzeStudentDrawing(
+  imageData: string,
+  subject: string = "math",
+  context: string = ""
+): Promise<{ interpretation: string; workAnalysis: string }> {
+  const subjectContext = subject === "english" 
+    ? "The student is working on English/writing. Look for written text, diagrams, essay outlines, or notes."
+    : "The student is working on mathematics. Look for equations, calculations, graphs, or mathematical notation.";
+
+  const response = await openai.chat.completions.create({
+    model: "gpt-4o",
+    messages: [
+      {
+        role: "system",
+        content: `You are an expert tutor analyzing a student's handwritten work. ${subjectContext}
+
+Your job is to:
+1. Interpret what the student has written or drawn
+2. Identify the problem they're working on
+3. Analyze their work for correctness
+4. Note any errors or misconceptions
+
+Respond with JSON: {"interpretation": "what the student wrote/drew", "workAnalysis": "analysis of their work, any errors, and what they might need help with"}`
+      },
+      {
+        role: "user",
+        content: [
+          { 
+            type: "text", 
+            text: context ? `Context: ${context}\n\nPlease analyze this student's handwritten work:` : "Please analyze this student's handwritten work:"
+          },
+          {
+            type: "image_url",
+            image_url: { url: imageData }
+          }
+        ]
+      }
+    ],
+    max_tokens: 1000,
+  });
+
+  try {
+    const content = response.choices[0]?.message?.content || '{}';
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      return JSON.parse(jsonMatch[0]);
+    }
+    return { interpretation: content, workAnalysis: "Unable to parse analysis" };
+  } catch {
+    return { 
+      interpretation: response.choices[0]?.message?.content || "Unable to interpret",
+      workAnalysis: "Analysis parsing error"
+    };
+  }
+}
+
+export async function confirmStudentDoubt(
+  question: string,
+  subject: string = "math"
+): Promise<string> {
+  const tutorName = subject === "english" ? "Mr. James Mitchell" : "Ms. Eleanor Chen";
+  
+  const response = await openai.chat.completions.create({
+    model: "gpt-4o-mini",
+    messages: [
+      {
+        role: "system",
+        content: `You are ${tutorName}, a warm and supportive tutor. A student has asked a question. Your job is to briefly confirm your understanding of what they're asking before helping them. This shows you're listening and ensures you understand correctly.
+
+Be natural and brief - just 1-2 sentences to rephrase their question and confirm. End with a question like "Is that right?" or "Have I understood correctly?"`
+      },
+      {
+        role: "user",
+        content: question
+      }
+    ],
+    max_tokens: 150,
+  });
+
+  return response.choices[0]?.message?.content || `I understand you're asking about ${question}. Is that correct?`;
+}

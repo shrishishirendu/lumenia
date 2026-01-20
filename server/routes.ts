@@ -332,6 +332,40 @@ export async function registerRoutes(
     }
   });
 
+  // Analyze student drawing/handwriting
+  app.post("/api/tutor/analyze-drawing", async (req: any, res) => {
+    try {
+      const { imageData, subject, context } = req.body;
+      if (!imageData) {
+        return res.status(400).json({ error: "Image data required" });
+      }
+
+      const { analyzeStudentDrawing } = await import("./ai-tutor");
+      const analysis = await analyzeStudentDrawing(imageData, subject || "math", context || "");
+      res.json(analysis);
+    } catch (error) {
+      console.error("Error analyzing drawing:", error);
+      res.status(500).json({ error: "Failed to analyze drawing" });
+    }
+  });
+
+  // Confirm student doubt before answering
+  app.post("/api/tutor/confirm-doubt", async (req: any, res) => {
+    try {
+      const { question, subject } = req.body;
+      if (!question) {
+        return res.status(400).json({ error: "Question required" });
+      }
+
+      const { confirmStudentDoubt } = await import("./ai-tutor");
+      const confirmation = await confirmStudentDoubt(question, subject || "math");
+      res.json({ confirmation });
+    } catch (error) {
+      console.error("Error confirming doubt:", error);
+      res.status(500).json({ error: "Failed to confirm doubt" });
+    }
+  });
+
   // AI Agents endpoints
   app.post("/api/agents/chat", async (req: any, res) => {
     try {

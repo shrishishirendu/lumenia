@@ -1,10 +1,35 @@
 import type { Express, Request, Response } from "express";
 import { chatStorage } from "../chat/storage";
-import { openai, speechToText, voiceChatWithTextModel, convertWebmToWav } from "./client";
+import { openai, speechToText, voiceChatWithTextModel, convertWebmToWav, textToSpeech } from "./client";
 
 // Note: Set express.json({ limit: "50mb" }) for audio payloads.
 // Note: Use convertWebmToWav() to convert browser WebM to WAV before API calls.
 export function registerAudioRoutes(app: Express): void {
+  // Text-to-Speech endpoint
+  app.post("/api/text-to-speech", async (req: Request, res: Response) => {
+    try {
+      const { text, voice = "nova" } = req.body;
+      
+      if (!text) {
+        return res.status(400).json({ error: "Text is required" });
+      }
+      
+      // Truncate very long text to avoid API limits
+      const truncatedText = text.length > 4000 ? text.substring(0, 4000) : text;
+      
+      const audioBuffer = await textToSpeech(truncatedText, voice, "mp3");
+      
+      res.set({
+        "Content-Type": "audio/mpeg",
+        "Content-Length": audioBuffer.length,
+      });
+      res.send(audioBuffer);
+    } catch (error) {
+      console.error("TTS error:", error);
+      res.status(500).json({ error: "Text-to-speech failed" });
+    }
+  });
+
   // Get all conversations
   app.get("/api/conversations", async (req: Request, res: Response) => {
     try {

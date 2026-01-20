@@ -3,8 +3,10 @@ import { useAuth } from "@/lib/auth";
 import { Nav } from "@/components/Nav";
 import { Whiteboard } from "@/components/Whiteboard";
 import { VoiceVisualizer } from "@/components/VoiceVisualizer";
+import { DrawingCanvas } from "@/components/DrawingCanvas";
 import { Button } from "@/components/ui/button";
-import { Mic, MicOff, MessageSquare, Send, User, Loader2, BookOpen, Calculator, GraduationCap, HelpCircle, Volume2 } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Mic, MicOff, MessageSquare, Send, User, Loader2, BookOpen, Calculator, GraduationCap, HelpCircle, Volume2, Pencil, Keyboard } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
@@ -39,6 +41,10 @@ export default function Classroom() {
   const [humanTutorUrgency, setHumanTutorUrgency] = useState("normal");
   const [requestingHumanTutor, setRequestingHumanTutor] = useState(false);
   const [selectedSubject, setSelectedSubject] = useState<"math" | "english">("math");
+  const [inputMode, setInputMode] = useState<"type" | "draw">("type");
+  const [isAnalyzingDrawing, setIsAnalyzingDrawing] = useState(false);
+  const [awaitingConfirmation, setAwaitingConfirmation] = useState(false);
+  const [pendingQuestion, setPendingQuestion] = useState<string | null>(null);
   const [currentTopic, setCurrentTopic] = useState("Linear Equations");
   const [teachingStyle, setTeachingStyle] = useState<TeachingStyle>("socratic");
   const [whiteboardContent, setWhiteboardContent] = useState<WhiteboardContent>(DEFAULT_MATH_CONTENT);
@@ -334,7 +340,7 @@ export default function Classroom() {
     }
   };
 
-  const sendMessage = async (text: string) => {
+  const sendMessage = async (text: string, skipConfirmation = false) => {
     if (!sessionId || !text.trim()) return;
 
     const userMessage: Message = { role: "user", content: text };
@@ -342,6 +348,30 @@ export default function Classroom() {
     setChatInput("");
 
     try {
+      // First, confirm the student's doubt if not skipping
+      if (!skipConfirmation && !awaitingConfirmation) {
+        const confirmRes = await fetch("/api/tutor/confirm-doubt", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ question: text, subject: selectedSubject })
+        });
+        
+        if (confirmRes.ok) {
+          const { confirmation } = await confirmRes.json();
+          const confirmMessage: Message = { role: "assistant", content: confirmation };
+          setMessages(prev => [...prev, confirmMessage]);
+          setCurrentHint(confirmation);
+          speakText(confirmation);
+          setAwaitingConfirmation(true);
+          setPendingQuestion(text);
+          return;
+        }
+      }
+      
+      // Reset confirmation state and proceed with actual answer
+      setAwaitingConfirmation(false);
+      setPendingQuestion(null);
+
       const response = await fetch("/api/tutor/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -372,6 +402,89 @@ export default function Classroom() {
         description: "Failed to send message. Please try again.",
         variant: "destructive"
       });
+    }
+  };
+
+  const handleConfirmation = async (confirmed: boolean) => {
+    if (!pendingQuestion) return;
+    
+    if (confirmed) {
+      // User confirmed - proceed with the answer
+      const confirmMsg: Message = { role: "user", content: "Yes, that's right!" };
+      setMessages(prev => [...prev, confirmMsg]);
+      await sendMessage(pendingQuestion, true);
+    } else {
+      // User wants to clarify
+      setAwaitingConfirmation(false);
+      setPendingQuestion(null);
+      const clarifyMsg: Message = { role: "assistant", content: "I see! Please help me understand better - what exactly would you like help with?" };
+      setMessages(prev => [...prev, clarifyMsg]);
+      setCurrentHint("Please help me understand better - what exactly would you like help with?");
+      speakText("I see! Please help me understand better. What exactly would you like help with?");
+    }
+  };
+
+  const handleDrawingSubmit = async (imageData: string) => {
+    if (!sessionId) return;
+    
+    setIsAnalyzingDrawing(true);
+    try {
+      // Analyze the drawing
+      const analysisRes = await fetch("/api/tutor/analyze-drawing", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          imageData,
+          subject: selectedSubject,
+          context: currentTopic
+        })
+      });
+
+      if (!analysisRes.ok) throw new Error("Failed to analyze drawing");
+
+      const { interpretation, workAnalysis } = await analysisRes.json();
+      
+      // Add as a user message with the interpretation
+      const userMessage: Message = { 
+        role: "user", 
+        content: `[Student's work on whiteboard]\n${interpretation}`
+      };
+      setMessages(prev => [...prev, userMessage]);
+
+      // Now get the tutor's response to the work
+      const response = await fetch("/api/tutor/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sessionId,
+          message: `The student has submitted their work on the whiteboard. Here's what they wrote/drew: ${interpretation}\n\nAnalysis of their work: ${workAnalysis}\n\nPlease provide helpful feedback on their work.`,
+          history: messages,
+          teachingStyle
+        })
+      });
+
+      if (!response.ok) throw new Error("Failed to get response");
+
+      const data = await response.json();
+      const assistantMessage: Message = { role: "assistant", content: data.response };
+      setMessages(prev => [...prev, assistantMessage]);
+      setCurrentHint(data.response);
+      parseResponseToWhiteboard(data.response, interpretation);
+      speakText(data.response);
+
+      toast({
+        title: "Work Received",
+        description: "Your tutor is reviewing your work!"
+      });
+    } catch (error) {
+      console.error("Drawing analysis error:", error);
+      toast({
+        title: "Error",
+        description: "Failed to analyze your work. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsAnalyzingDrawing(false);
     }
   };
 
@@ -683,10 +796,10 @@ export default function Classroom() {
                     <h3 className="font-semibold text-sm mb-3">Ask a Question</h3>
                     
                     {/* Messages */}
-                    <div className="flex-1 overflow-y-auto space-y-2 mb-3 pr-1" data-testid="chat-messages-container">
+                    <div className="flex-1 overflow-y-auto space-y-2 mb-3 pr-1 min-h-[100px]" data-testid="chat-messages-container">
                         {messages.length === 0 ? (
                             <p className="text-muted-foreground text-xs text-center py-4">
-                                Type a question or use voice input to interact with your tutor.
+                                Type a question, draw your work, or use voice input.
                             </p>
                         ) : (
                             messages.slice(-6).map((msg, idx) => (
@@ -707,37 +820,102 @@ export default function Classroom() {
                         )}
                     </div>
 
-                    {/* Input */}
-                    <div className="flex gap-2">
-                        <Input
-                            placeholder="Type your question..."
-                            value={chatInput}
-                            onChange={(e) => setChatInput(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter" && chatInput.trim() && sessionId) {
-                                e.preventDefault();
-                                sendMessage(chatInput);
-                              }
-                            }}
-                            disabled={!sessionId}
-                            className="text-sm"
-                            data-testid="input-chat-message"
-                        />
-                        <Button
-                            size="icon"
-                            onClick={() => sendMessage(chatInput)}
-                            disabled={!sessionId || !chatInput.trim()}
-                            data-testid="button-send-message"
+                    {/* Confirmation Buttons */}
+                    {awaitingConfirmation && (
+                        <motion.div 
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="flex gap-2 mb-3"
                         >
-                            <Send className="w-4 h-4" />
-                        </Button>
-                    </div>
+                            <Button 
+                                onClick={() => handleConfirmation(true)}
+                                className="flex-1"
+                                data-testid="button-confirm-yes"
+                            >
+                                Yes, that's right!
+                            </Button>
+                            <Button 
+                                variant="outline"
+                                onClick={() => handleConfirmation(false)}
+                                className="flex-1"
+                                data-testid="button-confirm-no"
+                            >
+                                Let me clarify
+                            </Button>
+                        </motion.div>
+                    )}
+
+                    {/* Input - Typing */}
+                    {!awaitingConfirmation && (
+                        <div className="flex gap-2">
+                            <Input
+                                placeholder="Type your question..."
+                                value={chatInput}
+                                onChange={(e) => setChatInput(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter" && chatInput.trim() && sessionId) {
+                                    e.preventDefault();
+                                    sendMessage(chatInput);
+                                  }
+                                }}
+                                disabled={!sessionId || isAnalyzingDrawing}
+                                className="text-sm"
+                                data-testid="input-chat-message"
+                            />
+                            <Button
+                                size="icon"
+                                onClick={() => sendMessage(chatInput)}
+                                disabled={!sessionId || !chatInput.trim() || isAnalyzingDrawing}
+                                data-testid="button-send-message"
+                            >
+                                <Send className="w-4 h-4" />
+                            </Button>
+                        </div>
+                    )}
                 </Card>
             </div>
 
             {/* Main: Whiteboard - Primary Focus */}
-            <div className={`${showChat ? 'lg:col-span-6' : 'lg:col-span-9'} h-full min-h-0`}>
-                <Whiteboard content={whiteboardContent} sessionId={sessionId} />
+            <div className={`${showChat ? 'lg:col-span-6' : 'lg:col-span-9'} h-full min-h-0 flex flex-col`}>
+                <Tabs defaultValue="view" className="flex-1 flex flex-col">
+                    <TabsList className="mb-2 self-start">
+                        <TabsTrigger value="view" className="gap-1">
+                            <BookOpen className="w-4 h-4" /> Lesson
+                        </TabsTrigger>
+                        <TabsTrigger value="draw" className="gap-1">
+                            <Pencil className="w-4 h-4" /> Your Work
+                        </TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="view" className="flex-1 mt-0 min-h-0">
+                        <Whiteboard content={whiteboardContent} sessionId={sessionId} />
+                    </TabsContent>
+                    <TabsContent value="draw" className="flex-1 mt-0 min-h-0">
+                        <Card className="h-full p-6 flex flex-col">
+                            <div className="flex items-center justify-between mb-4">
+                                <div>
+                                    <h3 className="font-semibold text-lg">Your Workspace</h3>
+                                    <p className="text-sm text-muted-foreground">
+                                        Write or draw your work here - your tutor will analyze it and provide feedback
+                                    </p>
+                                </div>
+                                {isAnalyzingDrawing && (
+                                    <div className="flex items-center gap-2 text-primary">
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                        <span className="text-sm">Analyzing your work...</span>
+                                    </div>
+                                )}
+                            </div>
+                            <div className="flex-1">
+                                <DrawingCanvas 
+                                    onSubmit={handleDrawingSubmit}
+                                    disabled={isAnalyzingDrawing || !sessionId}
+                                    width={800}
+                                    height={400}
+                                />
+                            </div>
+                        </Card>
+                    </TabsContent>
+                </Tabs>
             </div>
 
             {/* Expanded Chat Panel (when showChat is true) */}
