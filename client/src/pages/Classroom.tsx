@@ -5,7 +5,7 @@ import { AvatarVideo } from "@/components/AvatarVideo";
 import { Whiteboard } from "@/components/Whiteboard";
 import { VoiceVisualizer } from "@/components/VoiceVisualizer";
 import { Button } from "@/components/ui/button";
-import { Mic, MicOff, MessageSquare, Send, User, Loader2 } from "lucide-react";
+import { Mic, MicOff, MessageSquare, Send, User, Loader2, BookOpen, Calculator } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface Message {
   role: "user" | "assistant";
@@ -35,11 +36,33 @@ export default function Classroom() {
   const [humanTutorReason, setHumanTutorReason] = useState("");
   const [humanTutorUrgency, setHumanTutorUrgency] = useState("normal");
   const [requestingHumanTutor, setRequestingHumanTutor] = useState(false);
+  const [selectedSubject, setSelectedSubject] = useState<"math" | "english">("math");
+  const [currentTopic, setCurrentTopic] = useState("Linear Equations");
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const sessionIdRef = useRef<number | null>(null);
   const messagesRef = useRef<Message[]>([]);
+  
+  const MATH_TOPICS = [
+    "Linear Equations",
+    "Quadratic Functions", 
+    "Algebra",
+    "Trigonometry",
+    "Calculus",
+    "Statistics & Probability",
+    "Geometry"
+  ];
+  
+  const ENGLISH_TOPICS = [
+    "Grammar & Writing",
+    "Essay Structure",
+    "Reading Comprehension",
+    "Literature Analysis",
+    "Persuasive Writing",
+    "Narrative Writing",
+    "Text Analysis"
+  ];
 
   // Keep refs in sync with state
   useEffect(() => {
@@ -70,7 +93,7 @@ export default function Classroom() {
         const response = await fetch("/api/sessions", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ topic: "Linear Equations" })
+          body: JSON.stringify({ subject: selectedSubject, topic: currentTopic })
         });
         
         if (!response.ok) throw new Error("Failed to create session");
@@ -356,9 +379,84 @@ export default function Classroom() {
       <main className="flex-1 md:ml-20 p-4 md:p-6 h-screen flex flex-col gap-4">
         {/* Header */}
         <header className="flex justify-between items-center mb-2">
-            <div>
-                <h1 className="text-2xl font-serif font-semibold">Algebra I: Linear Equations</h1>
-                <p className="text-muted-foreground text-sm">Unit 3 • Lesson 5</p>
+            <div className="flex items-center gap-4">
+                <div>
+                    <h1 className="text-2xl font-serif font-semibold">
+                        {selectedSubject === "math" ? "Mathematics" : "English"}: {currentTopic}
+                    </h1>
+                    <p className="text-muted-foreground text-sm">
+                        {selectedSubject === "math" ? "Australian Curriculum • Years 6-12" : "Language, Literature & Literacy • Years 6-12"}
+                    </p>
+                </div>
+                <div className="flex items-center gap-2">
+                    <Select 
+                        value={selectedSubject} 
+                        onValueChange={(value: "math" | "english") => {
+                            setSelectedSubject(value);
+                            setCurrentTopic(value === "math" ? MATH_TOPICS[0] : ENGLISH_TOPICS[0]);
+                            setMessages([]);
+                            setCurrentHint(value === "math" 
+                                ? "Let's work through some math problems together. What would you like to practice?"
+                                : "Let's explore the English language together. What would you like to work on?"
+                            );
+                        }}
+                    >
+                        <SelectTrigger className="w-[140px]" data-testid="select-subject">
+                            <SelectValue placeholder="Select subject" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="math">
+                                <div className="flex items-center gap-2">
+                                    <Calculator className="w-4 h-4" /> Mathematics
+                                </div>
+                            </SelectItem>
+                            <SelectItem value="english">
+                                <div className="flex items-center gap-2">
+                                    <BookOpen className="w-4 h-4" /> English
+                                </div>
+                            </SelectItem>
+                        </SelectContent>
+                    </Select>
+                    <Select 
+                        value={currentTopic} 
+                        onValueChange={(value) => {
+                            setCurrentTopic(value);
+                            setMessages([]);
+                        }}
+                    >
+                        <SelectTrigger className="w-[180px]" data-testid="select-topic">
+                            <SelectValue placeholder="Select topic" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {(selectedSubject === "math" ? MATH_TOPICS : ENGLISH_TOPICS).map(topic => (
+                                <SelectItem key={topic} value={topic}>{topic}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                    <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={async () => {
+                            const response = await fetch("/api/sessions", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ subject: selectedSubject, topic: currentTopic })
+                            });
+                            if (response.ok) {
+                                const session = await response.json();
+                                setSessionId(session.id);
+                                setMessages([]);
+                                toast({
+                                    title: "New Session Started",
+                                    description: `Ready to learn ${currentTopic}!`
+                                });
+                            }
+                        }}
+                        data-testid="button-start-session"
+                    >
+                        Start Session
+                    </Button>
+                </div>
             </div>
             <div className="flex gap-2">
                 <Button 

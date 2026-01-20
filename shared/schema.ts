@@ -22,7 +22,8 @@ export const profiles = pgTable("profiles", {
 export const tutoringSessions = pgTable("tutoring_sessions", {
   id: serial("id").primaryKey(),
   studentId: integer("student_id").notNull().references(() => profiles.id, { onDelete: "cascade" }),
-  topic: text("topic").notNull(), // e.g., "Linear Equations", "Quadratic Functions"
+  subject: text("subject").notNull().default("math"), // math, english
+  topic: text("topic").notNull(), // e.g., "Linear Equations", "Essay Writing"
   status: text("status").notNull().default("active"), // active, completed
   startedAt: timestamp("started_at").defaultNow().notNull(),
   completedAt: timestamp("completed_at"),
@@ -34,6 +35,7 @@ export const tutoringSessions = pgTable("tutoring_sessions", {
 export const progress = pgTable("progress", {
   id: serial("id").primaryKey(),
   studentId: integer("student_id").notNull().references(() => profiles.id, { onDelete: "cascade" }),
+  subject: text("subject").notNull().default("math"), // math, english
   topic: text("topic").notNull(),
   masteryLevel: integer("mastery_level").notNull().default(0), // 0-100
   problemsAttempted: integer("problems_attempted").default(0),

@@ -83,9 +83,13 @@ export async function registerRoutes(
       const profile = await tutoringStorage.getProfileByUserId(userId);
       if (!profile) return res.status(404).json({ error: "Profile not found" });
       
+      const subject = req.body.subject || "math";
+      const defaultTopic = subject === "english" ? "Grammar & Writing" : "Linear Equations";
+      
       const session = await tutoringStorage.createSession({
         studentId: profile.id,
-        topic: req.body.topic || "General Math",
+        subject,
+        topic: req.body.topic || defaultTopic,
         status: "active"
       });
       res.json(session);
@@ -138,11 +142,13 @@ export async function registerRoutes(
         content: message
       });
 
-      // Check if message contains math and get WolframAlpha result for accuracy
+      // Check if message contains math and get WolframAlpha result for accuracy (only for math subject)
       const { isMathQuestion, extractMathExpression, queryWolframAlpha, queryWolframAlphaFull } = await import("./wolfram-alpha");
       let wolframAnswer: string | undefined;
       
-      if (isMathQuestion(message)) {
+      const subject = session.subject || "math";
+      
+      if (subject === "math" && isMathQuestion(message)) {
         const mathExpr = extractMathExpression(message);
         if (mathExpr) {
           let wolframResult = await queryWolframAlpha(mathExpr);
@@ -161,7 +167,8 @@ export async function registerRoutes(
         history || [],
         message,
         session.topic,
-        wolframAnswer
+        wolframAnswer,
+        subject
       );
 
       // Store AI response (without the internal WolframAlpha note)
