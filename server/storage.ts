@@ -4,6 +4,7 @@ import {
   progress, 
   sessionMessages, 
   parentReports,
+  humanTutorRequests,
   type Profile,
   type InsertProfile,
   type TutoringSession,
@@ -13,10 +14,12 @@ import {
   type SessionMessage,
   type InsertSessionMessage,
   type ParentReport,
-  type InsertParentReport
+  type InsertParentReport,
+  type HumanTutorRequest,
+  type InsertHumanTutorRequest
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and } from "drizzle-orm";
 
 export interface ITutoringStorage {
   // Profiles
@@ -39,6 +42,12 @@ export interface ITutoringStorage {
   // Reports
   createParentReport(report: InsertParentReport): Promise<ParentReport>;
   getReportsByStudent(studentId: number): Promise<ParentReport[]>;
+  
+  // Human Tutor Requests
+  createHumanTutorRequest(request: InsertHumanTutorRequest): Promise<HumanTutorRequest>;
+  getHumanTutorRequestsByStudent(studentId: number): Promise<HumanTutorRequest[]>;
+  getPendingHumanTutorRequests(): Promise<HumanTutorRequest[]>;
+  updateHumanTutorRequest(id: number, updates: Partial<HumanTutorRequest>): Promise<HumanTutorRequest>;
 }
 
 class TutoringStorage implements ITutoringStorage {
@@ -93,8 +102,7 @@ class TutoringStorage implements ITutoringStorage {
 
   async updateProgress(progressData: InsertProgress): Promise<Progress> {
     const [existingProgress] = await db.select().from(progress)
-      .where(eq(progress.studentId, progressData.studentId))
-      .where(eq(progress.topic, progressData.topic));
+      .where(and(eq(progress.studentId, progressData.studentId), eq(progress.topic, progressData.topic)));
 
     if (existingProgress) {
       const [updated] = await db.update(progress)
@@ -115,6 +123,24 @@ class TutoringStorage implements ITutoringStorage {
 
   async getReportsByStudent(studentId: number): Promise<ParentReport[]> {
     return db.select().from(parentReports).where(eq(parentReports.studentId, studentId)).orderBy(desc(parentReports.sentAt));
+  }
+
+  async createHumanTutorRequest(requestData: InsertHumanTutorRequest): Promise<HumanTutorRequest> {
+    const [request] = await db.insert(humanTutorRequests).values(requestData).returning();
+    return request;
+  }
+
+  async getHumanTutorRequestsByStudent(studentId: number): Promise<HumanTutorRequest[]> {
+    return db.select().from(humanTutorRequests).where(eq(humanTutorRequests.studentId, studentId)).orderBy(desc(humanTutorRequests.createdAt));
+  }
+
+  async getPendingHumanTutorRequests(): Promise<HumanTutorRequest[]> {
+    return db.select().from(humanTutorRequests).where(eq(humanTutorRequests.status, "pending")).orderBy(desc(humanTutorRequests.createdAt));
+  }
+
+  async updateHumanTutorRequest(id: number, updates: Partial<HumanTutorRequest>): Promise<HumanTutorRequest> {
+    const [updated] = await db.update(humanTutorRequests).set(updates).where(eq(humanTutorRequests.id, id)).returning();
+    return updated;
   }
 }
 

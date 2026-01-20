@@ -61,12 +61,29 @@ export const parentReports = pgTable("parent_reports", {
   sentAt: timestamp("sent_at").defaultNow().notNull(),
 });
 
+// Live human tutor requests
+export const humanTutorRequests = pgTable("human_tutor_requests", {
+  id: serial("id").primaryKey(),
+  studentId: integer("student_id").notNull().references(() => profiles.id, { onDelete: "cascade" }),
+  sessionId: integer("session_id").references(() => tutoringSessions.id),
+  topic: text("topic").notNull(),
+  reason: text("reason").notNull(), // Why the student needs human help
+  urgency: text("urgency").notNull().default("normal"), // normal, urgent
+  status: text("status").notNull().default("pending"), // pending, assigned, completed, cancelled
+  assignedTutorId: integer("assigned_tutor_id").references(() => profiles.id),
+  scheduledTime: timestamp("scheduled_time"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  resolvedAt: timestamp("resolved_at"),
+});
+
 // Zod schemas
 export const insertProfileSchema = createInsertSchema(profiles).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertTutoringSessionSchema = createInsertSchema(tutoringSessions).omit({ id: true, startedAt: true });
 export const insertProgressSchema = createInsertSchema(progress).omit({ id: true });
 export const insertSessionMessageSchema = createInsertSchema(sessionMessages).omit({ id: true, createdAt: true });
 export const insertParentReportSchema = createInsertSchema(parentReports).omit({ id: true, sentAt: true });
+export const insertHumanTutorRequestSchema = createInsertSchema(humanTutorRequests).omit({ id: true, createdAt: true });
 
 // Types
 export type Profile = typeof profiles.$inferSelect;
@@ -79,6 +96,8 @@ export type SessionMessage = typeof sessionMessages.$inferSelect;
 export type InsertSessionMessage = z.infer<typeof insertSessionMessageSchema>;
 export type ParentReport = typeof parentReports.$inferSelect;
 export type InsertParentReport = z.infer<typeof insertParentReportSchema>;
+export type HumanTutorRequest = typeof humanTutorRequests.$inferSelect;
+export type InsertHumanTutorRequest = z.infer<typeof insertHumanTutorRequestSchema>;
 
 // Re-export from auth
 import { users } from "./models/auth";

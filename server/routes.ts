@@ -248,6 +248,62 @@ export async function registerRoutes(
     }
   });
 
+  // Human Tutor Request endpoints
+  app.post("/api/tutor/request-human", async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+      
+      const profile = await tutoringStorage.getProfileByUserId(userId);
+      if (!profile) return res.status(404).json({ error: "Profile not found" });
+
+      const { topic, reason, urgency, sessionId } = req.body;
+      if (!topic || !reason) {
+        return res.status(400).json({ error: "Topic and reason are required" });
+      }
+
+      const request = await tutoringStorage.createHumanTutorRequest({
+        studentId: profile.id,
+        sessionId: sessionId || null,
+        topic,
+        reason,
+        urgency: urgency || "normal",
+        status: "pending"
+      });
+
+      res.json(request);
+    } catch (error) {
+      console.error("Error creating human tutor request:", error);
+      res.status(500).json({ error: "Failed to create request" });
+    }
+  });
+
+  app.get("/api/tutor/requests", async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+      
+      const profile = await tutoringStorage.getProfileByUserId(userId);
+      if (!profile) return res.status(404).json({ error: "Profile not found" });
+
+      const requests = await tutoringStorage.getHumanTutorRequestsByStudent(profile.id);
+      res.json(requests);
+    } catch (error) {
+      console.error("Error fetching tutor requests:", error);
+      res.status(500).json({ error: "Failed to fetch requests" });
+    }
+  });
+
+  app.get("/api/admin/tutor-requests/pending", async (req: any, res) => {
+    try {
+      const requests = await tutoringStorage.getPendingHumanTutorRequests();
+      res.json(requests);
+    } catch (error) {
+      console.error("Error fetching pending requests:", error);
+      res.status(500).json({ error: "Failed to fetch pending requests" });
+    }
+  });
+
   // AI Agents endpoints
   app.post("/api/agents/chat", async (req: any, res) => {
     try {

@@ -5,10 +5,14 @@ import { AvatarVideo } from "@/components/AvatarVideo";
 import { Whiteboard } from "@/components/Whiteboard";
 import { VoiceVisualizer } from "@/components/VoiceVisualizer";
 import { Button } from "@/components/ui/button";
-import { Mic, MicOff, MessageSquare, Send } from "lucide-react";
+import { Mic, MicOff, MessageSquare, Send, User, Loader2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 interface Message {
   role: "user" | "assistant";
@@ -27,6 +31,10 @@ export default function Classroom() {
   const [showChat, setShowChat] = useState(false);
   const [currentHint, setCurrentHint] = useState("Let's start with a simple problem. Are you ready?");
   const [currentSpeechText, setCurrentSpeechText] = useState<string | undefined>(undefined);
+  const [showHumanTutorDialog, setShowHumanTutorDialog] = useState(false);
+  const [humanTutorReason, setHumanTutorReason] = useState("");
+  const [humanTutorUrgency, setHumanTutorUrgency] = useState("normal");
+  const [requestingHumanTutor, setRequestingHumanTutor] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -271,6 +279,51 @@ export default function Classroom() {
     setCurrentSpeechText(undefined);
   };
 
+  const requestHumanTutor = async () => {
+    if (!humanTutorReason.trim()) {
+      toast({
+        title: "Please provide a reason",
+        description: "Tell us why you need help from a human tutor.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setRequestingHumanTutor(true);
+    try {
+      const response = await fetch("/api/tutor/request-human", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          topic: "Linear Equations",
+          reason: humanTutorReason,
+          urgency: humanTutorUrgency,
+          sessionId
+        })
+      });
+
+      if (response.ok) {
+        toast({
+          title: "Request Submitted",
+          description: "A human tutor will be in touch with you soon!"
+        });
+        setShowHumanTutorDialog(false);
+        setHumanTutorReason("");
+        setHumanTutorUrgency("normal");
+      } else {
+        throw new Error("Failed to submit request");
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to submit request. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setRequestingHumanTutor(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background flex font-sans">
       <Nav />
@@ -300,6 +353,14 @@ export default function Classroom() {
                 >
                     {isRecording ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
                     {isRecording ? "Stop Recording" : "Speak to Ms. Chen"}
+                </Button>
+                <Button 
+                    variant="outline"
+                    className="gap-2"
+                    onClick={() => setShowHumanTutorDialog(true)}
+                    data-testid="button-request-human"
+                >
+                    <User className="w-4 h-4" /> Human Tutor
                 </Button>
             </div>
         </header>
@@ -403,6 +464,62 @@ export default function Classroom() {
 
         </div>
       </main>
+
+      {/* Human Tutor Request Dialog */}
+      <Dialog open={showHumanTutorDialog} onOpenChange={setShowHumanTutorDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Request a Human Tutor</DialogTitle>
+            <DialogDescription>
+              Need extra help? Request a live session with a human tutor. We'll match you with an expert who can provide personalized assistance.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="reason">What do you need help with?</Label>
+              <Textarea 
+                id="reason"
+                placeholder="Describe what you're struggling with..."
+                value={humanTutorReason}
+                onChange={(e) => setHumanTutorReason(e.target.value)}
+                className="min-h-[100px]"
+                data-testid="textarea-tutor-reason"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label>How urgent is your request?</Label>
+              <RadioGroup value={humanTutorUrgency} onValueChange={setHumanTutorUrgency}>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="normal" id="normal" />
+                  <Label htmlFor="normal" className="font-normal">Normal - within 24 hours</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="urgent" id="urgent" />
+                  <Label htmlFor="urgent" className="font-normal">Urgent - as soon as possible</Label>
+                </div>
+              </RadioGroup>
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowHumanTutorDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={requestHumanTutor} disabled={requestingHumanTutor} data-testid="button-submit-tutor-request">
+              {requestingHumanTutor ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Submitting...
+                </>
+              ) : (
+                "Submit Request"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
