@@ -243,5 +243,67 @@ export async function registerRoutes(
     }
   });
 
+  // D-ID Avatar endpoints
+  app.post("/api/avatar/talk", async (req: any, res) => {
+    try {
+      const { text, imageUrl } = req.body;
+      if (!text) return res.status(400).json({ error: "Text required" });
+
+      const { createTalkingAvatar } = await import("./did-avatar");
+      const result = await createTalkingAvatar(
+        text,
+        imageUrl || "https://create-images-results.d-id.com/DefaultPresenters/Emma_f/v1_image.jpeg"
+      );
+      res.json(result);
+    } catch (error) {
+      console.error("Error creating talking avatar:", error);
+      res.status(500).json({ error: "Failed to create talking avatar" });
+    }
+  });
+
+  app.post("/api/avatar/stream/start", async (req: any, res) => {
+    try {
+      const { imageUrl } = req.body;
+      const { createStreamingSession } = await import("./did-avatar");
+      const result = await createStreamingSession(
+        imageUrl || "https://create-images-results.d-id.com/DefaultPresenters/Emma_f/v1_image.jpeg"
+      );
+      res.json(result);
+    } catch (error) {
+      console.error("Error starting avatar stream:", error);
+      res.status(500).json({ error: "Failed to start avatar stream" });
+    }
+  });
+
+  app.post("/api/avatar/stream/speak", async (req: any, res) => {
+    try {
+      const { sessionId, text } = req.body;
+      if (!sessionId || !text) {
+        return res.status(400).json({ error: "Session ID and text required" });
+      }
+
+      const { sendTextToStream } = await import("./did-avatar");
+      await sendTextToStream(sessionId, text);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error sending text to stream:", error);
+      res.status(500).json({ error: "Failed to send text to stream" });
+    }
+  });
+
+  app.post("/api/avatar/stream/close", async (req: any, res) => {
+    try {
+      const { sessionId } = req.body;
+      if (!sessionId) return res.status(400).json({ error: "Session ID required" });
+
+      const { closeStream } = await import("./did-avatar");
+      await closeStream(sessionId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error closing stream:", error);
+      res.status(500).json({ error: "Failed to close stream" });
+    }
+  });
+
   return httpServer;
 }

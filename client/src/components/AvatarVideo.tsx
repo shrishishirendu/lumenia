@@ -6,153 +6,107 @@ interface AvatarVideoProps {
   isSpeaking: boolean;
   isListening: boolean;
   emotion?: "neutral" | "happy" | "thinking";
-  audioElement?: HTMLAudioElement | null;
+  textToSpeak?: string;
+  onSpeakingComplete?: () => void;
 }
 
-export function AvatarVideo({ isSpeaking, isListening, emotion = "neutral", audioElement }: AvatarVideoProps) {
-  const [mouthState, setMouthState] = useState<0 | 1 | 2 | 3>(0);
-  const analyserRef = useRef<AnalyserNode | null>(null);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const sourceRef = useRef<MediaElementAudioSourceNode | null>(null);
-  const animationFrameRef = useRef<number | null>(null);
+export function AvatarVideo({ 
+  isSpeaking, 
+  isListening, 
+  emotion = "neutral",
+  textToSpeak,
+  onSpeakingComplete
+}: AvatarVideoProps) {
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [useDidAvatar, setUseDidAvatar] = useState(true);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
-    if (!isSpeaking || !audioElement) {
-      setMouthState(0);
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
+    if (textToSpeak && isSpeaking && useDidAvatar) {
+      generateAvatarVideo(textToSpeak);
+    }
+  }, [textToSpeak, isSpeaking, useDidAvatar]);
+
+  const generateAvatarVideo = async (text: string) => {
+    setIsLoading(true);
+    try {
+      const response = await fetch("/api/avatar/talk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setVideoUrl(data.videoUrl);
+      } else {
+        console.error("Failed to generate avatar video");
+        setUseDidAvatar(false);
       }
-      return;
+    } catch (error) {
+      console.error("Avatar video error:", error);
+      setUseDidAvatar(false);
+    } finally {
+      setIsLoading(false);
     }
+  };
 
-    const setupAudioAnalysis = async () => {
-      try {
-        if (!audioContextRef.current) {
-          audioContextRef.current = new AudioContext();
-        }
-
-        const ctx = audioContextRef.current;
-        
-        if (ctx.state === 'suspended') {
-          await ctx.resume();
-        }
-
-        if (!sourceRef.current) {
-          sourceRef.current = ctx.createMediaElementSource(audioElement);
-          analyserRef.current = ctx.createAnalyser();
-          analyserRef.current.fftSize = 256;
-          sourceRef.current.connect(analyserRef.current);
-          analyserRef.current.connect(ctx.destination);
-        }
-
-        const analyser = analyserRef.current;
-        if (!analyser) return;
-
-        const dataArray = new Uint8Array(analyser.frequencyBinCount);
-
-        const analyze = () => {
-          if (!isSpeaking) {
-            setMouthState(0);
-            return;
-          }
-
-          analyser.getByteFrequencyData(dataArray);
-          
-          let sum = 0;
-          for (let i = 0; i < dataArray.length; i++) {
-            sum += dataArray[i];
-          }
-          const average = sum / dataArray.length;
-
-          if (average < 20) {
-            setMouthState(0);
-          } else if (average < 50) {
-            setMouthState(1);
-          } else if (average < 100) {
-            setMouthState(2);
-          } else {
-            setMouthState(3);
-          }
-
-          animationFrameRef.current = requestAnimationFrame(analyze);
-        };
-
-        analyze();
-      } catch (error) {
-        console.error("Audio analysis setup failed:", error);
-        const interval = setInterval(() => {
-          if (isSpeaking) {
-            setMouthState(prev => ((prev + 1) % 4) as 0 | 1 | 2 | 3);
-          }
-        }, 150);
-        return () => clearInterval(interval);
-      }
-    };
-
-    setupAudioAnalysis();
-
-    return () => {
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
-    };
-  }, [isSpeaking, audioElement]);
-
-  useEffect(() => {
-    if (isSpeaking && !audioElement) {
-      const interval = setInterval(() => {
-        setMouthState(prev => ((prev + 1) % 4) as 0 | 1 | 2 | 3);
-      }, 150);
-      return () => clearInterval(interval);
-    }
-    if (!isSpeaking) {
-      setMouthState(0);
-    }
-  }, [isSpeaking, audioElement]);
-
-  useEffect(() => {
-    if (isSpeaking) {
-      const fallbackInterval = setInterval(() => {
-        setMouthState(prev => {
-          const next = Math.floor(Math.random() * 4) as 0 | 1 | 2 | 3;
-          return next;
-        });
-      }, 100);
-      return () => clearInterval(fallbackInterval);
-    }
-  }, [isSpeaking]);
-
-  const mouthHeights = [0, 6, 12, 18];
-  const mouthWidths = [24, 22, 20, 18];
+  const handleVideoEnded = () => {
+    setVideoUrl(null);
+    onSpeakingComplete?.();
+  };
 
   return (
     <div className="relative w-full h-full overflow-hidden rounded-2xl bg-gradient-to-b from-slate-800 to-slate-900 shadow-2xl border border-white/10 group">
       <div className="absolute inset-0 bg-gradient-radial from-primary/5 via-transparent to-transparent z-0" />
 
-      <motion.img 
-        src={teacherAvatar} 
-        alt="Ms. Chen - AI Tutor" 
-        className="absolute inset-0 w-full h-full object-cover z-10"
-        animate={{ 
-          scale: isSpeaking ? 1.01 : 1,
-        }}
-        transition={{ duration: 0.3 }}
-      />
+      {/* Video avatar when available */}
+      {videoUrl && (
+        <video
+          ref={videoRef}
+          src={videoUrl}
+          autoPlay
+          onEnded={handleVideoEnded}
+          className="absolute inset-0 w-full h-full object-cover z-10"
+        />
+      )}
 
-      {isSpeaking && (
+      {/* Static image fallback */}
+      {!videoUrl && (
+        <motion.img 
+          src={teacherAvatar} 
+          alt="Ms. Chen - AI Tutor" 
+          className="absolute inset-0 w-full h-full object-cover z-10"
+          animate={{ 
+            scale: isSpeaking ? 1.01 : 1,
+          }}
+          transition={{ duration: 0.3 }}
+        />
+      )}
+
+      {/* Loading overlay */}
+      {isLoading && (
+        <div className="absolute inset-0 z-30 bg-black/50 flex items-center justify-center">
+          <motion.div
+            className="w-16 h-16 border-4 border-indigo-400 border-t-transparent rounded-full"
+            animate={{ rotate: 360 }}
+            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+          />
+        </div>
+      )}
+
+      {/* Speaking animations when no video */}
+      {isSpeaking && !videoUrl && (
         <div className="absolute inset-0 z-20 pointer-events-none">
-          {/* Voice wave animation at bottom - clearly visible */}
+          {/* Voice wave animation at bottom */}
           <div className="absolute bottom-16 left-1/2 -translate-x-1/2 flex items-end gap-1 h-12">
             {[...Array(12)].map((_, i) => (
               <motion.div
                 key={i}
                 className="w-2 bg-gradient-to-t from-indigo-500 to-purple-400 rounded-full"
                 animate={{
-                  height: [
-                    8 + Math.sin(i * 0.5) * 4,
-                    20 + Math.sin(i * 0.8 + mouthState) * 20,
-                    8 + Math.sin(i * 0.5) * 4
-                  ],
+                  height: [8, 20 + Math.random() * 20, 8],
                 }}
                 transition={{
                   duration: 0.15 + (i % 3) * 0.05,
@@ -190,7 +144,6 @@ export function AvatarVideo({ isSpeaking, isListening, emotion = "neutral", audi
                 transition={{ duration: 0.4, repeat: Infinity, delay: 0.2 }}
               />
             </div>
-            {/* Speech bubble tail */}
             <div className="absolute -bottom-2 left-4 w-4 h-4 bg-white/95 rotate-45" />
           </motion.div>
 
@@ -209,20 +162,7 @@ export function AvatarVideo({ isSpeaking, isListening, emotion = "neutral", audi
         </div>
       )}
 
-      {isSpeaking && (
-        <motion.div 
-          className="absolute inset-0 z-15 rounded-2xl"
-          animate={{ 
-            boxShadow: [
-              "inset 0 0 40px rgba(99, 102, 241, 0.05)",
-              "inset 0 0 60px rgba(99, 102, 241, 0.1)",
-              "inset 0 0 40px rgba(99, 102, 241, 0.05)"
-            ]
-          }}
-          transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
-        />
-      )}
-
+      {/* Listening indicator */}
       {isListening && !isSpeaking && (
         <motion.div 
           className="absolute top-[30%] right-[18%] w-6 h-6 rounded-full bg-green-400/40 blur-md z-20"
@@ -234,6 +174,7 @@ export function AvatarVideo({ isSpeaking, isListening, emotion = "neutral", audi
         />
       )}
 
+      {/* Status Badge */}
       <div className="absolute bottom-4 left-4 z-30">
         <motion.div 
           className={`px-4 py-2 rounded-full text-sm font-medium backdrop-blur-xl flex items-center gap-2 ${
@@ -253,10 +194,13 @@ export function AvatarVideo({ isSpeaking, isListening, emotion = "neutral", audi
             }}
             transition={{ duration: 0.5, repeat: isSpeaking || isListening ? Infinity : 0 }}
           />
-          <span>{isSpeaking ? "Ms. Chen is speaking" : isListening ? "Listening to you" : "Ready to help"}</span>
+          <span>
+            {isLoading ? "Generating video..." : isSpeaking ? "Ms. Chen is speaking" : isListening ? "Listening to you" : "Ready to help"}
+          </span>
         </motion.div>
       </div>
 
+      {/* Name tag */}
       <div className="absolute top-4 left-4 z-30">
         <div className="px-3 py-1.5 rounded-lg bg-black/50 backdrop-blur-xl border border-white/10 text-white">
           <span className="font-serif font-semibold">Ms. Eleanor Chen</span>
@@ -264,6 +208,7 @@ export function AvatarVideo({ isSpeaking, isListening, emotion = "neutral", audi
         </div>
       </div>
 
+      {/* Live indicator */}
       <div className="absolute top-4 right-4 z-30">
         <motion.div 
           className="px-2.5 py-1 rounded-md bg-red-500/90 text-white text-xs font-bold flex items-center gap-1.5"
@@ -279,7 +224,8 @@ export function AvatarVideo({ isSpeaking, isListening, emotion = "neutral", audi
         </motion.div>
       </div>
 
-      {isSpeaking && (
+      {/* Audio waveform for speaking */}
+      {isSpeaking && !videoUrl && (
         <div className="absolute bottom-20 left-1/2 -translate-x-1/2 z-30 flex gap-1">
           {[0, 1, 2, 3, 4].map((i) => (
             <motion.div

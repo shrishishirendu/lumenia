@@ -26,6 +26,7 @@ export default function Classroom() {
   const [chatInput, setChatInput] = useState("");
   const [showChat, setShowChat] = useState(false);
   const [currentHint, setCurrentHint] = useState("Let's start with a simple problem. Are you ready?");
+  const [currentSpeechText, setCurrentSpeechText] = useState<string | undefined>(undefined);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -236,6 +237,7 @@ export default function Classroom() {
   const speakText = async (text: string) => {
     try {
       setIsAvatarSpeaking(true);
+      setCurrentSpeechText(text);
       
       const response = await fetch("/api/tutor/speak", {
         method: "POST",
@@ -253,13 +255,20 @@ export default function Classroom() {
         audioRef.current.play();
         audioRef.current.onended = () => {
           setIsAvatarSpeaking(false);
+          setCurrentSpeechText(undefined);
           URL.revokeObjectURL(audioUrl);
         };
       }
     } catch (error) {
       console.error("Speech generation error:", error);
       setIsAvatarSpeaking(false);
+      setCurrentSpeechText(undefined);
     }
+  };
+
+  const handleAvatarSpeakingComplete = () => {
+    setIsAvatarSpeaking(false);
+    setCurrentSpeechText(undefined);
   };
 
   return (
@@ -304,7 +313,8 @@ export default function Classroom() {
                     <AvatarVideo 
                         isSpeaking={isAvatarSpeaking} 
                         isListening={micActive && !isAvatarSpeaking}
-                        audioElement={audioRef.current}
+                        textToSpeak={currentSpeechText}
+                        onSpeakingComplete={handleAvatarSpeakingComplete}
                     />
                     
                     {/* Floating Controls Overlay */}
