@@ -11,6 +11,9 @@ import Dashboard from "@/pages/Dashboard";
 import ParentPortal from "@/pages/ParentPortal";
 import Growth from "@/pages/Growth";
 import Onboarding from "@/pages/Onboarding";
+import AdminPanel from "@/pages/AdminPanel";
+import TutorDashboard from "@/pages/TutorDashboard";
+import StudentDashboard from "@/pages/StudentDashboard";
 
 function Router() {
   return (
@@ -19,6 +22,9 @@ function Router() {
       <Route path="/onboarding" component={Onboarding} />
       <Route path="/classroom" component={Classroom} />
       <Route path="/dashboard" component={Dashboard} />
+      <Route path="/admin" component={AdminPanel} />
+      <Route path="/tutor" component={TutorDashboard} />
+      <Route path="/student" component={StudentDashboard} />
       <Route path="/parent" component={ParentPortal} />
       <Route path="/growth" component={Growth} />
       <Route component={NotFound} />

@@ -475,5 +475,312 @@ export async function registerRoutes(
     }
   });
 
+  // ============ ADMIN ROUTES ============
+  
+  // Get all tutors (admin only)
+  app.get("/api/admin/tutors", async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+      
+      const profile = await tutoringStorage.getProfileByUserId(userId);
+      if (!profile || (profile.role !== "owner" && profile.role !== "admin")) {
+        return res.status(403).json({ error: "Admin access required" });
+      }
+      
+      const tutorProfiles = await tutoringStorage.getAllTutorProfiles();
+      res.json(tutorProfiles);
+    } catch (error) {
+      console.error("Error fetching tutors:", error);
+      res.status(500).json({ error: "Failed to fetch tutors" });
+    }
+  });
+
+  // Get all students (admin only)
+  app.get("/api/admin/students", async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+      
+      const profile = await tutoringStorage.getProfileByUserId(userId);
+      if (!profile || (profile.role !== "owner" && profile.role !== "admin")) {
+        return res.status(403).json({ error: "Admin access required" });
+      }
+      
+      const students = await tutoringStorage.getProfilesByRole("student");
+      res.json(students);
+    } catch (error) {
+      console.error("Error fetching students:", error);
+      res.status(500).json({ error: "Failed to fetch students" });
+    }
+  });
+
+  // Get all support tickets (admin only)
+  app.get("/api/admin/tickets", async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+      
+      const profile = await tutoringStorage.getProfileByUserId(userId);
+      if (!profile || (profile.role !== "owner" && profile.role !== "admin")) {
+        return res.status(403).json({ error: "Admin access required" });
+      }
+      
+      const tickets = await tutoringStorage.getAllSupportTickets();
+      res.json(tickets);
+    } catch (error) {
+      console.error("Error fetching tickets:", error);
+      res.status(500).json({ error: "Failed to fetch tickets" });
+    }
+  });
+
+  // Update ticket status (admin only)
+  app.patch("/api/admin/tickets/:id", async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+      
+      const profile = await tutoringStorage.getProfileByUserId(userId);
+      if (!profile || (profile.role !== "owner" && profile.role !== "admin")) {
+        return res.status(403).json({ error: "Admin access required" });
+      }
+      
+      const ticketId = parseInt(req.params.id);
+      const updated = await tutoringStorage.updateSupportTicket(ticketId, req.body);
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating ticket:", error);
+      res.status(500).json({ error: "Failed to update ticket" });
+    }
+  });
+
+  // Get activity logs (admin only)
+  app.get("/api/admin/activities", async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+      
+      const profile = await tutoringStorage.getProfileByUserId(userId);
+      if (!profile || (profile.role !== "owner" && profile.role !== "admin")) {
+        return res.status(403).json({ error: "Admin access required" });
+      }
+      
+      const activities = await tutoringStorage.getRecentActivityLogs(50);
+      res.json(activities);
+    } catch (error) {
+      console.error("Error fetching activities:", error);
+      res.status(500).json({ error: "Failed to fetch activities" });
+    }
+  });
+
+  // Create new tutor (admin only)
+  app.post("/api/admin/tutors", async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+      
+      const profile = await tutoringStorage.getProfileByUserId(userId);
+      if (!profile || (profile.role !== "owner" && profile.role !== "admin")) {
+        return res.status(403).json({ error: "Admin access required" });
+      }
+      
+      // For now, just return success - full tutor creation requires user account creation
+      res.json({ success: true, message: "Tutor invitation would be sent to " + req.body.email });
+    } catch (error) {
+      console.error("Error creating tutor:", error);
+      res.status(500).json({ error: "Failed to create tutor" });
+    }
+  });
+
+  // ============ TUTOR ROUTES ============
+  
+  // Get tutor's own profile
+  app.get("/api/tutor/profile", async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+      
+      const profile = await tutoringStorage.getProfileByUserId(userId);
+      if (!profile) return res.status(404).json({ error: "Profile not found" });
+      
+      const tutorProfile = await tutoringStorage.getTutorProfileByProfileId(profile.id);
+      if (!tutorProfile) return res.status(404).json({ error: "Tutor profile not found" });
+      
+      res.json(tutorProfile);
+    } catch (error) {
+      console.error("Error fetching tutor profile:", error);
+      res.status(500).json({ error: "Failed to fetch tutor profile" });
+    }
+  });
+
+  // Update tutor profile
+  app.patch("/api/tutor/profile", async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+      
+      const profile = await tutoringStorage.getProfileByUserId(userId);
+      if (!profile) return res.status(404).json({ error: "Profile not found" });
+      
+      const tutorProfile = await tutoringStorage.getTutorProfileByProfileId(profile.id);
+      if (!tutorProfile) return res.status(404).json({ error: "Tutor profile not found" });
+      
+      const updated = await tutoringStorage.updateTutorProfile(tutorProfile.id, req.body);
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating tutor profile:", error);
+      res.status(500).json({ error: "Failed to update tutor profile" });
+    }
+  });
+
+  // Get tutor's assigned students
+  app.get("/api/tutor/students", async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+      
+      const profile = await tutoringStorage.getProfileByUserId(userId);
+      if (!profile) return res.status(404).json({ error: "Profile not found" });
+      
+      const tutorProfile = await tutoringStorage.getTutorProfileByProfileId(profile.id);
+      if (!tutorProfile) return res.status(404).json({ error: "Tutor profile not found" });
+      
+      const assignments = await tutoringStorage.getTutorAssignmentsByTutor(tutorProfile.id);
+      res.json(assignments);
+    } catch (error) {
+      console.error("Error fetching tutor students:", error);
+      res.status(500).json({ error: "Failed to fetch assigned students" });
+    }
+  });
+
+  // ============ STUDENT ROUTES ============
+  
+  // Get student's teaching plans
+  app.get("/api/student/teaching-plans", async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+      
+      const profile = await tutoringStorage.getProfileByUserId(userId);
+      if (!profile) return res.status(404).json({ error: "Profile not found" });
+      
+      const plans = await tutoringStorage.getTeachingPlansByStudent(profile.id);
+      res.json(plans);
+    } catch (error) {
+      console.error("Error fetching teaching plans:", error);
+      res.status(500).json({ error: "Failed to fetch teaching plans" });
+    }
+  });
+
+  // Get student's session history
+  app.get("/api/student/sessions", async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+      
+      const profile = await tutoringStorage.getProfileByUserId(userId);
+      if (!profile) return res.status(404).json({ error: "Profile not found" });
+      
+      const sessions = await tutoringStorage.getSessionsByStudent(profile.id);
+      res.json(sessions);
+    } catch (error) {
+      console.error("Error fetching sessions:", error);
+      res.status(500).json({ error: "Failed to fetch sessions" });
+    }
+  });
+
+  // Get student's progress
+  app.get("/api/student/progress", async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+      
+      const profile = await tutoringStorage.getProfileByUserId(userId);
+      if (!profile) return res.status(404).json({ error: "Profile not found" });
+      
+      const progress = await tutoringStorage.getProgressByStudent(profile.id);
+      res.json(progress);
+    } catch (error) {
+      console.error("Error fetching progress:", error);
+      res.status(500).json({ error: "Failed to fetch progress" });
+    }
+  });
+
+  // ============ PARENT ROUTES ============
+  
+  // Get parent's linked students
+  app.get("/api/parent/students", async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+      
+      const profile = await tutoringStorage.getProfileByUserId(userId);
+      if (!profile) return res.status(404).json({ error: "Profile not found" });
+      
+      const links = await tutoringStorage.getLinkedStudents(profile.id);
+      res.json(links);
+    } catch (error) {
+      console.error("Error fetching linked students:", error);
+      res.status(500).json({ error: "Failed to fetch linked students" });
+    }
+  });
+
+  // Create support ticket
+  app.post("/api/parent/tickets", async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+      
+      const profile = await tutoringStorage.getProfileByUserId(userId);
+      if (!profile) return res.status(404).json({ error: "Profile not found" });
+      
+      const ticket = await tutoringStorage.createSupportTicket({
+        submitterId: profile.id,
+        ...req.body
+      });
+      res.json(ticket);
+    } catch (error) {
+      console.error("Error creating ticket:", error);
+      res.status(500).json({ error: "Failed to create ticket" });
+    }
+  });
+
+  // Create appointment booking
+  app.post("/api/parent/appointments", async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+      
+      const profile = await tutoringStorage.getProfileByUserId(userId);
+      if (!profile) return res.status(404).json({ error: "Profile not found" });
+      
+      const appointment = await tutoringStorage.createAppointment({
+        requestorId: profile.id,
+        ...req.body
+      });
+      res.json(appointment);
+    } catch (error) {
+      console.error("Error creating appointment:", error);
+      res.status(500).json({ error: "Failed to create appointment" });
+    }
+  });
+
+  // Get parent's appointments
+  app.get("/api/parent/appointments", async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+      
+      const profile = await tutoringStorage.getProfileByUserId(userId);
+      if (!profile) return res.status(404).json({ error: "Profile not found" });
+      
+      const appointments = await tutoringStorage.getAppointmentsByRequestor(profile.id);
+      res.json(appointments);
+    } catch (error) {
+      console.error("Error fetching appointments:", error);
+      res.status(500).json({ error: "Failed to fetch appointments" });
+    }
+  });
+
   return httpServer;
 }
