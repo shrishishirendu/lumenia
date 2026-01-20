@@ -103,21 +103,10 @@ export default function Classroom() {
     }
 
     try {
-      // First enumerate devices to check for available microphones
-      const devices = await navigator.mediaDevices.enumerateDevices();
-      const audioInputs = devices.filter(d => d.kind === 'audioinput');
-      console.log("Available audio inputs:", audioInputs.length);
+      // Simple audio request - let browser handle device selection
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       
-      // Request microphone permission with constraints
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true
-        }
-      });
-      
-      // Prefer webm for ffmpeg compatibility, fallback to default
+      // Determine the best mimeType for recording
       let mimeType = '';
       const supportedTypes = [
         'audio/webm;codecs=opus',
@@ -133,7 +122,7 @@ export default function Classroom() {
         }
       }
       
-      console.log("Using mimeType:", mimeType || "browser default");
+      console.log("Recording started, mimeType:", mimeType || "browser default");
       
       const mediaRecorder = mimeType 
         ? new MediaRecorder(stream, { mimeType })
@@ -172,54 +161,49 @@ export default function Classroom() {
         });
       };
 
-      mediaRecorder.start(100); // Capture in 100ms chunks for better reliability
+      mediaRecorder.start(100);
       setIsRecording(true);
       setMicActive(true);
     } catch (error: any) {
       console.error("Failed to start recording:", error.name, error.message);
       
-      // Provide more specific error messages
-      let errorMessage = "Could not access microphone. Please check your browser permissions.";
+      // Check if running in embedded iframe/preview
+      const isEmbedded = window.self !== window.top;
+      
+      let errorMessage = "Could not access microphone.";
+      let showOpenInNewTab = false;
+      
       if (error.name === "NotAllowedError" || error.name === "PermissionDeniedError") {
-        errorMessage = "Microphone access was denied. Please click the lock icon in the address bar, allow microphone access, and refresh the page.";
-      } else if (error.name === "NotFoundError" || error.name === "DevicesNotFoundError") {
-        errorMessage = "No microphone detected. Please ensure your microphone is connected and not blocked by browser settings.";
-      } else if (error.name === "NotReadableError" || error.name === "TrackStartError") {
-        errorMessage = "Could not access microphone. It may be in use by another app.";
-      } else if (error.name === "OverconstrainedError") {
-        // Try again with simpler constraints
-        try {
-          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-          const mediaRecorder = new MediaRecorder(stream);
-          mediaRecorderRef.current = mediaRecorder;
-          audioChunksRef.current = [];
-          
-          mediaRecorder.ondataavailable = (event) => {
-            if (event.data.size > 0) {
-              audioChunksRef.current.push(event.data);
-            }
-          };
-          
-          mediaRecorder.onstop = async () => {
-            stream.getTracks().forEach(track => track.stop());
-            if (audioChunksRef.current.length === 0) return;
-            const audioBlob = new Blob(audioChunksRef.current, { type: mediaRecorder.mimeType });
-            await transcribeAndSend(audioBlob);
-          };
-          
-          mediaRecorder.start(100);
-          setIsRecording(true);
-          setMicActive(true);
-          return;
-        } catch {
-          errorMessage = "Could not configure microphone. Please try again.";
+        if (isEmbedded) {
+          errorMessage = "Microphone access is blocked in this preview. Click 'Open in new tab' below to use voice input.";
+          showOpenInNewTab = true;
+        } else {
+          errorMessage = "Microphone access was denied. Please click the lock icon in the address bar, allow microphone access, and refresh.";
         }
+      } else if (error.name === "NotFoundError" || error.name === "DevicesNotFoundError") {
+        if (isEmbedded) {
+          errorMessage = "Microphone not available in embedded preview. Please open the app in a new browser tab for voice input.";
+          showOpenInNewTab = true;
+        } else {
+          errorMessage = "No microphone found. Please connect a microphone and refresh the page.";
+        }
+      } else if (error.name === "NotReadableError" || error.name === "TrackStartError") {
+        errorMessage = "Could not access microphone. It may be in use by another application.";
       }
       
       toast({
         title: "Microphone Error",
         description: errorMessage,
-        variant: "destructive"
+        variant: "destructive",
+        action: showOpenInNewTab ? (
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => window.open(window.location.href, '_blank')}
+          >
+            Open in new tab
+          </Button>
+        ) : undefined
       });
     }
   }, [toast]);
