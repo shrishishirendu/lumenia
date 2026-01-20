@@ -1,116 +1,200 @@
-import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Check, X, RefreshCw, PenTool } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { PenTool, BookOpen, Calculator } from "lucide-react";
+import type { WhiteboardContent, WhiteboardBlock } from "@shared/whiteboard-types";
 
-export function Whiteboard() {
-  const [step, setStep] = useState(0);
-  const [answer, setAnswer] = useState("");
-  const [feedback, setFeedback] = useState<"neutral" | "correct" | "incorrect">("neutral");
+interface WhiteboardProps {
+  content?: WhiteboardContent;
+  sessionId?: number | null;
+}
 
-  const problem = {
-    question: "Solve for x:",
-    equation: "2x + 5 = 15",
-    steps: [
-      { text: "Subtract 5 from both sides", result: "2x = 10" },
-      { text: "Divide by 2", result: "x = 5" }
-    ]
-  };
+const defaultContent: WhiteboardContent = {
+  subject: "math",
+  title: "Ready to Learn",
+  blocks: [{ type: "text", content: "Ask a question to get started!" }]
+};
 
-  const handleCheck = () => {
-    if (answer === "5") {
-      setFeedback("correct");
-      if (step < problem.steps.length) {
-        setTimeout(() => {
-            setStep(s => s + 1);
-            setFeedback("neutral");
-            setAnswer("");
-        }, 1500);
-      }
-    } else {
-      setFeedback("incorrect");
-    }
-  };
-
+export function Whiteboard({ content = defaultContent, sessionId }: WhiteboardProps) {
+  const safeContent = content || defaultContent;
+  const SubjectIcon = safeContent.subject === "english" ? BookOpen : Calculator;
+  
   return (
     <div className="bg-white rounded-xl shadow-sm border border-border/50 h-full flex flex-col overflow-hidden relative">
-        {/* Grid Background Pattern */}
-        <div className="absolute inset-0 pointer-events-none opacity-[0.03]" 
-             style={{ backgroundImage: 'radial-gradient(circle, #000 1px, transparent 1px)', backgroundSize: '20px 20px' }}>
-        </div>
+      <div className="absolute inset-0 pointer-events-none opacity-[0.03]" 
+           style={{ backgroundImage: 'radial-gradient(circle, #000 1px, transparent 1px)', backgroundSize: '20px 20px' }}>
+      </div>
 
       <div className="p-6 border-b border-border/50 flex justify-between items-center bg-white/50 backdrop-blur-sm z-10">
         <h3 className="font-serif font-semibold text-lg flex items-center gap-2">
-            <PenTool className="w-4 h-4 text-primary" />
-            Whiteboard
+          <PenTool className="w-4 h-4 text-primary" />
+          Whiteboard
+          <SubjectIcon className="w-4 h-4 text-muted-foreground ml-2" />
         </h3>
-        <span className="text-xs text-muted-foreground font-mono bg-muted px-2 py-1 rounded">Session ID: #8821</span>
+        {sessionId && (
+          <span className="text-xs text-muted-foreground font-mono bg-muted px-2 py-1 rounded">
+            Session #{sessionId}
+          </span>
+        )}
       </div>
 
-      <div className="flex-1 p-8 flex flex-col justify-center items-center z-10">
-        <motion.div 
-            initial={{ opacity: 0, y: 20 }}
+      <div className="flex-1 p-8 overflow-y-auto z-10">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={JSON.stringify(safeContent)}
+            initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="text-4xl font-mono font-medium text-foreground mb-12"
-        >
-            {step === 0 ? problem.equation : problem.steps[step - 1].result}
-        </motion.div>
-
-        <div className="w-full max-w-md space-y-6">
-            <div className="space-y-2">
-                <p className="text-sm font-medium text-muted-foreground">
-                    {step === 0 ? "Step 1: Isolate the variable term" : "Step 2: Solve for x"}
-                </p>
-                <div className="flex gap-2">
-                    <input 
-                        type="text" 
-                        value={answer}
-                        onChange={(e) => setAnswer(e.target.value)}
-                        placeholder={step === 0 ? "What is 2x?" : "x = ?"}
-                        className="flex-1 text-2xl p-4 rounded-lg border-2 border-border focus:border-primary outline-none transition-colors font-mono bg-white"
-                        onKeyDown={(e) => e.key === 'Enter' && handleCheck()}
-                    />
-                    <Button 
-                        size="icon" 
-                        className={`h-auto w-16 rounded-lg transition-all ${
-                            feedback === 'correct' ? 'bg-green-500 hover:bg-green-600' : 
-                            feedback === 'incorrect' ? 'bg-red-500 hover:bg-red-600' : ''
-                        }`}
-                        onClick={handleCheck}
-                    >
-                        {feedback === 'correct' ? <Check className="w-6 h-6" /> : 
-                         feedback === 'incorrect' ? <X className="w-6 h-6" /> : 
-                         <span className="text-lg font-bold">→</span>}
-                    </Button>
-                </div>
-            </div>
-
-            <AnimatePresence>
-                {feedback === 'correct' && (
-                    <motion.div 
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        exit={{ opacity: 0, height: 0 }}
-                        className="text-green-600 font-medium flex items-center gap-2"
-                    >
-                        <span className="bg-green-100 p-1 rounded-full"><Check className="w-3 h-3" /></span>
-                        Great job! That's correct.
-                    </motion.div>
-                )}
-                {feedback === 'incorrect' && (
-                    <motion.div 
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        exit={{ opacity: 0, height: 0 }}
-                        className="text-red-500 font-medium flex items-center gap-2"
-                    >
-                        <span className="bg-red-100 p-1 rounded-full"><RefreshCw className="w-3 h-3" /></span>
-                        Not quite. Try thinking about the inverse operation.
-                    </motion.div>
-                )}
-            </AnimatePresence>
-        </div>
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.3 }}
+            className="space-y-6"
+          >
+            {safeContent.title && (
+              <h2 className="text-2xl font-serif font-semibold text-foreground mb-6">
+                {safeContent.title}
+              </h2>
+            )}
+            
+            {safeContent.blocks.map((block, index) => (
+              <WhiteboardBlockRenderer key={index} block={block} index={index} />
+            ))}
+          </motion.div>
+        </AnimatePresence>
       </div>
     </div>
   );
+}
+
+function WhiteboardBlockRenderer({ block, index }: { block: WhiteboardBlock; index: number }) {
+  const baseDelay = index * 0.1;
+  
+  switch (block.type) {
+    case "equation":
+      return (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: baseDelay }}
+          className={`text-3xl md:text-4xl font-mono font-medium text-center py-6 px-4 rounded-lg ${
+            block.highlight ? "bg-primary/10 border-2 border-primary" : "bg-slate-50"
+          }`}
+        >
+          {block.content}
+        </motion.div>
+      );
+      
+    case "steps":
+      const steps = block.content.split("\n").filter(s => s.trim());
+      return (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: baseDelay }}
+          className="space-y-3"
+        >
+          {steps.map((step, i) => (
+            <motion.div
+              key={i}
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: baseDelay + i * 0.15 }}
+              className="flex items-start gap-3 p-3 rounded-lg bg-slate-50"
+            >
+              <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary text-white text-sm font-medium flex items-center justify-center">
+                {i + 1}
+              </span>
+              <span className="text-lg">{step}</span>
+            </motion.div>
+          ))}
+        </motion.div>
+      );
+      
+    case "text":
+      return (
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: baseDelay }}
+          className={`text-lg leading-relaxed ${
+            block.highlight ? "bg-yellow-100 p-4 rounded-lg border-l-4 border-yellow-500" : ""
+          }`}
+        >
+          {block.content}
+        </motion.p>
+      );
+      
+    case "example":
+      return (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: baseDelay }}
+          className="bg-blue-50 border border-blue-200 rounded-lg p-4"
+        >
+          <span className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-2 block">Example</span>
+          <p className="text-lg italic">{block.content}</p>
+        </motion.div>
+      );
+      
+    case "bullets":
+      const bullets = block.content.split("\n").filter(b => b.trim());
+      return (
+        <motion.ul
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: baseDelay }}
+          className="space-y-2 ml-4"
+        >
+          {bullets.map((bullet, i) => (
+            <motion.li
+              key={i}
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: baseDelay + i * 0.1 }}
+              className="flex items-start gap-2 text-lg"
+            >
+              <span className="text-primary mt-1.5">•</span>
+              <span>{bullet.replace(/^[-•]\s*/, "")}</span>
+            </motion.li>
+          ))}
+        </motion.ul>
+      );
+      
+    case "grammar":
+      return (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: baseDelay }}
+          className="bg-green-50 border border-green-200 rounded-lg p-4"
+        >
+          <span className="text-xs font-bold text-green-600 uppercase tracking-wider mb-2 block">Grammar Note</span>
+          <p className="text-lg font-mono">{block.content}</p>
+        </motion.div>
+      );
+      
+    case "quote":
+      return (
+        <motion.blockquote
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: baseDelay }}
+          className="border-l-4 border-purple-400 pl-4 py-2 italic text-lg bg-purple-50 rounded-r-lg"
+        >
+          "{block.content}"
+        </motion.blockquote>
+      );
+      
+    case "diagram":
+      return (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: baseDelay }}
+          className="bg-slate-100 rounded-lg p-6 text-center text-muted-foreground"
+        >
+          <span className="text-sm">[Diagram: {block.content}]</span>
+        </motion.div>
+      );
+      
+    default:
+      return null;
+  }
 }

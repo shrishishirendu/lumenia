@@ -129,7 +129,7 @@ export async function registerRoutes(
   // AI Tutoring chat endpoint
   app.post("/api/tutor/chat", async (req: any, res) => {
     try {
-      const { sessionId, message, history } = req.body;
+      const { sessionId, message, history, teachingStyle } = req.body;
       
       // Get session for context
       const session = await tutoringStorage.getSession(sessionId);
@@ -161,14 +161,15 @@ export async function registerRoutes(
         }
       }
 
-      // Generate AI response using Socratic method
+      // Generate AI response using selected teaching style
       const { generateTutoringResponse } = await import("./ai-tutor");
       const response = await generateTutoringResponse(
         history || [],
         message,
         session.topic,
         wolframAnswer,
-        subject
+        subject,
+        teachingStyle || "socratic"
       );
 
       // Store AI response (without the internal WolframAlpha note)

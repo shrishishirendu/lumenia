@@ -5,7 +5,7 @@ import AnimatedAvatar from "@/components/AnimatedAvatar";
 import { Whiteboard } from "@/components/Whiteboard";
 import { VoiceVisualizer } from "@/components/VoiceVisualizer";
 import { Button } from "@/components/ui/button";
-import { Mic, MicOff, MessageSquare, Send, User, Loader2, BookOpen, Calculator } from "lucide-react";
+import { Mic, MicOff, MessageSquare, Send, User, Loader2, BookOpen, Calculator, GraduationCap, HelpCircle } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
@@ -14,6 +14,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import type { WhiteboardContent, TeachingStyle } from "@shared/whiteboard-types";
+import { DEFAULT_MATH_CONTENT, DEFAULT_ENGLISH_CONTENT } from "@shared/whiteboard-types";
 
 interface Message {
   role: "user" | "assistant";
@@ -38,6 +40,8 @@ export default function Classroom() {
   const [requestingHumanTutor, setRequestingHumanTutor] = useState(false);
   const [selectedSubject, setSelectedSubject] = useState<"math" | "english">("math");
   const [currentTopic, setCurrentTopic] = useState("Linear Equations");
+  const [teachingStyle, setTeachingStyle] = useState<TeachingStyle>("socratic");
+  const [whiteboardContent, setWhiteboardContent] = useState<WhiteboardContent>(DEFAULT_MATH_CONTENT);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -112,6 +116,66 @@ export default function Classroom() {
 
     initSession();
   }, []);
+
+  // Parse tutor response into whiteboard content
+  const parseResponseToWhiteboard = useCallback((response: string, userQuestion: string) => {
+    const blocks: WhiteboardContent["blocks"] = [];
+    
+    // Extract equations (look for patterns like "x = 5" or "2x + 3 = 7")
+    const equationMatch = response.match(/([a-zA-Z]\s*[=+\-*/^]\s*[\d\w\s+\-*/^()]+\s*=?\s*[\d\w]*)/g);
+    if (equationMatch && equationMatch.length > 0) {
+      equationMatch.slice(0, 2).forEach(eq => {
+        blocks.push({ type: "equation", content: eq.trim(), highlight: true });
+      });
+    }
+    
+    // Extract numbered steps
+    const stepsMatch = response.match(/(\d+[\.\)]\s+[^\n]+)/g);
+    if (stepsMatch && stepsMatch.length > 1) {
+      blocks.push({ 
+        type: "steps", 
+        content: stepsMatch.map(s => s.replace(/^\d+[\.\)]\s*/, '')).join("\n") 
+      });
+    }
+    
+    // For English, look for examples or quotes
+    if (selectedSubject === "english") {
+      const quoteMatch = response.match(/"([^"]+)"/);
+      if (quoteMatch) {
+        blocks.push({ type: "quote", content: quoteMatch[1] });
+      }
+      
+      // Look for grammar examples
+      if (response.toLowerCase().includes("example:") || response.toLowerCase().includes("for instance")) {
+        const exampleMatch = response.match(/(?:example:|for instance[,:]*)\s*([^.!?]+[.!?])/i);
+        if (exampleMatch) {
+          blocks.push({ type: "example", content: exampleMatch[1].trim() });
+        }
+      }
+    }
+    
+    // Add the user's question as context
+    blocks.unshift({ type: "text", content: userQuestion, highlight: false });
+    
+    // If we found meaningful content, update whiteboard
+    if (blocks.length > 1) {
+      setWhiteboardContent({
+        subject: selectedSubject,
+        title: currentTopic,
+        blocks
+      });
+    } else {
+      // Just show the question with a simple response hint
+      setWhiteboardContent({
+        subject: selectedSubject,
+        title: currentTopic,
+        blocks: [
+          { type: "text", content: userQuestion },
+          { type: "text", content: response.slice(0, 200) + (response.length > 200 ? "..." : "") }
+        ]
+      });
+    }
+  }, [selectedSubject, currentTopic]);
 
   // Voice recording functions
   const startRecording = useCallback(async () => {
@@ -224,7 +288,8 @@ export default function Classroom() {
           body: JSON.stringify({
             sessionId: currentSessionId,
             message: text,
-            history: messagesRef.current
+            history: messagesRef.current,
+            teachingStyle
           })
         });
 
@@ -233,6 +298,7 @@ export default function Classroom() {
           const assistantMessage: Message = { role: "assistant", content: data.response };
           setMessages(prev => [...prev, assistantMessage]);
           setCurrentHint(data.response);
+          parseResponseToWhiteboard(data.response, text);
           speakText(data.response);
         } else {
           console.error("Chat response failed:", chatRes.status);
@@ -282,7 +348,8 @@ export default function Classroom() {
         body: JSON.stringify({
           sessionId,
           message: text,
-          history: messages
+          history: messages,
+          teachingStyle
         })
       });
 
@@ -292,6 +359,9 @@ export default function Classroom() {
       const assistantMessage: Message = { role: "assistant", content: data.response };
       setMessages(prev => [...prev, assistantMessage]);
       setCurrentHint(data.response);
+
+      // Update whiteboard with parsed content
+      parseResponseToWhiteboard(data.response, text);
 
       // Generate and play speech
       speakText(data.response);
@@ -395,6 +465,7 @@ export default function Classroom() {
                             setSelectedSubject(value);
                             setCurrentTopic(value === "math" ? MATH_TOPICS[0] : ENGLISH_TOPICS[0]);
                             setMessages([]);
+                            setWhiteboardContent(value === "math" ? DEFAULT_MATH_CONTENT : DEFAULT_ENGLISH_CONTENT);
                             setCurrentHint(value === "math" 
                                 ? "Let's work through some math problems together. What would you like to practice?"
                                 : "Let's explore the English language together. What would you like to work on?"
@@ -459,6 +530,26 @@ export default function Classroom() {
                 </div>
             </div>
             <div className="flex gap-2">
+                <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
+                    <Button 
+                        variant={teachingStyle === "socratic" ? "default" : "ghost"}
+                        size="sm"
+                        className="gap-1"
+                        onClick={() => setTeachingStyle("socratic")}
+                        data-testid="button-style-socratic"
+                    >
+                        <HelpCircle className="w-3 h-3" /> Q&A
+                    </Button>
+                    <Button 
+                        variant={teachingStyle === "direct" ? "default" : "ghost"}
+                        size="sm"
+                        className="gap-1"
+                        onClick={() => setTeachingStyle("direct")}
+                        data-testid="button-style-direct"
+                    >
+                        <GraduationCap className="w-3 h-3" /> Direct
+                    </Button>
+                </div>
                 <Button 
                     variant={showChat ? "default" : "outline"}
                     className="gap-2"
@@ -517,7 +608,7 @@ export default function Classroom() {
 
             {/* Middle/Right: Whiteboard / Work Area */}
             <div className={`${showChat ? 'lg:col-span-5' : 'lg:col-span-7'} h-full min-h-0`}>
-                <Whiteboard />
+                <Whiteboard content={whiteboardContent} sessionId={sessionId} />
             </div>
 
             {/* Chat Panel (Conditional) */}
