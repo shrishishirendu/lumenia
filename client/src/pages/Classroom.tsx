@@ -103,9 +103,18 @@ export default function Classroom() {
     }
 
     try {
-      // Request microphone permission with simpler constraints for better compatibility
+      // First enumerate devices to check for available microphones
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const audioInputs = devices.filter(d => d.kind === 'audioinput');
+      console.log("Available audio inputs:", audioInputs.length);
+      
+      // Request microphone permission with constraints
       const stream = await navigator.mediaDevices.getUserMedia({ 
-        audio: true
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        }
       });
       
       // Prefer webm for ffmpeg compatibility, fallback to default
@@ -167,18 +176,44 @@ export default function Classroom() {
       setIsRecording(true);
       setMicActive(true);
     } catch (error: any) {
-      console.error("Failed to start recording:", error);
+      console.error("Failed to start recording:", error.name, error.message);
       
       // Provide more specific error messages
-      let errorMessage = "Could not access microphone.";
+      let errorMessage = "Could not access microphone. Please check your browser permissions.";
       if (error.name === "NotAllowedError" || error.name === "PermissionDeniedError") {
-        errorMessage = "Microphone access was denied. Please allow microphone access in your browser settings and refresh the page.";
+        errorMessage = "Microphone access was denied. Please click the lock icon in the address bar, allow microphone access, and refresh the page.";
       } else if (error.name === "NotFoundError" || error.name === "DevicesNotFoundError") {
-        errorMessage = "No microphone found. Please connect a microphone and try again.";
+        errorMessage = "No microphone detected. Please ensure your microphone is connected and not blocked by browser settings.";
       } else if (error.name === "NotReadableError" || error.name === "TrackStartError") {
-        errorMessage = "Microphone is being used by another application. Please close other apps using the microphone.";
+        errorMessage = "Could not access microphone. It may be in use by another app.";
       } else if (error.name === "OverconstrainedError") {
-        errorMessage = "Could not configure microphone. Please try again.";
+        // Try again with simpler constraints
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          const mediaRecorder = new MediaRecorder(stream);
+          mediaRecorderRef.current = mediaRecorder;
+          audioChunksRef.current = [];
+          
+          mediaRecorder.ondataavailable = (event) => {
+            if (event.data.size > 0) {
+              audioChunksRef.current.push(event.data);
+            }
+          };
+          
+          mediaRecorder.onstop = async () => {
+            stream.getTracks().forEach(track => track.stop());
+            if (audioChunksRef.current.length === 0) return;
+            const audioBlob = new Blob(audioChunksRef.current, { type: mediaRecorder.mimeType });
+            await transcribeAndSend(audioBlob);
+          };
+          
+          mediaRecorder.start(100);
+          setIsRecording(true);
+          setMicActive(true);
+          return;
+        } catch {
+          errorMessage = "Could not configure microphone. Please try again.";
+        }
       }
       
       toast({
