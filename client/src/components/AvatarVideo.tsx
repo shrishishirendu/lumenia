@@ -20,16 +20,113 @@ export function AvatarVideo({
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [useDidAvatar, setUseDidAvatar] = useState(true);
+  const [useTtsFallback, setUseTtsFallback] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const lastTextRef = useRef<string | null>(null);
+  const currentRequestIdRef = useRef<number>(0);
+  const audioUrlRef = useRef<string | null>(null);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+      if (audioUrlRef.current) {
+        URL.revokeObjectURL(audioUrlRef.current);
+        audioUrlRef.current = null;
+      }
+    };
+  }, []);
 
   useEffect(() => {
-    if (textToSpeak && isSpeaking && useDidAvatar) {
-      generateAvatarVideo(textToSpeak);
+    if (textToSpeak && isSpeaking && textToSpeak !== lastTextRef.current) {
+      lastTextRef.current = textToSpeak;
+      currentRequestIdRef.current += 1;
+      
+      // Stop any existing audio
+      stopCurrentAudio();
+      
+      if (useDidAvatar) {
+        generateAvatarVideo(textToSpeak, currentRequestIdRef.current);
+      } else {
+        playTtsFallback(textToSpeak, currentRequestIdRef.current);
+      }
     }
   }, [textToSpeak, isSpeaking, useDidAvatar]);
 
-  const generateAvatarVideo = async (text: string) => {
+  const stopCurrentAudio = () => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
+    if (audioUrlRef.current) {
+      URL.revokeObjectURL(audioUrlRef.current);
+      audioUrlRef.current = null;
+    }
+    if (videoRef.current) {
+      videoRef.current.pause();
+    }
+    setVideoUrl(null);
+  };
+
+  const playTtsFallback = async (text: string, requestId: number) => {
+    setUseTtsFallback(true);
+    try {
+      const response = await fetch("/api/tutor/speak", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text })
+      });
+
+      // Check if this request is still current
+      if (requestId !== currentRequestIdRef.current) {
+        return;
+      }
+
+      if (response.ok) {
+        const audioBlob = await response.blob();
+        const audioUrl = URL.createObjectURL(audioBlob);
+        audioUrlRef.current = audioUrl;
+        
+        if (!audioRef.current) {
+          audioRef.current = new Audio();
+        }
+        audioRef.current.src = audioUrl;
+        audioRef.current.play();
+        audioRef.current.onended = () => {
+          setUseTtsFallback(false);
+          if (audioUrlRef.current) {
+            URL.revokeObjectURL(audioUrlRef.current);
+            audioUrlRef.current = null;
+          }
+          onSpeakingComplete?.();
+        };
+      } else {
+        setUseTtsFallback(false);
+        onSpeakingComplete?.();
+      }
+    } catch (error) {
+      console.error("TTS fallback error:", error);
+      setUseTtsFallback(false);
+      onSpeakingComplete?.();
+    }
+  };
+
+  const generateAvatarVideo = async (text: string, requestId: number) => {
     setIsLoading(true);
+    
+    const timeoutId = setTimeout(() => {
+      if (requestId === currentRequestIdRef.current) {
+        console.warn("D-ID timeout, falling back to TTS");
+        setIsLoading(false);
+        setUseDidAvatar(false);
+        playTtsFallback(text, requestId);
+      }
+    }, 30000);
+
     try {
       const response = await fetch("/api/avatar/talk", {
         method: "POST",
@@ -37,23 +134,38 @@ export function AvatarVideo({
         body: JSON.stringify({ text }),
       });
 
+      clearTimeout(timeoutId);
+
+      // Check if this request is still current (ignore late responses)
+      if (requestId !== currentRequestIdRef.current) {
+        return;
+      }
+
       if (response.ok) {
         const data = await response.json();
         setVideoUrl(data.videoUrl);
       } else {
-        console.error("Failed to generate avatar video");
+        console.error("Failed to generate avatar video, falling back to TTS");
         setUseDidAvatar(false);
+        playTtsFallback(text, requestId);
       }
     } catch (error) {
-      console.error("Avatar video error:", error);
-      setUseDidAvatar(false);
+      clearTimeout(timeoutId);
+      if (requestId === currentRequestIdRef.current) {
+        console.error("Avatar video error:", error);
+        setUseDidAvatar(false);
+        playTtsFallback(text, requestId);
+      }
     } finally {
-      setIsLoading(false);
+      if (requestId === currentRequestIdRef.current) {
+        setIsLoading(false);
+      }
     }
   };
 
   const handleVideoEnded = () => {
     setVideoUrl(null);
+    lastTextRef.current = null;
     onSpeakingComplete?.();
   };
 

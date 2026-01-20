@@ -93,22 +93,56 @@ export default function Classroom() {
   // Voice recording functions
   const startRecording = useCallback(async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          sampleRate: 16000
+        } 
+      });
+      
+      // Prefer webm for ffmpeg compatibility, fallback to default
+      let mimeType = 'audio/webm';
+      if (!MediaRecorder.isTypeSupported('audio/webm')) {
+        if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+          mimeType = 'audio/webm;codecs=opus';
+        } else if (MediaRecorder.isTypeSupported('audio/ogg;codecs=opus')) {
+          mimeType = 'audio/ogg;codecs=opus';
+        } else {
+          // Let browser choose default
+          mimeType = '';
+        }
+      }
+      
+      const mediaRecorder = mimeType 
+        ? new MediaRecorder(stream, { mimeType })
+        : new MediaRecorder(stream);
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
 
       mediaRecorder.ondataavailable = (event) => {
-        audioChunksRef.current.push(event.data);
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
       };
 
       mediaRecorder.onstop = async () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
         stream.getTracks().forEach(track => track.stop());
+        if (audioChunksRef.current.length === 0) {
+          console.error("No audio data captured");
+          toast({
+            title: "Recording Error",
+            description: "No audio was captured. Please try again.",
+            variant: "destructive"
+          });
+          return;
+        }
+        const audioBlob = new Blob(audioChunksRef.current, { type: mediaRecorder.mimeType });
+        console.log("Audio blob size:", audioBlob.size, "type:", audioBlob.type);
         await transcribeAndSend(audioBlob);
       };
 
-      mediaRecorder.start();
+      mediaRecorder.start(100); // Capture in 100ms chunks for better reliability
       setIsRecording(true);
       setMicActive(true);
     } catch (error) {
@@ -155,7 +189,7 @@ export default function Classroom() {
       const transcribeRes = await fetch("/api/tutor/transcribe", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ audio: base64 })
+        body: JSON.stringify({ audio: base64, mimeType: audioBlob.type })
       });
 
       if (transcribeRes.ok) {
@@ -247,26 +281,10 @@ export default function Classroom() {
       setIsAvatarSpeaking(true);
       setCurrentSpeechText(text);
       
-      const response = await fetch("/api/tutor/speak", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text })
-      });
-
-      if (!response.ok) throw new Error("Failed to generate speech");
-
-      const audioBlob = await response.blob();
-      const audioUrl = URL.createObjectURL(audioBlob);
+      // D-ID avatar will handle audio via video playback
+      // Only use TTS fallback if D-ID fails (handled by AvatarVideo component)
+      // The avatar video onSpeakingComplete callback will reset the speaking state
       
-      if (audioRef.current) {
-        audioRef.current.src = audioUrl;
-        audioRef.current.play();
-        audioRef.current.onended = () => {
-          setIsAvatarSpeaking(false);
-          setCurrentSpeechText(undefined);
-          URL.revokeObjectURL(audioUrl);
-        };
-      }
     } catch (error) {
       console.error("Speech generation error:", error);
       setIsAvatarSpeaking(false);

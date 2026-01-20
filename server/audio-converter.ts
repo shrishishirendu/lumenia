@@ -3,13 +3,14 @@ import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
 
-export async function convertWebmToWav(webmBuffer: Buffer): Promise<Buffer> {
+export async function convertWebmToWav(audioBuffer: Buffer, inputFormat: string = "webm"): Promise<Buffer> {
   const tempDir = os.tmpdir();
-  const inputPath = path.join(tempDir, `input_${Date.now()}.webm`);
+  const ext = inputFormat === "mp4" ? "m4a" : "webm";
+  const inputPath = path.join(tempDir, `input_${Date.now()}.${ext}`);
   const outputPath = path.join(tempDir, `output_${Date.now()}.wav`);
 
   try {
-    fs.writeFileSync(inputPath, webmBuffer);
+    fs.writeFileSync(inputPath, audioBuffer);
 
     await new Promise<void>((resolve, reject) => {
       const ffmpeg = spawn("ffmpeg", [

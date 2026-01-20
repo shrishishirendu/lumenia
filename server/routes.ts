@@ -181,16 +181,18 @@ export async function registerRoutes(
   // Speech-to-text endpoint
   app.post("/api/tutor/transcribe", async (req: any, res) => {
     try {
-      const { audio } = req.body;
+      const { audio, mimeType } = req.body;
       if (!audio) return res.status(400).json({ error: "Audio data required" });
 
       const { transcribeSpeech } = await import("./ai-tutor");
       const { convertWebmToWav } = await import("./audio-converter");
       
       const audioBuffer = Buffer.from(audio, "base64");
-      const wavBuffer = await convertWebmToWav(audioBuffer);
+      const inputFormat = mimeType?.includes("mp4") ? "mp4" : "webm";
+      const wavBuffer = await convertWebmToWav(audioBuffer, inputFormat);
       const text = await transcribeSpeech(wavBuffer);
 
+      console.log("Transcribed text:", text);
       res.json({ text });
     } catch (error) {
       console.error("Error transcribing audio:", error);
