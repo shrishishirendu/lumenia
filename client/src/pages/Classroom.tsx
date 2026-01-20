@@ -92,101 +92,34 @@ export default function Classroom() {
 
   // Voice recording functions
   const startRecording = useCallback(async () => {
-    // Check if browser supports required APIs
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      toast({
-        title: "Browser Not Supported",
-        description: "Your browser doesn't support voice input. Please use Chrome, Firefox, or Edge.",
-        variant: "destructive"
-      });
-      return;
-    }
-
     try {
-      // Simple audio request - let browser handle device selection
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      
-      // Determine the best mimeType for recording
-      let mimeType = '';
-      const supportedTypes = [
-        'audio/webm;codecs=opus',
-        'audio/webm',
-        'audio/ogg;codecs=opus',
-        'audio/mp4'
-      ];
-      
-      for (const type of supportedTypes) {
-        if (MediaRecorder.isTypeSupported(type)) {
-          mimeType = type;
-          break;
-        }
-      }
-      
-      console.log("Recording started, mimeType:", mimeType || "browser default");
-      
-      const mediaRecorder = mimeType 
-        ? new MediaRecorder(stream, { mimeType })
-        : new MediaRecorder(stream);
+      const mediaRecorder = new MediaRecorder(stream);
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
 
       mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          audioChunksRef.current.push(event.data);
-        }
+        audioChunksRef.current.push(event.data);
       };
 
       mediaRecorder.onstop = async () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
         stream.getTracks().forEach(track => track.stop());
-        if (audioChunksRef.current.length === 0) {
-          console.error("No audio data captured");
-          toast({
-            title: "Recording Error",
-            description: "No audio was captured. Please try again.",
-            variant: "destructive"
-          });
-          return;
-        }
-        const audioBlob = new Blob(audioChunksRef.current, { type: mediaRecorder.mimeType });
-        console.log("Audio blob size:", audioBlob.size, "type:", audioBlob.type);
         await transcribeAndSend(audioBlob);
       };
 
-      mediaRecorder.onerror = (event) => {
-        console.error("MediaRecorder error:", event);
-        toast({
-          title: "Recording Error",
-          description: "An error occurred while recording. Please try again.",
-          variant: "destructive"
-        });
-      };
-
-      mediaRecorder.start(100);
+      mediaRecorder.start();
       setIsRecording(true);
       setMicActive(true);
-    } catch (error: any) {
-      console.error("Failed to start recording:", error.name, error.message);
-      
-      let errorMessage = "Could not access microphone.";
-      
-      if (error.name === "NotAllowedError" || error.name === "PermissionDeniedError") {
-        errorMessage = "Microphone access was denied. Please click the lock/site settings icon in the address bar, set Microphone to 'Allow', and refresh the page.";
-      } else if (error.name === "NotFoundError" || error.name === "DevicesNotFoundError") {
-        errorMessage = "No microphone detected. Please ensure: 1) A microphone is connected, 2) Chrome has permission to access it (check chrome://settings/content/microphone), 3) Refresh the page after granting permission.";
-      } else if (error.name === "NotReadableError" || error.name === "TrackStartError") {
-        errorMessage = "Could not access microphone. It may be in use by another application. Close other apps using the mic and try again.";
-      } else if (error.name === "SecurityError") {
-        errorMessage = "Microphone access requires a secure connection (HTTPS). Please ensure you're accessing the app via HTTPS.";
-      }
-      
+    } catch (error) {
+      console.error("Failed to start recording:", error);
       toast({
         title: "Microphone Error",
-        description: errorMessage,
-        variant: "destructive",
-        duration: 10000
+        description: "Could not access microphone. Please check permissions.",
+        variant: "destructive"
       });
     }
-  }, [toast]);
+  }, []);
 
   const stopRecording = useCallback(() => {
     if (mediaRecorderRef.current && isRecording) {
