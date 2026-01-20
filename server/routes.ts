@@ -138,15 +138,33 @@ export async function registerRoutes(
         content: message
       });
 
+      // Check if message contains math and get WolframAlpha result for accuracy
+      const { isMathQuestion, extractMathExpression, queryWolframAlpha, queryWolframAlphaFull } = await import("./wolfram-alpha");
+      let wolframAnswer: string | undefined;
+      
+      if (isMathQuestion(message)) {
+        const mathExpr = extractMathExpression(message);
+        if (mathExpr) {
+          let wolframResult = await queryWolframAlpha(mathExpr);
+          if (!wolframResult.success || !wolframResult.answer) {
+            wolframResult = await queryWolframAlphaFull(mathExpr);
+          }
+          if (wolframResult.success && wolframResult.answer) {
+            wolframAnswer = wolframResult.answer;
+          }
+        }
+      }
+
       // Generate AI response using Socratic method
       const { generateTutoringResponse } = await import("./ai-tutor");
       const response = await generateTutoringResponse(
         history || [],
         message,
-        session.topic
+        session.topic,
+        wolframAnswer
       );
 
-      // Store AI response
+      // Store AI response (without the internal WolframAlpha note)
       await tutoringStorage.createSessionMessage({
         sessionId,
         role: "assistant",

@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import { queryWolframAlpha, queryWolframAlphaFull, isMathQuestion, extractMathExpression } from "./wolfram-alpha";
 
 const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY!,
@@ -35,7 +36,8 @@ Remember: Your job is to guide discovery, not to lecture. Every response should 
 export async function generateTutoringResponse(
   sessionHistory: { role: "user" | "assistant"; content: string }[],
   currentQuestion: string,
-  topic?: string
+  topic?: string,
+  wolframAnswer?: string
 ): Promise<string> {
   const messages: OpenAI.ChatCompletionMessageParam[] = [
     { role: "system", content: SOCRATIC_SYSTEM_PROMPT },
@@ -53,6 +55,13 @@ export async function generateTutoringResponse(
     });
   }
 
+  if (wolframAnswer) {
+    messages.splice(1, 0, {
+      role: "system",
+      content: `INTERNAL ACCURACY REFERENCE (do not reveal directly to student): The verified mathematical answer is "${wolframAnswer}". Use this to ensure your Socratic guidance leads toward the correct solution. Never state this answer directly - guide the student to discover it through questions.`
+    });
+  }
+
   const completion = await openai.chat.completions.create({
     model: "gpt-4o-mini",
     messages,
@@ -63,12 +72,61 @@ export async function generateTutoringResponse(
   return completion.choices[0]?.message?.content || "I'm here to help you think through this. What's your first thought?";
 }
 
+function normalizeNumericValue(value: string): number | null {
+  const cleanValue = value
+    .replace(/[,\s]/g, '')
+    .replace(/≈/g, '')
+    .replace(/\.\.\./g, '')
+    .trim();
+  
+  const numMatch = cleanValue.match(/^-?[\d.]+(?:e[+-]?\d+)?/i);
+  if (numMatch) {
+    const num = parseFloat(numMatch[0]);
+    return isNaN(num) ? null : num;
+  }
+  return null;
+}
+
+function areNumericallyEqual(a: string, b: string, tolerance: number = 0.0001): boolean {
+  const numA = normalizeNumericValue(a);
+  const numB = normalizeNumericValue(b);
+  
+  if (numA !== null && numB !== null) {
+    return Math.abs(numA - numB) < tolerance || Math.abs(numA - numB) / Math.max(Math.abs(numA), Math.abs(numB)) < tolerance;
+  }
+  
+  const normalizeExpr = (s: string) => s.toLowerCase().replace(/\s+/g, '').replace(/\*/g, '').replace(/\^/g, '**');
+  return normalizeExpr(a) === normalizeExpr(b);
+}
+
 export async function validateMathAnswer(
   problem: string,
   studentAnswer: string
-): Promise<{ correct: boolean; explanation: string }> {
-  // Use GPT to validate mathematical correctness
-  // In production, you'd integrate WolframAlpha API here
+): Promise<{ correct: boolean; explanation: string; wolframVerified: boolean }> {
+  let wolframResult = await queryWolframAlpha(problem);
+  
+  if (!wolframResult.success || !wolframResult.answer) {
+    wolframResult = await queryWolframAlphaFull(problem);
+  }
+  
+  if (wolframResult.success && wolframResult.answer) {
+    const isCorrect = areNumericallyEqual(wolframResult.answer, studentAnswer);
+    
+    if (isCorrect) {
+      return { 
+        correct: true, 
+        explanation: `Correct! The answer is ${wolframResult.answer}.`,
+        wolframVerified: true
+      };
+    } else {
+      return { 
+        correct: false, 
+        explanation: `The correct answer is ${wolframResult.answer}. Let's work through this together.`,
+        wolframVerified: true
+      };
+    }
+  }
+  
   const completion = await openai.chat.completions.create({
     model: "gpt-4o-mini",
     messages: [
@@ -86,9 +144,10 @@ export async function validateMathAnswer(
 
   try {
     const response = completion.choices[0]?.message?.content || '{"correct": false, "explanation": "Unable to validate"}';
-    return JSON.parse(response);
+    const parsed = JSON.parse(response);
+    return { ...parsed, wolframVerified: false };
   } catch {
-    return { correct: false, explanation: "Unable to validate answer format" };
+    return { correct: false, explanation: "Unable to validate answer format", wolframVerified: false };
   }
 }
 
