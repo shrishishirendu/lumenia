@@ -194,6 +194,84 @@ export const activityLogs = pgTable("activity_logs", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+// Lessons - structured content within each topic
+export const lessons = pgTable("lessons", {
+  id: serial("id").primaryKey(),
+  topicId: integer("topic_id").notNull().references(() => topics.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  description: text("description"),
+  orderIndex: integer("order_index").notNull().default(0),
+  estimatedMinutes: integer("estimated_minutes").default(30),
+  objectives: text("objectives").array(), // Learning objectives
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Lesson segments - individual teaching steps within a lesson
+export const lessonSegments = pgTable("lesson_segments", {
+  id: serial("id").primaryKey(),
+  lessonId: integer("lesson_id").notNull().references(() => lessons.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  type: text("type").notNull().default("explanation"), // explanation, example, practice, summary
+  content: text("content").notNull(), // Main content text
+  whiteboardContent: text("whiteboard_content"), // JSON for whiteboard display
+  tutorScript: text("tutor_script"), // What the AI tutor says
+  orderIndex: integer("order_index").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Quiz questions - can be for lessons or pre-session reviews
+export const quizQuestions = pgTable("quiz_questions", {
+  id: serial("id").primaryKey(),
+  lessonId: integer("lesson_id").references(() => lessons.id, { onDelete: "cascade" }),
+  topicId: integer("topic_id").references(() => topics.id, { onDelete: "cascade" }),
+  subjectId: integer("subject_id").references(() => subjects.id),
+  questionText: text("question_text").notNull(),
+  questionType: text("question_type").notNull().default("multiple_choice"), // multiple_choice, short_answer, true_false
+  options: text("options").array(), // For multiple choice
+  correctAnswer: text("correct_answer").notNull(),
+  explanation: text("explanation"), // Why the answer is correct
+  difficulty: integer("difficulty").notNull().default(1), // 1-5
+  points: integer("points").notNull().default(1),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Student quiz attempts and answers
+export const quizAttempts = pgTable("quiz_attempts", {
+  id: serial("id").primaryKey(),
+  studentId: integer("student_id").notNull().references(() => profiles.id, { onDelete: "cascade" }),
+  lessonId: integer("lesson_id").references(() => lessons.id, { onDelete: "cascade" }),
+  quizType: text("quiz_type").notNull().default("lesson"), // lesson, pre_session, topic_review
+  startedAt: timestamp("started_at").defaultNow().notNull(),
+  completedAt: timestamp("completed_at"),
+  score: integer("score"),
+  totalPoints: integer("total_points"),
+  passed: boolean("passed"),
+});
+
+// Individual answers within a quiz attempt
+export const quizAnswers = pgTable("quiz_answers", {
+  id: serial("id").primaryKey(),
+  attemptId: integer("attempt_id").notNull().references(() => quizAttempts.id, { onDelete: "cascade" }),
+  questionId: integer("question_id").notNull().references(() => quizQuestions.id, { onDelete: "cascade" }),
+  studentAnswer: text("student_answer").notNull(),
+  isCorrect: boolean("is_correct").notNull(),
+  pointsEarned: integer("points_earned").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Student lesson progress - tracks which segments they've completed
+export const lessonProgress = pgTable("lesson_progress", {
+  id: serial("id").primaryKey(),
+  studentId: integer("student_id").notNull().references(() => profiles.id, { onDelete: "cascade" }),
+  lessonId: integer("lesson_id").notNull().references(() => lessons.id, { onDelete: "cascade" }),
+  currentSegmentId: integer("current_segment_id").references(() => lessonSegments.id),
+  status: text("status").notNull().default("not_started"), // not_started, in_progress, completed
+  startedAt: timestamp("started_at"),
+  completedAt: timestamp("completed_at"),
+  lastAccessedAt: timestamp("last_accessed_at"),
+});
+
 // Zod schemas - Original
 export const insertProfileSchema = createInsertSchema(profiles).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertTutoringSessionSchema = createInsertSchema(tutoringSessions).omit({ id: true, startedAt: true });
@@ -212,6 +290,14 @@ export const insertParentStudentLinkSchema = createInsertSchema(parentStudentLin
 export const insertAppointmentSchema = createInsertSchema(appointments).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertSupportTicketSchema = createInsertSchema(supportTickets).omit({ id: true, createdAt: true });
 export const insertActivityLogSchema = createInsertSchema(activityLogs).omit({ id: true, createdAt: true });
+
+// Zod schemas - Lessons and quizzes
+export const insertLessonSchema = createInsertSchema(lessons).omit({ id: true, createdAt: true });
+export const insertLessonSegmentSchema = createInsertSchema(lessonSegments).omit({ id: true, createdAt: true });
+export const insertQuizQuestionSchema = createInsertSchema(quizQuestions).omit({ id: true, createdAt: true });
+export const insertQuizAttemptSchema = createInsertSchema(quizAttempts).omit({ id: true, startedAt: true });
+export const insertQuizAnswerSchema = createInsertSchema(quizAnswers).omit({ id: true, createdAt: true });
+export const insertLessonProgressSchema = createInsertSchema(lessonProgress).omit({ id: true });
 
 // Types - Original
 export type Profile = typeof profiles.$inferSelect;
@@ -246,6 +332,20 @@ export type SupportTicket = typeof supportTickets.$inferSelect;
 export type InsertSupportTicket = z.infer<typeof insertSupportTicketSchema>;
 export type ActivityLog = typeof activityLogs.$inferSelect;
 export type InsertActivityLog = z.infer<typeof insertActivityLogSchema>;
+
+// Types - Lessons and quizzes
+export type Lesson = typeof lessons.$inferSelect;
+export type InsertLesson = z.infer<typeof insertLessonSchema>;
+export type LessonSegment = typeof lessonSegments.$inferSelect;
+export type InsertLessonSegment = z.infer<typeof insertLessonSegmentSchema>;
+export type QuizQuestion = typeof quizQuestions.$inferSelect;
+export type InsertQuizQuestion = z.infer<typeof insertQuizQuestionSchema>;
+export type QuizAttempt = typeof quizAttempts.$inferSelect;
+export type InsertQuizAttempt = z.infer<typeof insertQuizAttemptSchema>;
+export type QuizAnswer = typeof quizAnswers.$inferSelect;
+export type InsertQuizAnswer = z.infer<typeof insertQuizAnswerSchema>;
+export type LessonProgress = typeof lessonProgress.$inferSelect;
+export type InsertLessonProgress = z.infer<typeof insertLessonProgressSchema>;
 
 // Re-export from auth
 import { users } from "./models/auth";

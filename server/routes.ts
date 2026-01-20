@@ -366,6 +366,259 @@ export async function registerRoutes(
     }
   });
 
+  // Lessons and structured content (auth required)
+  app.get("/api/lessons/topic/:topicId", async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+      
+      const topicId = parseInt(req.params.topicId);
+      const lessons = await tutoringStorage.getLessonsByTopic(topicId);
+      res.json(lessons);
+    } catch (error) {
+      console.error("Error fetching lessons:", error);
+      res.status(500).json({ error: "Failed to fetch lessons" });
+    }
+  });
+
+  app.get("/api/lessons/:id", async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+      
+      const lessonId = parseInt(req.params.id);
+      const lesson = await tutoringStorage.getLesson(lessonId);
+      if (!lesson) return res.status(404).json({ error: "Lesson not found" });
+      
+      const segments = await tutoringStorage.getLessonSegments(lessonId);
+      res.json({ ...lesson, segments });
+    } catch (error) {
+      console.error("Error fetching lesson:", error);
+      res.status(500).json({ error: "Failed to fetch lesson" });
+    }
+  });
+
+  app.get("/api/lessons/:id/segments", async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+      
+      const lessonId = parseInt(req.params.id);
+      const segments = await tutoringStorage.getLessonSegments(lessonId);
+      res.json(segments);
+    } catch (error) {
+      console.error("Error fetching segments:", error);
+      res.status(500).json({ error: "Failed to fetch segments" });
+    }
+  });
+
+  // Quiz endpoints (auth required)
+  app.get("/api/quiz/lesson/:lessonId", async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+      
+      const lessonId = parseInt(req.params.lessonId);
+      const questions = await tutoringStorage.getQuizQuestionsByLesson(lessonId);
+      res.json(questions.map(q => ({
+        ...q,
+        correctAnswer: undefined // Don't expose correct answer
+      })));
+    } catch (error) {
+      console.error("Error fetching quiz:", error);
+      res.status(500).json({ error: "Failed to fetch quiz" });
+    }
+  });
+
+  // Generate pre-session quiz from last completed lesson
+  app.get("/api/quiz/pre-session", async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+      
+      const profile = await tutoringStorage.getProfileByUserId(userId);
+      if (!profile) return res.status(404).json({ error: "Profile not found" });
+
+      const { generatePreSessionQuiz } = await import("./ai-tutor");
+      const progressList = await tutoringStorage.getLessonProgressByStudent(profile.id);
+      
+      const completedLessons = progressList.filter(p => p.status === "completed");
+      if (completedLessons.length === 0) {
+        return res.json({ questions: [], message: "No previous lessons to review" });
+      }
+
+      const lastCompleted = completedLessons.sort((a, b) => 
+        (b.completedAt?.getTime() || 0) - (a.completedAt?.getTime() || 0)
+      )[0];
+      
+      const lesson = await tutoringStorage.getLesson(lastCompleted.lessonId);
+      if (!lesson) {
+        return res.json({ questions: [], message: "Previous lesson not found" });
+      }
+
+      const existingQuestions = await tutoringStorage.getQuizQuestionsByLesson(lastCompleted.lessonId);
+      if (existingQuestions.length > 0) {
+        const shuffled = existingQuestions.sort(() => Math.random() - 0.5).slice(0, 3);
+        return res.json({
+          lessonId: lastCompleted.lessonId,
+          lessonTitle: lesson.title,
+          questions: shuffled.map(q => ({ 
+            id: q.id,
+            questionText: q.questionText,
+            questionType: q.questionType,
+            options: q.options,
+            difficulty: q.difficulty,
+            points: q.points
+          }))
+        });
+      }
+
+      // Generate AI quiz and persist to database for proper grading
+      const quiz = await generatePreSessionQuiz(lesson.title, lesson.description || "", profile.grade || 9);
+      const savedQuestions = await Promise.all(
+        quiz.questions.map(async (q) => {
+          return tutoringStorage.createQuizQuestion({
+            lessonId: lastCompleted.lessonId,
+            questionText: q.questionText,
+            questionType: q.questionType,
+            options: q.options,
+            correctAnswer: q.correctAnswer,
+            explanation: q.explanation,
+            difficulty: q.difficulty,
+            points: q.points
+          });
+        })
+      );
+      
+      res.json({
+        lessonId: lastCompleted.lessonId,
+        lessonTitle: lesson.title,
+        questions: savedQuestions.map(q => ({
+          id: q.id,
+          questionText: q.questionText,
+          questionType: q.questionType,
+          options: q.options,
+          difficulty: q.difficulty,
+          points: q.points
+        }))
+      });
+    } catch (error) {
+      console.error("Error generating pre-session quiz:", error);
+      res.status(500).json({ error: "Failed to generate quiz" });
+    }
+  });
+
+  // Submit quiz answers
+  app.post("/api/quiz/submit", async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+      
+      const profile = await tutoringStorage.getProfileByUserId(userId);
+      if (!profile) return res.status(404).json({ error: "Profile not found" });
+
+      const { lessonId, answers, quizType } = req.body;
+      if (!answers || !Array.isArray(answers)) {
+        return res.status(400).json({ error: "Answers array required" });
+      }
+
+      const attempt = await tutoringStorage.createQuizAttempt({
+        studentId: profile.id,
+        lessonId: lessonId || null,
+        quizType: quizType || "lesson"
+      });
+
+      let totalScore = 0;
+      let totalPoints = 0;
+      const results: any[] = [];
+
+      for (const ans of answers) {
+        const question = await tutoringStorage.getQuizQuestion(ans.questionId);
+        if (!question) continue;
+
+        const isCorrect = question.correctAnswer.toLowerCase().trim() === 
+          String(ans.answer).toLowerCase().trim();
+        const pointsEarned = isCorrect ? question.points : 0;
+        totalScore += pointsEarned;
+        totalPoints += question.points;
+
+        await tutoringStorage.createQuizAnswer({
+          attemptId: attempt.id,
+          questionId: ans.questionId,
+          studentAnswer: String(ans.answer),
+          isCorrect,
+          pointsEarned
+        });
+
+        results.push({
+          questionId: ans.questionId,
+          isCorrect,
+          correctAnswer: question.correctAnswer,
+          explanation: question.explanation
+        });
+      }
+
+      const passed = totalPoints > 0 ? (totalScore / totalPoints) >= 0.7 : false;
+      const completedAttempt = await tutoringStorage.completeQuizAttempt(
+        attempt.id, totalScore, totalPoints, passed
+      );
+
+      res.json({
+        attemptId: attempt.id,
+        score: totalScore,
+        totalPoints,
+        percentage: totalPoints > 0 ? Math.round((totalScore / totalPoints) * 100) : 0,
+        passed,
+        results
+      });
+    } catch (error) {
+      console.error("Error submitting quiz:", error);
+      res.status(500).json({ error: "Failed to submit quiz" });
+    }
+  });
+
+  // Lesson progress
+  app.get("/api/lessons/progress", async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+      
+      const profile = await tutoringStorage.getProfileByUserId(userId);
+      if (!profile) return res.status(404).json({ error: "Profile not found" });
+
+      const progress = await tutoringStorage.getLessonProgressByStudent(profile.id);
+      res.json(progress);
+    } catch (error) {
+      console.error("Error fetching lesson progress:", error);
+      res.status(500).json({ error: "Failed to fetch progress" });
+    }
+  });
+
+  app.post("/api/lessons/progress", async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+      
+      const profile = await tutoringStorage.getProfileByUserId(userId);
+      if (!profile) return res.status(404).json({ error: "Profile not found" });
+
+      const { lessonId, currentSegmentId, status } = req.body;
+      if (!lessonId) return res.status(400).json({ error: "Lesson ID required" });
+
+      const progress = await tutoringStorage.createOrUpdateLessonProgress({
+        studentId: profile.id,
+        lessonId,
+        currentSegmentId: currentSegmentId || null,
+        status: status || "in_progress",
+        startedAt: new Date()
+      });
+      res.json(progress);
+    } catch (error) {
+      console.error("Error updating progress:", error);
+      res.status(500).json({ error: "Failed to update progress" });
+    }
+  });
+
   // AI Agents endpoints
   app.post("/api/agents/chat", async (req: any, res) => {
     try {

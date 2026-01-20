@@ -372,3 +372,67 @@ Be natural and brief - just 1-2 sentences to rephrase their question and confirm
 
   return response.choices[0]?.message?.content || `I understand you're asking about ${question}. Is that correct?`;
 }
+
+export async function generatePreSessionQuiz(
+  lessonTitle: string,
+  lessonDescription: string,
+  gradeLevel: number
+): Promise<{ questions: Array<{
+  questionText: string;
+  questionType: string;
+  options: string[];
+  correctAnswer: string;
+  explanation: string;
+  difficulty: number;
+  points: number;
+}>}> {
+  const response = await openai.chat.completions.create({
+    model: "gpt-4o-mini",
+    messages: [
+      {
+        role: "system",
+        content: `You are an expert curriculum designer creating a quick review quiz for Year ${gradeLevel} students in Australia. Create 3 quiz questions to review the key concepts from a recently completed lesson.
+
+Generate questions that:
+1. Test understanding of the main concepts
+2. Are appropriate for the grade level
+3. Mix question types when appropriate
+4. Include clear, helpful explanations
+
+Respond with JSON only:
+{
+  "questions": [
+    {
+      "questionText": "The question to ask",
+      "questionType": "multiple_choice",
+      "options": ["A) Option 1", "B) Option 2", "C) Option 3", "D) Option 4"],
+      "correctAnswer": "A",
+      "explanation": "Why this is the correct answer",
+      "difficulty": 2,
+      "points": 1
+    }
+  ]
+}`
+      },
+      {
+        role: "user",
+        content: `Create a 3-question review quiz for this lesson:
+Title: ${lessonTitle}
+Description: ${lessonDescription || "Review the main concepts from this lesson"}
+Grade Level: Year ${gradeLevel}`
+      }
+    ],
+    max_tokens: 1500,
+  });
+
+  try {
+    const content = response.choices[0]?.message?.content || '{"questions": []}';
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      return JSON.parse(jsonMatch[0]);
+    }
+    return { questions: [] };
+  } catch {
+    return { questions: [] };
+  }
+}

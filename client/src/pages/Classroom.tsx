@@ -4,6 +4,7 @@ import { Nav } from "@/components/Nav";
 import { Whiteboard } from "@/components/Whiteboard";
 import { VoiceVisualizer } from "@/components/VoiceVisualizer";
 import { DrawingCanvas } from "@/components/DrawingCanvas";
+import { PreSessionQuiz } from "@/components/PreSessionQuiz";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Mic, MicOff, MessageSquare, Send, User, Loader2, BookOpen, Calculator, GraduationCap, HelpCircle, Volume2, Pencil, Keyboard } from "lucide-react";
@@ -45,6 +46,8 @@ export default function Classroom() {
   const [isAnalyzingDrawing, setIsAnalyzingDrawing] = useState(false);
   const [awaitingConfirmation, setAwaitingConfirmation] = useState(false);
   const [pendingQuestion, setPendingQuestion] = useState<string | null>(null);
+  const [showPreSessionQuiz, setShowPreSessionQuiz] = useState(false);
+  const [quizCompleted, setQuizCompleted] = useState(false);
   const [currentTopic, setCurrentTopic] = useState("Linear Equations");
   const [teachingStyle, setTeachingStyle] = useState<TeachingStyle>("socratic");
   const [whiteboardContent, setWhiteboardContent] = useState<WhiteboardContent>(DEFAULT_MATH_CONTENT);
@@ -85,43 +88,83 @@ export default function Classroom() {
 
   // Initialize session on mount
   useEffect(() => {
-    const initSession = async () => {
+    const checkAuthAndQuiz = async () => {
       try {
         // First check if user has a profile
         const profileRes = await fetch("/api/profile");
         if (profileRes.status === 401) {
-          // Not logged in - redirect to login
           window.location.replace("/api/login");
           return;
         }
         if (profileRes.status === 404 || !profileRes.ok) {
-          // No profile - redirect to onboarding
           window.location.href = "/onboarding";
           return;
         }
 
-        const response = await fetch("/api/sessions", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ subject: selectedSubject, topic: currentTopic })
-        });
-        
-        if (!response.ok) throw new Error("Failed to create session");
-        
-        const session = await response.json();
-        setSessionId(session.id);
+        // Check if there's a pre-session quiz available
+        const quizRes = await fetch("/api/quiz/pre-session");
+        if (quizRes.ok) {
+          const quizData = await quizRes.json();
+          if (quizData.questions && quizData.questions.length > 0) {
+            setShowPreSessionQuiz(true);
+            return;
+          }
+        }
+
+        // No quiz needed, start session directly
+        await startNewSession();
       } catch (error) {
-        console.error("Failed to initialize session:", error);
-        toast({
-          title: "Connection Error",
-          description: "Could not start tutoring session. Please refresh.",
-          variant: "destructive"
-        });
+        console.error("Failed to initialize:", error);
+        await startNewSession();
       }
     };
 
-    initSession();
+    checkAuthAndQuiz();
   }, []);
+
+  const startNewSession = async () => {
+    try {
+      const response = await fetch("/api/sessions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ subject: selectedSubject, topic: currentTopic })
+      });
+      
+      if (!response.ok) throw new Error("Failed to create session");
+      
+      const session = await response.json();
+      setSessionId(session.id);
+    } catch (error) {
+      console.error("Failed to initialize session:", error);
+      toast({
+        title: "Connection Error",
+        description: "Could not start tutoring session. Please refresh.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleQuizComplete = (passed: boolean, score: number) => {
+    setShowPreSessionQuiz(false);
+    setQuizCompleted(true);
+    if (passed) {
+      toast({
+        title: "Great job!",
+        description: `You scored ${score}% on the review quiz. Let's continue learning!`
+      });
+    } else {
+      toast({
+        title: "Review Complete",
+        description: "We'll review some concepts as we continue with your lesson."
+      });
+    }
+    startNewSession();
+  };
+
+  const handleQuizSkip = () => {
+    setShowPreSessionQuiz(false);
+    startNewSession();
+  };
 
   // Parse tutor response into whiteboard content
   const parseResponseToWhiteboard = useCallback((response: string, userQuestion: string) => {
@@ -589,6 +632,21 @@ export default function Classroom() {
       setRequestingHumanTutor(false);
     }
   };
+
+  // Show pre-session quiz if needed
+  if (showPreSessionQuiz) {
+    return (
+      <div className="min-h-screen bg-background flex font-sans">
+        <Nav />
+        <main className="flex-1 md:ml-20 p-4 md:p-6">
+          <PreSessionQuiz 
+            onComplete={handleQuizComplete}
+            onSkip={handleQuizSkip}
+          />
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background flex font-sans">
