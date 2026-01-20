@@ -92,27 +92,39 @@ export default function Classroom() {
 
   // Voice recording functions
   const startRecording = useCallback(async () => {
+    // Check if browser supports required APIs
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      toast({
+        title: "Browser Not Supported",
+        description: "Your browser doesn't support voice input. Please use Chrome, Firefox, or Edge.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     try {
+      // Request microphone permission with simpler constraints for better compatibility
       const stream = await navigator.mediaDevices.getUserMedia({ 
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          sampleRate: 16000
-        } 
+        audio: true
       });
       
       // Prefer webm for ffmpeg compatibility, fallback to default
-      let mimeType = 'audio/webm';
-      if (!MediaRecorder.isTypeSupported('audio/webm')) {
-        if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
-          mimeType = 'audio/webm;codecs=opus';
-        } else if (MediaRecorder.isTypeSupported('audio/ogg;codecs=opus')) {
-          mimeType = 'audio/ogg;codecs=opus';
-        } else {
-          // Let browser choose default
-          mimeType = '';
+      let mimeType = '';
+      const supportedTypes = [
+        'audio/webm;codecs=opus',
+        'audio/webm',
+        'audio/ogg;codecs=opus',
+        'audio/mp4'
+      ];
+      
+      for (const type of supportedTypes) {
+        if (MediaRecorder.isTypeSupported(type)) {
+          mimeType = type;
+          break;
         }
       }
+      
+      console.log("Using mimeType:", mimeType || "browser default");
       
       const mediaRecorder = mimeType 
         ? new MediaRecorder(stream, { mimeType })
@@ -142,18 +154,40 @@ export default function Classroom() {
         await transcribeAndSend(audioBlob);
       };
 
+      mediaRecorder.onerror = (event) => {
+        console.error("MediaRecorder error:", event);
+        toast({
+          title: "Recording Error",
+          description: "An error occurred while recording. Please try again.",
+          variant: "destructive"
+        });
+      };
+
       mediaRecorder.start(100); // Capture in 100ms chunks for better reliability
       setIsRecording(true);
       setMicActive(true);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to start recording:", error);
+      
+      // Provide more specific error messages
+      let errorMessage = "Could not access microphone.";
+      if (error.name === "NotAllowedError" || error.name === "PermissionDeniedError") {
+        errorMessage = "Microphone access was denied. Please allow microphone access in your browser settings and refresh the page.";
+      } else if (error.name === "NotFoundError" || error.name === "DevicesNotFoundError") {
+        errorMessage = "No microphone found. Please connect a microphone and try again.";
+      } else if (error.name === "NotReadableError" || error.name === "TrackStartError") {
+        errorMessage = "Microphone is being used by another application. Please close other apps using the microphone.";
+      } else if (error.name === "OverconstrainedError") {
+        errorMessage = "Could not configure microphone. Please try again.";
+      }
+      
       toast({
         title: "Microphone Error",
-        description: "Could not access microphone. Please check permissions.",
+        description: errorMessage,
         variant: "destructive"
       });
     }
-  }, []);
+  }, [toast]);
 
   const stopRecording = useCallback(() => {
     if (mediaRecorderRef.current && isRecording) {
