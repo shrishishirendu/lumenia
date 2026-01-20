@@ -167,43 +167,23 @@ export default function Classroom() {
     } catch (error: any) {
       console.error("Failed to start recording:", error.name, error.message);
       
-      // Check if running in embedded iframe/preview
-      const isEmbedded = window.self !== window.top;
-      
       let errorMessage = "Could not access microphone.";
-      let showOpenInNewTab = false;
       
       if (error.name === "NotAllowedError" || error.name === "PermissionDeniedError") {
-        if (isEmbedded) {
-          errorMessage = "Microphone access is blocked in this preview. Click 'Open in new tab' below to use voice input.";
-          showOpenInNewTab = true;
-        } else {
-          errorMessage = "Microphone access was denied. Please click the lock icon in the address bar, allow microphone access, and refresh.";
-        }
+        errorMessage = "Microphone access was denied. Please click the lock/site settings icon in the address bar, set Microphone to 'Allow', and refresh the page.";
       } else if (error.name === "NotFoundError" || error.name === "DevicesNotFoundError") {
-        if (isEmbedded) {
-          errorMessage = "Microphone not available in embedded preview. Please open the app in a new browser tab for voice input.";
-          showOpenInNewTab = true;
-        } else {
-          errorMessage = "No microphone found. Please connect a microphone and refresh the page.";
-        }
+        errorMessage = "No microphone detected. Please ensure: 1) A microphone is connected, 2) Chrome has permission to access it (check chrome://settings/content/microphone), 3) Refresh the page after granting permission.";
       } else if (error.name === "NotReadableError" || error.name === "TrackStartError") {
-        errorMessage = "Could not access microphone. It may be in use by another application.";
+        errorMessage = "Could not access microphone. It may be in use by another application. Close other apps using the mic and try again.";
+      } else if (error.name === "SecurityError") {
+        errorMessage = "Microphone access requires a secure connection (HTTPS). Please ensure you're accessing the app via HTTPS.";
       }
       
       toast({
         title: "Microphone Error",
         description: errorMessage,
         variant: "destructive",
-        action: showOpenInNewTab ? (
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={() => window.open(window.location.href, '_blank')}
-          >
-            Open in new tab
-          </Button>
-        ) : undefined
+        duration: 10000
       });
     }
   }, [toast]);
