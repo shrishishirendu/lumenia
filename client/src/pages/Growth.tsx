@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Nav } from "@/components/Nav";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { motion } from "framer-motion";
+import { Input } from "@/components/ui/input";
 import { 
     TrendingUp, 
     Target, 
@@ -16,7 +17,9 @@ import {
     ArrowRight,
     RefreshCw,
     Sparkles,
-    Bot
+    Bot,
+    Send,
+    Loader2
 } from "lucide-react";
 import adImage1 from "@assets/generated_images/social_media_ad_for_math_tutor.png";
 import adImage2 from "@assets/generated_images/minimalist_ad_for_parent_peace_of_mind.png";
@@ -33,8 +36,71 @@ const LEADS = [
     { id: 3, name: "Emily Johnson", status: "Cold Outreach", lastMsg: "Sent: Automated Intro Sequence V2", time: "1h ago" },
 ];
 
+interface ChatMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
 export default function Growth() {
     const [activeTab, setActiveTab] = useState("marketing");
+    const [salesMessages, setSalesMessages] = useState<ChatMessage[]>([
+      { role: "user", content: "Hi, I saw your ad about the personalized math tutoring. My son has ADHD and struggles with standard Zoom classes. Does this work for him?" },
+      { role: "assistant", content: "Hi! That's a great question. Because our avatars are AI-driven, they have infinite patience and adapt instantly to the student's pace. We actually have a specific \"Focus Mode\" designed for students with ADHD that breaks problems into smaller, gamified steps. Would you like to see a quick demo of how that works?" }
+    ]);
+    const [salesInput, setSalesInput] = useState("");
+    const [isAiTyping, setIsAiTyping] = useState(false);
+    const [leadScore, setLeadScore] = useState(75);
+    const [generatingAd, setGeneratingAd] = useState(false);
+    const [generatedAdCopy, setGeneratedAdCopy] = useState<string | null>(null);
+
+    const sendSalesMessage = async () => {
+      if (!salesInput.trim() || isAiTyping) return;
+      
+      const userMessage = salesInput;
+      setSalesInput("");
+      setSalesMessages(prev => [...prev, { role: "user", content: userMessage }]);
+      setIsAiTyping(true);
+
+      try {
+        const res = await fetch("/api/agents/sales/inquiry", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ 
+            message: userMessage,
+            leadContext: { name: "Sarah Miller", previousMessages: salesMessages }
+          })
+        });
+        
+        if (res.ok) {
+          const data = await res.json();
+          setSalesMessages(prev => [...prev, { role: "assistant", content: data.response }]);
+          setLeadScore(data.leadScore || leadScore);
+        }
+      } catch (e) {
+        setSalesMessages(prev => [...prev, { role: "assistant", content: "I apologize, I'm having a brief technical issue. Let me get back to you shortly!" }]);
+      } finally {
+        setIsAiTyping(false);
+      }
+    };
+
+    const generateNewAd = async () => {
+      setGeneratingAd(true);
+      try {
+        const res = await fetch("/api/agents/marketing/generate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ contentType: "ad_copy" })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setGeneratedAdCopy(data.content);
+        }
+      } catch (e) {
+        console.error("Failed to generate ad");
+      } finally {
+        setGeneratingAd(false);
+      }
+    };
     
     return (
         <div className="min-h-screen bg-background flex font-sans">
@@ -128,6 +194,20 @@ export default function Growth() {
                                 </CardContent>
                             </Card>
 
+                            {/* AI Generated Content Preview */}
+                            {generatedAdCopy && (
+                              <Card className="border-green-500/30 bg-green-50/50">
+                                <CardHeader className="pb-2">
+                                  <CardTitle className="text-sm flex items-center gap-2">
+                                    <Sparkles className="w-4 h-4 text-green-600" /> AI-Generated Ad Copy
+                                  </CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                  <p className="text-sm">{generatedAdCopy}</p>
+                                </CardContent>
+                              </Card>
+                            )}
+
                             {/* Creative Generation */}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                 <div className="space-y-4">
@@ -136,7 +216,16 @@ export default function Growth() {
                                             <Zap className="w-4 h-4 text-yellow-500 fill-yellow-500" /> 
                                             Live Creative Testing
                                         </h3>
-                                        <span className="text-xs text-muted-foreground">Generated 14m ago</span>
+                                        <Button 
+                                          size="sm" 
+                                          variant="outline" 
+                                          onClick={generateNewAd}
+                                          disabled={generatingAd}
+                                          data-testid="button-generate-ad"
+                                        >
+                                          {generatingAd ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Sparkles className="w-3 h-3 mr-1" />}
+                                          Generate New
+                                        </Button>
                                     </div>
                                     <Card className="overflow-hidden border-none shadow-md group cursor-pointer relative">
                                         <div className="absolute top-3 left-3 z-20 bg-black/70 text-white text-xs px-2 py-1 rounded backdrop-blur-md">
@@ -209,42 +298,57 @@ export default function Growth() {
                                         <div className="w-8 h-8 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center font-bold text-xs">SM</div>
                                         <div>
                                             <div className="font-semibold text-sm">Sarah Miller</div>
-                                            <div className="text-xs text-muted-foreground">Lead Score: 85/100</div>
+                                            <div className="text-xs text-muted-foreground">Lead Score: {leadScore}/100</div>
                                         </div>
                                     </div>
                                     <Badge className="bg-green-500 hover:bg-green-600"><Bot className="w-3 h-3 mr-1" /> AI Handling</Badge>
                                 </div>
                                 <div className="flex-1 bg-muted/10 p-4 space-y-4 overflow-y-auto">
-                                    <div className="flex gap-3">
-                                        <div className="w-8 h-8 rounded-full bg-orange-100 flex-shrink-0 flex items-center justify-center text-xs font-bold text-orange-600">SM</div>
-                                        <div className="bg-white border p-3 rounded-2xl rounded-tl-none text-sm max-w-[80%] shadow-sm">
-                                            Hi, I saw your ad about the personalized math tutoring. My son has ADHD and struggles with standard Zoom classes. Does this work for him?
+                                    {salesMessages.map((msg, i) => (
+                                      <div key={i} className={`flex gap-3 ${msg.role === "assistant" ? "flex-row-reverse" : ""}`}>
+                                        {msg.role === "user" ? (
+                                          <div className="w-8 h-8 rounded-full bg-orange-100 flex-shrink-0 flex items-center justify-center text-xs font-bold text-orange-600">SM</div>
+                                        ) : (
+                                          <div className="w-8 h-8 rounded-full bg-primary flex-shrink-0 flex items-center justify-center text-white"><Bot className="w-4 h-4" /></div>
+                                        )}
+                                        <div className={`p-3 rounded-2xl text-sm max-w-[80%] shadow-sm ${
+                                          msg.role === "user" 
+                                            ? "bg-white border rounded-tl-none" 
+                                            : "bg-primary text-primary-foreground rounded-tr-none"
+                                        }`}>
+                                          {msg.content}
                                         </div>
-                                    </div>
-                                    <div className="flex gap-3 flex-row-reverse">
-                                        <div className="w-8 h-8 rounded-full bg-primary flex-shrink-0 flex items-center justify-center text-white"><Bot className="w-4 h-4" /></div>
-                                        <div className="bg-primary text-primary-foreground p-3 rounded-2xl rounded-tr-none text-sm max-w-[80%] shadow-sm">
-                                            Hi Sarah! That's a great question. Because our avatars are AI-driven, they have infinite patience and adapt instantly to the student's pace. We actually have a specific "Focus Mode" designed for students with ADHD that breaks problems into smaller, gamified steps. Would you like to see a quick demo of how that works?
-                                        </div>
-                                    </div>
-                                    <div className="flex gap-3">
-                                        <div className="w-8 h-8 rounded-full bg-orange-100 flex-shrink-0 flex items-center justify-center text-xs font-bold text-orange-600">SM</div>
-                                        <div className="bg-white border p-3 rounded-2xl rounded-tl-none text-sm max-w-[80%] shadow-sm">
-                                            Yes, that would be helpful. Do you have specialized curricula?
-                                        </div>
-                                    </div>
-                                     <div className="flex gap-3 flex-row-reverse opacity-50">
+                                      </div>
+                                    ))}
+                                    {isAiTyping && (
+                                      <div className="flex gap-3 flex-row-reverse opacity-50">
                                         <div className="w-8 h-8 rounded-full bg-primary flex-shrink-0 flex items-center justify-center text-white"><Bot className="w-4 h-4" /></div>
                                         <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                            <div className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce" />
+                                            <Loader2 className="w-3 h-3 animate-spin" />
                                             AI is typing response...
                                         </div>
-                                    </div>
+                                      </div>
+                                    )}
                                 </div>
                                 <div className="p-4 border-t bg-white">
                                     <div className="flex gap-2">
-                                        <input className="flex-1 text-sm bg-muted/50 border-none rounded-full px-4 py-2 outline-none" placeholder="Type to override AI..." />
-                                        <Button size="icon" className="rounded-full w-8 h-8"><ArrowRight className="w-4 h-4" /></Button>
+                                        <Input 
+                                          value={salesInput}
+                                          onChange={(e) => setSalesInput(e.target.value)}
+                                          onKeyDown={(e) => e.key === "Enter" && sendSalesMessage()}
+                                          className="flex-1 text-sm bg-muted/50 border-none rounded-full px-4" 
+                                          placeholder="Type to simulate lead message..." 
+                                          data-testid="input-sales-chat"
+                                        />
+                                        <Button 
+                                          size="icon" 
+                                          className="rounded-full w-8 h-8"
+                                          onClick={sendSalesMessage}
+                                          disabled={isAiTyping}
+                                          data-testid="button-send-sales"
+                                        >
+                                          <Send className="w-4 h-4" />
+                                        </Button>
                                     </div>
                                 </div>
                             </Card>

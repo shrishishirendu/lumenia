@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Nav } from "@/components/Nav";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowUpRight, Users, DollarSign, Activity, Clock, Bot, Zap, Globe, MessageSquare } from "lucide-react";
+import { ArrowUpRight, Users, DollarSign, Activity, Clock, Bot, Zap, Globe, MessageSquare, GraduationCap } from "lucide-react";
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -16,44 +16,29 @@ const data = [
   { name: 'Sun', students: 349, revenue: 4300 },
 ];
 
-const AGENT_LOGS = {
-  sales: [
-    "Identified new lead: School District #402",
-    "Sending outreach email template V2...",
-    "Lead #402 responded: Interested in demo.",
-    "Scheduling demo for Tuesday at 2pm.",
-    "Following up with cold lead #105...",
-    "Analyzing sentiment: Positive.",
-  ],
-  marketing: [
-    "A/B Testing Ad Set C...",
-    "Optimizing bid for keyword 'AI Tutor'...",
-    "Generating social post for LinkedIn...",
-    "Content published: 'The Future of Learning'.",
-    "Analyzing click-through rate: 4.5%.",
-    "Adjusting budget allocation +15%.",
-  ],
-  ops: [
-    "Processing payment for Student #882...",
-    "Conflict detected: Tutor slot 4pm.",
-    "Auto-resolving: Moved to 4:15pm.",
-    "Generating weekly progress reports...",
-    "Report delivered to 1,284 parents.",
-    "System health check: All green.",
-  ]
-};
-
-function AgentTerminal({ name, type, logs, icon: Icon, color }: { name: string, type: string, logs: string[], icon: any, color: string }) {
-  const [visibleLogs, setVisibleLogs] = useState<string[]>([]);
+function AgentTerminal({ name, type, agentType, icon: Icon, color }: { name: string, type: string, agentType: string, icon: any, color: string }) {
+  const [visibleLogs, setVisibleLogs] = useState<{log: string, time: string}[]>([]);
   
+  const fetchLog = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/agents/log/${agentType}`);
+      if (res.ok) {
+        const data = await res.json();
+        const time = new Date().toLocaleTimeString([], { hour12: false, hour: '2-digit', minute:'2-digit', second:'2-digit' });
+        setVisibleLogs(prev => [{log: data.log, time}, ...prev].slice(0, 4));
+      }
+    } catch (e) {
+      // Fallback to simulated log
+      const time = new Date().toLocaleTimeString([], { hour12: false, hour: '2-digit', minute:'2-digit', second:'2-digit' });
+      setVisibleLogs(prev => [{log: "Processing autonomous task...", time}, ...prev].slice(0, 4));
+    }
+  }, [agentType]);
+
   useEffect(() => {
-    let index = 0;
-    const interval = setInterval(() => {
-      setVisibleLogs(prev => [logs[index], ...prev].slice(0, 4));
-      index = (index + 1) % logs.length;
-    }, 2500 + Math.random() * 1000); // Randomize timing slightly
+    fetchLog();
+    const interval = setInterval(fetchLog, 3000 + Math.random() * 2000);
     return () => clearInterval(interval);
-  }, []);
+  }, [fetchLog]);
 
   return (
     <Card className="glass-card border-none shadow-sm bg-black/5 dark:bg-white/5 overflow-hidden flex flex-col h-full">
@@ -69,16 +54,16 @@ function AgentTerminal({ name, type, logs, icon: Icon, color }: { name: string, 
       </CardHeader>
       <CardContent className="flex-1 font-mono text-xs space-y-3 p-4 pt-0 opacity-80">
         <AnimatePresence mode='popLayout'>
-          {visibleLogs.map((log, i) => (
+          {visibleLogs.map((item, i) => (
             <motion.div 
-              key={`${log}-${i}`}
+              key={`${item.log}-${item.time}-${i}`}
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1 - (i * 0.2), x: 0 }}
               exit={{ opacity: 0 }}
               className="flex gap-2"
             >
-              <span className="text-muted-foreground">{new Date().toLocaleTimeString([], { hour12: false, hour: '2-digit', minute:'2-digit', second:'2-digit' })}</span>
-              <span>{log}</span>
+              <span className="text-muted-foreground">{item.time}</span>
+              <span>{item.log}</span>
             </motion.div>
           ))}
         </AnimatePresence>
@@ -111,27 +96,34 @@ export default function Dashboard() {
             </div>
 
             {/* Agent Command Center Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-64">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 h-64">
               <AgentTerminal 
                 name="OutreachBot-Alpha" 
                 type="Sales Agent" 
-                logs={AGENT_LOGS.sales} 
+                agentType="sales"
                 icon={MessageSquare} 
                 color="bg-blue-500" 
               />
               <AgentTerminal 
                 name="ContentMind" 
                 type="Marketing Agent" 
-                logs={AGENT_LOGS.marketing} 
+                agentType="marketing"
                 icon={Zap} 
                 color="bg-purple-500" 
               />
               <AgentTerminal 
                 name="OpsManager" 
                 type="Operations Agent" 
-                logs={AGENT_LOGS.ops} 
+                agentType="operations"
                 icon={Globe} 
                 color="bg-emerald-500" 
+              />
+              <AgentTerminal 
+                name="EnrollmentAI" 
+                type="Admissions Agent" 
+                agentType="admissions"
+                icon={GraduationCap} 
+                color="bg-orange-500" 
               />
             </div>
 

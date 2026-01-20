@@ -248,6 +248,79 @@ export async function registerRoutes(
     }
   });
 
+  // AI Agents endpoints
+  app.post("/api/agents/chat", async (req: any, res) => {
+    try {
+      const { agentType, message, history } = req.body;
+      const validTypes = ["marketing", "sales", "operations", "admissions"];
+      if (!agentType || !message) {
+        return res.status(400).json({ error: "Agent type and message required" });
+      }
+      if (!validTypes.includes(agentType)) {
+        return res.status(400).json({ error: "Invalid agent type" });
+      }
+
+      const { generateAgentResponse } = await import("./ai-agents");
+      const response = await generateAgentResponse(agentType, message, history || []);
+      res.json({ response });
+    } catch (error) {
+      console.error("Agent chat error:", error);
+      res.status(500).json({ error: "Failed to get agent response" });
+    }
+  });
+
+  app.post("/api/agents/marketing/generate", async (req: any, res) => {
+    try {
+      const { contentType, context } = req.body;
+      const { generateMarketingContent } = await import("./ai-agents");
+      const content = await generateMarketingContent(contentType || "ad_copy", context);
+      res.json(content);
+    } catch (error) {
+      console.error("Marketing generation error:", error);
+      res.status(500).json({ error: "Failed to generate content" });
+    }
+  });
+
+  app.get("/api/agents/log/:agentType", async (req: any, res) => {
+    try {
+      const { agentType } = req.params;
+      const validTypes = ["marketing", "sales", "operations", "admissions"];
+      if (!validTypes.includes(agentType)) {
+        return res.status(400).json({ error: "Invalid agent type" });
+      }
+      const { generateAgentLog } = await import("./ai-agents");
+      const log = await generateAgentLog(agentType);
+      res.json({ log, timestamp: new Date().toISOString() });
+    } catch (error) {
+      console.error("Agent log error:", error);
+      res.status(500).json({ error: "Failed to generate log" });
+    }
+  });
+
+  app.post("/api/agents/sales/inquiry", async (req: any, res) => {
+    try {
+      const { message, leadContext } = req.body;
+      const { handleSalesInquiry } = await import("./ai-agents");
+      const result = await handleSalesInquiry(message, leadContext);
+      res.json(result);
+    } catch (error) {
+      console.error("Sales inquiry error:", error);
+      res.status(500).json({ error: "Failed to process inquiry" });
+    }
+  });
+
+  app.post("/api/agents/admissions/process", async (req: any, res) => {
+    try {
+      const studentInfo = req.body;
+      const { processAdmission } = await import("./ai-agents");
+      const result = await processAdmission(studentInfo);
+      res.json(result);
+    } catch (error) {
+      console.error("Admissions error:", error);
+      res.status(500).json({ error: "Failed to process admission" });
+    }
+  });
+
   // D-ID Avatar endpoints
   app.post("/api/avatar/talk", async (req: any, res) => {
     try {
