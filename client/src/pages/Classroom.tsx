@@ -1,11 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "@/lib/auth";
 import { Nav } from "@/components/Nav";
-import AnimatedAvatar from "@/components/AnimatedAvatar";
 import { Whiteboard } from "@/components/Whiteboard";
 import { VoiceVisualizer } from "@/components/VoiceVisualizer";
 import { Button } from "@/components/ui/button";
-import { Mic, MicOff, MessageSquare, Send, User, Loader2, BookOpen, Calculator, GraduationCap, HelpCircle } from "lucide-react";
+import { Mic, MicOff, MessageSquare, Send, User, Loader2, BookOpen, Calculator, GraduationCap, HelpCircle, Volume2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
@@ -14,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { motion, AnimatePresence } from "framer-motion";
 import type { WhiteboardContent, TeachingStyle } from "@shared/whiteboard-types";
 import { DEFAULT_MATH_CONTENT, DEFAULT_ENGLISH_CONTENT } from "@shared/whiteboard-types";
 
@@ -380,20 +380,56 @@ export default function Classroom() {
       setIsAvatarSpeaking(true);
       setCurrentSpeechText(text);
       
-      // D-ID avatar will handle audio via video playback
-      // TTS is handled by AnimatedAvatar component with lip-sync animation
-      // The avatar video onSpeakingComplete callback will reset the speaking state
+      // Generate TTS audio directly
+      const voice = selectedSubject === "english" ? "onyx" : "nova";
+      const response = await fetch("/api/text-to-speech", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text, voice })
+      });
+      
+      if (!response.ok) {
+        throw new Error("TTS request failed");
+      }
+      
+      const audioBlob = await response.blob();
+      const audioUrl = URL.createObjectURL(audioBlob);
+      
+      // Play audio directly
+      if (audioRef.current) {
+        audioRef.current.src = audioUrl;
+        audioRef.current.onended = () => {
+          setIsAvatarSpeaking(false);
+          setCurrentSpeechText(undefined);
+          URL.revokeObjectURL(audioUrl);
+        };
+        audioRef.current.onerror = () => {
+          setIsAvatarSpeaking(false);
+          setCurrentSpeechText(undefined);
+          URL.revokeObjectURL(audioUrl);
+        };
+        await audioRef.current.play();
+      } else {
+        // Create new audio element if ref doesn't exist
+        const audio = new Audio(audioUrl);
+        audio.onended = () => {
+          setIsAvatarSpeaking(false);
+          setCurrentSpeechText(undefined);
+          URL.revokeObjectURL(audioUrl);
+        };
+        audio.onerror = () => {
+          setIsAvatarSpeaking(false);
+          setCurrentSpeechText(undefined);
+          URL.revokeObjectURL(audioUrl);
+        };
+        await audio.play();
+      }
       
     } catch (error) {
       console.error("Speech generation error:", error);
       setIsAvatarSpeaking(false);
       setCurrentSpeechText(undefined);
     }
-  };
-
-  const handleAvatarSpeakingComplete = () => {
-    setIsAvatarSpeaking(false);
-    setCurrentSpeechText(undefined);
   };
 
   const requestHumanTutor = async () => {
@@ -578,91 +614,154 @@ export default function Classroom() {
             </div>
         </header>
 
-        {/* Main Workspace - Split View */}
-        <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6 min-h-0">
+        {/* Main Workspace - Khan Academy Style */}
+        <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-4 min-h-0">
             
-            {/* Left: Avatar / Teacher View */}
-            <div className={`${showChat ? 'lg:col-span-4' : 'lg:col-span-5'} flex flex-col gap-4 min-h-0`}>
-                <Card className="flex-1 relative overflow-hidden bg-black rounded-2xl border-0 shadow-2xl ring-1 ring-white/10">
-                    <AnimatedAvatar 
-                        isSpeaking={isAvatarSpeaking} 
-                        textToSpeak={currentSpeechText || null}
-                        onSpeakingComplete={handleAvatarSpeakingComplete}
-                        subject={selectedSubject}
-                    />
+            {/* Left Sidebar: Teacher Info + Chat */}
+            <div className={`${showChat ? 'lg:col-span-3' : 'lg:col-span-3'} flex flex-col gap-4 min-h-0`}>
+                
+                {/* Teacher Info Panel - Compact */}
+                <Card className="p-4 glass-card">
+                    <div className="flex items-center gap-3 mb-3">
+                        <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white text-xl font-bold ${
+                            selectedSubject === "math" ? "bg-gradient-to-br from-blue-500 to-purple-600" : "bg-gradient-to-br from-emerald-500 to-teal-600"
+                        }`}>
+                            {selectedSubject === "math" ? "EC" : "JM"}
+                        </div>
+                        <div className="flex-1">
+                            <h3 className="font-semibold text-sm">
+                                {selectedSubject === "english" ? "Mr. James Mitchell" : "Ms. Eleanor Chen"}
+                            </h3>
+                            <p className="text-xs text-muted-foreground">
+                                {selectedSubject === "math" ? "Mathematics Tutor" : "English Tutor"}
+                            </p>
+                        </div>
+                        <AnimatePresence>
+                            {isAvatarSpeaking && (
+                                <motion.div
+                                    initial={{ scale: 0 }}
+                                    animate={{ scale: 1 }}
+                                    exit={{ scale: 0 }}
+                                    className="flex items-center gap-1"
+                                >
+                                    <Volume2 className="w-4 h-4 text-primary animate-pulse" />
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </div>
                     
-                    {/* Voice Visualizer Overlay */}
-                    <div className="absolute bottom-24 right-4">
-                        <VoiceVisualizer isActive={isAvatarSpeaking || (micActive && !isAvatarSpeaking)} mode={isAvatarSpeaking ? "speaking" : "listening"} />
+                    {/* Voice Visualizer */}
+                    <div className="flex justify-center py-2">
+                        <VoiceVisualizer 
+                            isActive={isAvatarSpeaking || (micActive && !isAvatarSpeaking)} 
+                            mode={isAvatarSpeaking ? "speaking" : "listening"} 
+                        />
                     </div>
                 </Card>
 
-                {/* Sub-card: Topic / Hints */}
-                <Card className="h-40 p-6 glass-card flex flex-col justify-center">
-                    <span className="text-xs font-bold text-primary uppercase tracking-wider mb-2">{selectedSubject === "english" ? "Mr. Mitchell" : "Ms. Chen"} Says</span>
-                    <p className="text-lg font-medium leading-snug" data-testid="text-current-hint">
-                        {currentHint}
-                    </p>
+                {/* Teacher Says Panel */}
+                <Card className="p-4 glass-card flex-shrink-0">
+                    <span className="text-xs font-bold text-primary uppercase tracking-wider mb-2 block">
+                        {selectedSubject === "english" ? "Mr. Mitchell" : "Ms. Chen"} Says
+                    </span>
+                    <AnimatePresence mode="wait">
+                        <motion.p
+                            key={currentHint}
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -10 }}
+                            className="text-sm font-medium leading-relaxed"
+                            data-testid="text-current-hint"
+                        >
+                            {currentHint}
+                        </motion.p>
+                    </AnimatePresence>
+                </Card>
+
+                {/* Quick Chat Input (always visible) */}
+                <Card className="p-4 glass-card flex-1 flex flex-col min-h-0">
+                    <h3 className="font-semibold text-sm mb-3">Ask a Question</h3>
+                    
+                    {/* Messages */}
+                    <div className="flex-1 overflow-y-auto space-y-2 mb-3 pr-1" data-testid="chat-messages-container">
+                        {messages.length === 0 ? (
+                            <p className="text-muted-foreground text-xs text-center py-4">
+                                Type a question or use voice input to interact with your tutor.
+                            </p>
+                        ) : (
+                            messages.slice(-6).map((msg, idx) => (
+                                <motion.div
+                                    key={idx}
+                                    initial={{ opacity: 0, x: msg.role === "user" ? 20 : -20 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    className={`p-2 rounded-lg text-xs ${
+                                        msg.role === "user"
+                                            ? "bg-primary text-primary-foreground ml-4"
+                                            : "bg-muted mr-4"
+                                    }`}
+                                    data-testid={`message-${msg.role}-${idx}`}
+                                >
+                                    {msg.content.length > 150 ? msg.content.slice(0, 150) + "..." : msg.content}
+                                </motion.div>
+                            ))
+                        )}
+                    </div>
+
+                    {/* Input */}
+                    <div className="flex gap-2">
+                        <Input
+                            placeholder="Type your question..."
+                            value={chatInput}
+                            onChange={(e) => setChatInput(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" && chatInput.trim() && sessionId) {
+                                e.preventDefault();
+                                sendMessage(chatInput);
+                              }
+                            }}
+                            disabled={!sessionId}
+                            className="text-sm"
+                            data-testid="input-chat-message"
+                        />
+                        <Button
+                            size="icon"
+                            onClick={() => sendMessage(chatInput)}
+                            disabled={!sessionId || !chatInput.trim()}
+                            data-testid="button-send-message"
+                        >
+                            <Send className="w-4 h-4" />
+                        </Button>
+                    </div>
                 </Card>
             </div>
 
-            {/* Middle/Right: Whiteboard / Work Area */}
-            <div className={`${showChat ? 'lg:col-span-5' : 'lg:col-span-7'} h-full min-h-0`}>
+            {/* Main: Whiteboard - Primary Focus */}
+            <div className={`${showChat ? 'lg:col-span-6' : 'lg:col-span-9'} h-full min-h-0`}>
                 <Whiteboard content={whiteboardContent} sessionId={sessionId} />
             </div>
 
-            {/* Chat Panel (Conditional) */}
+            {/* Expanded Chat Panel (when showChat is true) */}
             {showChat && (
                 <div className="lg:col-span-3 h-full min-h-0 flex flex-col">
-                    <Card className="flex-1 flex flex-col p-4 gap-4">
-                        <h3 className="font-serif font-semibold text-lg">Chat with {selectedSubject === "english" ? "Mr. Mitchell" : "Ms. Chen"}</h3>
+                    <Card className="flex-1 flex flex-col p-4 gap-3">
+                        <h3 className="font-semibold text-sm">Full Chat History</h3>
                         
-                        {/* Messages */}
-                        <div className="flex-1 overflow-y-auto space-y-3 pr-2" data-testid="chat-messages-container">
-                            {messages.length === 0 ? (
-                                <p className="text-muted-foreground text-sm text-center mt-8">
-                                    Start chatting with your tutor! She'll guide you through the problem step-by-step.
-                                </p>
-                            ) : (
-                                messages.map((msg, idx) => (
-                                    <div
-                                        key={idx}
-                                        className={`p-3 rounded-lg ${
-                                            msg.role === "user"
-                                                ? "bg-primary text-primary-foreground ml-8"
-                                                : "bg-muted mr-8"
-                                        }`}
-                                        data-testid={`message-${msg.role}-${idx}`}
-                                    >
-                                        <p className="text-sm">{msg.content}</p>
-                                    </div>
-                                ))
-                            )}
-                        </div>
-
-                        {/* Input */}
-                        <div className="flex gap-2">
-                            <Input
-                                placeholder="Ask a question or share your work..."
-                                value={chatInput}
-                                onChange={(e) => setChatInput(e.target.value)}
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter" && chatInput.trim() && sessionId) {
-                                    e.preventDefault();
-                                    sendMessage(chatInput);
-                                  }
-                                }}
-                                disabled={!sessionId}
-                                data-testid="input-chat-message"
-                            />
-                            <Button
-                                size="icon"
-                                onClick={() => sendMessage(chatInput)}
-                                disabled={!sessionId || !chatInput.trim()}
-                                data-testid="button-send-message"
-                            >
-                                <Send className="w-4 h-4" />
-                            </Button>
+                        {/* Full Messages */}
+                        <div className="flex-1 overflow-y-auto space-y-2 pr-1">
+                            {messages.map((msg, idx) => (
+                                <motion.div
+                                    key={idx}
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    className={`p-3 rounded-lg text-sm ${
+                                        msg.role === "user"
+                                            ? "bg-primary text-primary-foreground ml-6"
+                                            : "bg-muted mr-6"
+                                    }`}
+                                >
+                                    <p>{msg.content}</p>
+                                </motion.div>
+                            ))}
                         </div>
                     </Card>
                 </div>

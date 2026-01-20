@@ -1,5 +1,6 @@
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { PenTool, BookOpen, Calculator } from "lucide-react";
+import { PenTool, BookOpen, Calculator, Sparkles } from "lucide-react";
 import type { WhiteboardContent, WhiteboardBlock } from "@shared/whiteboard-types";
 
 interface WhiteboardProps {
@@ -47,9 +48,18 @@ export function Whiteboard({ content = defaultContent, sessionId }: WhiteboardPr
             className="space-y-6"
           >
             {safeContent.title && (
-              <h2 className="text-2xl font-serif font-semibold text-foreground mb-6">
-                {safeContent.title}
-              </h2>
+              <div className="mb-8">
+                <h2 className="text-2xl font-serif font-semibold text-foreground mb-2 flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-primary" />
+                  {safeContent.title}
+                </h2>
+                <motion.div
+                  initial={{ scaleX: 0 }}
+                  animate={{ scaleX: 1 }}
+                  transition={{ duration: 0.5, ease: "easeOut" }}
+                  className="h-0.5 bg-gradient-to-r from-primary via-primary/50 to-transparent origin-left"
+                />
+              </div>
             )}
             
             {safeContent.blocks.map((block, index) => (
@@ -62,8 +72,42 @@ export function Whiteboard({ content = defaultContent, sessionId }: WhiteboardPr
   );
 }
 
+function TypewriterText({ text, delay = 0 }: { text: string; delay?: number }) {
+  const [displayText, setDisplayText] = useState("");
+  const [isComplete, setIsComplete] = useState(false);
+  
+  useEffect(() => {
+    setDisplayText("");
+    setIsComplete(false);
+    
+    const startTimeout = setTimeout(() => {
+      let currentIndex = 0;
+      const interval = setInterval(() => {
+        if (currentIndex <= text.length) {
+          setDisplayText(text.slice(0, currentIndex));
+          currentIndex++;
+        } else {
+          clearInterval(interval);
+          setIsComplete(true);
+        }
+      }, 30);
+      
+      return () => clearInterval(interval);
+    }, delay * 1000);
+    
+    return () => clearTimeout(startTimeout);
+  }, [text, delay]);
+  
+  return (
+    <span>
+      {displayText}
+      {!isComplete && <span className="animate-pulse text-primary">|</span>}
+    </span>
+  );
+}
+
 function WhiteboardBlockRenderer({ block, index }: { block: WhiteboardBlock; index: number }) {
-  const baseDelay = index * 0.1;
+  const baseDelay = index * 0.15;
   
   switch (block.type) {
     case "equation":
@@ -71,12 +115,20 @@ function WhiteboardBlockRenderer({ block, index }: { block: WhiteboardBlock; ind
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: baseDelay }}
-          className={`text-3xl md:text-4xl font-mono font-medium text-center py-6 px-4 rounded-lg ${
+          transition={{ delay: baseDelay, duration: 0.3 }}
+          className={`text-3xl md:text-4xl font-mono font-medium text-center py-6 px-4 rounded-lg relative overflow-hidden ${
             block.highlight ? "bg-primary/10 border-2 border-primary" : "bg-slate-50"
           }`}
         >
-          {block.content}
+          <TypewriterText text={block.content} delay={baseDelay + 0.3} />
+          {block.highlight && (
+            <motion.div
+              initial={{ x: "-100%" }}
+              animate={{ x: "100%" }}
+              transition={{ delay: baseDelay + 0.5, duration: 0.8 }}
+              className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent"
+            />
+          )}
         </motion.div>
       );
       
