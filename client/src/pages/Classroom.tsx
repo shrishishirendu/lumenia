@@ -130,6 +130,8 @@ export default function Classroom() {
   }, [isRecording]);
 
   const transcribeAndSend = async (audioBlob: Blob) => {
+    console.log("transcribeAndSend called, blob size:", audioBlob.size, "type:", audioBlob.type);
+    
     try {
       const currentSessionId = sessionIdRef.current;
       if (!currentSessionId) {
@@ -137,6 +139,17 @@ export default function Classroom() {
         toast({
           title: "Session Error",
           description: "Please wait for the session to load and try again.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Check if blob has data
+      if (audioBlob.size === 0) {
+        console.error("Empty audio blob");
+        toast({
+          title: "Recording Error",
+          description: "No audio was captured. Please try again.",
           variant: "destructive"
         });
         return;
@@ -152,40 +165,67 @@ export default function Classroom() {
         reader.readAsDataURL(audioBlob);
       });
       
+      console.log("Sending audio for transcription, base64 length:", base64.length);
+      
       const transcribeRes = await fetch("/api/tutor/transcribe", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ audio: base64, mimeType: audioBlob.type })
       });
 
-      if (transcribeRes.ok) {
-        const { text } = await transcribeRes.json();
-        if (text && text.trim()) {
-          setShowChat(true);
-          
-          // Add user message
-          const userMessage: Message = { role: "user", content: text };
-          setMessages(prev => [...prev, userMessage]);
+      if (!transcribeRes.ok) {
+        const errorText = await transcribeRes.text();
+        console.error("Transcription failed:", transcribeRes.status, errorText);
+        toast({
+          title: "Transcription Error",
+          description: "Could not transcribe your voice. Please try again.",
+          variant: "destructive"
+        });
+        return;
+      }
 
-          // Send to AI and get response
-          const chatRes = await fetch("/api/tutor/chat", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              sessionId: currentSessionId,
-              message: text,
-              history: messagesRef.current
-            })
+      const { text } = await transcribeRes.json();
+      console.log("Transcribed text:", text);
+      
+      if (text && text.trim()) {
+        setShowChat(true);
+        
+        // Add user message
+        const userMessage: Message = { role: "user", content: text };
+        setMessages(prev => [...prev, userMessage]);
+
+        // Send to AI and get response
+        const chatRes = await fetch("/api/tutor/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sessionId: currentSessionId,
+            message: text,
+            history: messagesRef.current
+          })
+        });
+
+        if (chatRes.ok) {
+          const data = await chatRes.json();
+          const assistantMessage: Message = { role: "assistant", content: data.response };
+          setMessages(prev => [...prev, assistantMessage]);
+          setCurrentHint(data.response);
+          speakText(data.response);
+        } else {
+          console.error("Chat response failed:", chatRes.status);
+          toast({
+            title: "Response Error",
+            description: "Ms. Chen couldn't respond. Please try again.",
+            variant: "destructive"
           });
-
-          if (chatRes.ok) {
-            const data = await chatRes.json();
-            const assistantMessage: Message = { role: "assistant", content: data.response };
-            setMessages(prev => [...prev, assistantMessage]);
-            setCurrentHint(data.response);
-            speakText(data.response);
-          }
         }
+      } else {
+        console.log("No text transcribed from audio");
+        toast({
+          title: "No Speech Detected",
+          description: "Couldn't hear what you said. Please try speaking again.",
+          variant: "destructive"
+        });
       }
     } catch (error) {
       console.error("Transcription error:", error);
