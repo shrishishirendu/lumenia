@@ -238,7 +238,7 @@ export default function Classroom() {
           console.error("Chat response failed:", chatRes.status);
           toast({
             title: "Response Error",
-            description: "Ms. Chen couldn't respond. Please try again.",
+            description: "The tutor couldn't respond. Please try again.",
             variant: "destructive"
           });
         }
@@ -474,7 +474,7 @@ export default function Classroom() {
                     data-testid="button-toggle-mic"
                 >
                     {isRecording ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
-                    {isRecording ? "Stop Recording" : "Speak to Ms. Chen"}
+                    {isRecording ? "Stop Recording" : `Speak to ${selectedSubject === "english" ? "Mr. Mitchell" : "Ms. Chen"}`}
                 </Button>
                 <Button 
                     variant="outline"
@@ -498,12 +498,13 @@ export default function Classroom() {
                         isListening={micActive && !isAvatarSpeaking}
                         textToSpeak={currentSpeechText}
                         onSpeakingComplete={handleAvatarSpeakingComplete}
+                        subject={selectedSubject}
                     />
                     
                     {/* Floating Controls Overlay */}
                     <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black/80 to-transparent pt-20 flex justify-between items-end">
                         <div className="text-white">
-                            <h3 className="font-medium text-lg">Ms. Chen</h3>
+                            <h3 className="font-medium text-lg">{selectedSubject === "english" ? "Mr. Mitchell" : "Ms. Chen"}</h3>
                             <div className="flex items-center gap-2 text-white/70 text-sm">
                                 <div className={`w-2 h-2 rounded-full ${micActive && !isAvatarSpeaking ? 'bg-green-500 animate-pulse' : isAvatarSpeaking ? 'bg-blue-500 animate-pulse' : 'bg-gray-500'}`} />
                                 {micActive && !isAvatarSpeaking ? "Listening to you..." : isAvatarSpeaking ? "Speaking..." : "Ready"}
@@ -515,7 +516,7 @@ export default function Classroom() {
 
                 {/* Sub-card: Topic / Hints */}
                 <Card className="h-40 p-6 glass-card flex flex-col justify-center">
-                    <span className="text-xs font-bold text-primary uppercase tracking-wider mb-2">Ms. Chen Says</span>
+                    <span className="text-xs font-bold text-primary uppercase tracking-wider mb-2">{selectedSubject === "english" ? "Mr. Mitchell" : "Ms. Chen"} Says</span>
                     <p className="text-lg font-medium leading-snug" data-testid="text-current-hint">
                         {currentHint}
                     </p>
@@ -531,7 +532,7 @@ export default function Classroom() {
             {showChat && (
                 <div className="lg:col-span-3 h-full min-h-0 flex flex-col">
                     <Card className="flex-1 flex flex-col p-4 gap-4">
-                        <h3 className="font-serif font-semibold text-lg">Chat with Ms. Chen</h3>
+                        <h3 className="font-serif font-semibold text-lg">Chat with {selectedSubject === "english" ? "Mr. Mitchell" : "Ms. Chen"}</h3>
                         
                         {/* Messages */}
                         <div className="flex-1 overflow-y-auto space-y-3 pr-2" data-testid="chat-messages-container">

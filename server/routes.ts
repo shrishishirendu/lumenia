@@ -407,16 +407,20 @@ export async function registerRoutes(
   // D-ID Avatar endpoints
   app.post("/api/avatar/talk", async (req: any, res) => {
     try {
-      const { text } = req.body;
+      const { text, subject } = req.body;
       if (!text) return res.status(400).json({ error: "Text required" });
 
-      // Construct public URL for Ms. Chen's avatar
+      // Construct public URL for the appropriate avatar based on subject
       const protocol = req.headers['x-forwarded-proto'] || 'https';
       const host = req.headers['host'] || req.headers['x-forwarded-host'];
-      const msChenAvatarUrl = `${protocol}://${host}/static/avatar/photorealistic_female_teacher_avatar.png`;
+      
+      const avatarFile = subject === "english" 
+        ? "mr_mitchell_english_teacher_portrait.png"
+        : "photorealistic_female_teacher_avatar.png";
+      const avatarUrl = `${protocol}://${host}/static/avatar/${avatarFile}`;
 
       const { createTalkingAvatar } = await import("./did-avatar");
-      const result = await createTalkingAvatar(text, msChenAvatarUrl);
+      const result = await createTalkingAvatar(text, avatarUrl);
       res.json(result);
     } catch (error) {
       console.error("Error creating talking avatar:", error);

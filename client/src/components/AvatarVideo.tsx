@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
-import teacherAvatar from "@assets/generated_images/photorealistic_female_teacher_avatar.png";
+import msChenAvatar from "@assets/generated_images/photorealistic_female_teacher_avatar.png";
+import mrMitchellAvatar from "@assets/generated_images/mr_mitchell_english_teacher_portrait.png";
 
 interface AvatarVideoProps {
   isSpeaking: boolean;
@@ -8,6 +9,7 @@ interface AvatarVideoProps {
   emotion?: "neutral" | "happy" | "thinking";
   textToSpeak?: string;
   onSpeakingComplete?: () => void;
+  subject?: "math" | "english";
 }
 
 export function AvatarVideo({ 
@@ -15,8 +17,12 @@ export function AvatarVideo({
   isListening, 
   emotion = "neutral",
   textToSpeak,
-  onSpeakingComplete
+  onSpeakingComplete,
+  subject = "math"
 }: AvatarVideoProps) {
+  const teacherAvatar = subject === "english" ? mrMitchellAvatar : msChenAvatar;
+  const teacherName = subject === "english" ? "Mr. James Mitchell" : "Ms. Eleanor Chen";
+  const teacherShortName = subject === "english" ? "Mr. Mitchell" : "Ms. Chen";
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [useDidAvatar, setUseDidAvatar] = useState(true);
@@ -131,7 +137,7 @@ export function AvatarVideo({
       const response = await fetch("/api/avatar/talk", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text }),
+        body: JSON.stringify({ text, subject }),
       });
 
       clearTimeout(timeoutId);
@@ -188,7 +194,7 @@ export function AvatarVideo({
       {!videoUrl && (
         <motion.img 
           src={teacherAvatar} 
-          alt="Ms. Chen - AI Tutor" 
+          alt={`${teacherName} - AI Tutor`}
           className="absolute inset-0 w-full h-full object-cover z-10"
           animate={{ 
             scale: isSpeaking ? 1.01 : 1,
@@ -307,7 +313,7 @@ export function AvatarVideo({
             transition={{ duration: 0.5, repeat: isSpeaking || isListening ? Infinity : 0 }}
           />
           <span>
-            {isLoading ? "Generating video..." : isSpeaking ? "Ms. Chen is speaking" : isListening ? "Listening to you" : "Ready to help"}
+            {isLoading ? "Generating video..." : isSpeaking ? `${teacherShortName} is speaking` : isListening ? "Listening to you" : "Ready to help"}
           </span>
         </motion.div>
       </div>
@@ -315,8 +321,8 @@ export function AvatarVideo({
       {/* Name tag */}
       <div className="absolute top-4 left-4 z-30">
         <div className="px-3 py-1.5 rounded-lg bg-black/50 backdrop-blur-xl border border-white/10 text-white">
-          <span className="font-serif font-semibold">Ms. Eleanor Chen</span>
-          <span className="text-white/60 text-sm ml-2">AI Tutor</span>
+          <span className="font-serif font-semibold">{teacherName}</span>
+          <span className="text-white/60 text-sm ml-2">{subject === "english" ? "English Tutor" : "Math Tutor"}</span>
         </div>
       </div>
 
