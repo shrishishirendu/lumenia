@@ -141,78 +141,70 @@ export function AvatarVideo({ isSpeaking, isListening, emotion = "neutral", audi
 
       {isSpeaking && (
         <div className="absolute inset-0 z-20 pointer-events-none">
-          {/* Mouth animation container - positioned over face */}
-          <div 
-            className="absolute"
-            style={{ 
-              bottom: '28%',
-              left: '50%',
-              transform: 'translateX(-50%)',
-            }}
-          >
-            {/* Upper lip */}
-            <motion.div
-              className="absolute"
-              style={{
-                width: 32,
-                height: 8,
-                backgroundColor: '#8B4557',
-                borderTopLeftRadius: 16,
-                borderTopRightRadius: 16,
-                left: '50%',
-                transform: 'translateX(-50%)',
-                top: 0,
-              }}
-            />
-            
-            {/* Mouth opening - the animated part */}
-            <motion.div
-              animate={{
-                height: [4, 8 + mouthState * 6, 4],
-                scaleX: [1, 0.9 + mouthState * 0.05, 1],
-              }}
-              transition={{ 
-                duration: 0.12,
-                ease: "easeInOut"
-              }}
-              style={{
-                width: 28,
-                backgroundColor: '#2D1518',
-                borderBottomLeftRadius: 14,
-                borderBottomRightRadius: 14,
-                marginTop: 6,
-                marginLeft: 2,
-                boxShadow: 'inset 0 4px 8px rgba(0,0,0,0.6)',
-              }}
-            />
-            
-            {/* Teeth hint */}
-            {mouthState >= 2 && (
+          {/* Voice wave animation at bottom - clearly visible */}
+          <div className="absolute bottom-16 left-1/2 -translate-x-1/2 flex items-end gap-1 h-12">
+            {[...Array(12)].map((_, i) => (
               <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 0.9 }}
-                style={{
-                  position: 'absolute',
-                  top: 8,
-                  left: '50%',
-                  transform: 'translateX(-50%)',
-                  width: 20,
-                  height: 4,
-                  backgroundColor: '#F8F8F8',
-                  borderRadius: 2,
+                key={i}
+                className="w-2 bg-gradient-to-t from-indigo-500 to-purple-400 rounded-full"
+                animate={{
+                  height: [
+                    8 + Math.sin(i * 0.5) * 4,
+                    20 + Math.sin(i * 0.8 + mouthState) * 20,
+                    8 + Math.sin(i * 0.5) * 4
+                  ],
                 }}
+                transition={{
+                  duration: 0.15 + (i % 3) * 0.05,
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                }}
+                style={{ opacity: 0.8 + (i % 2) * 0.2 }}
               />
-            )}
+            ))}
           </div>
-          
-          {/* Speaking indicator ring around face */}
+
+          {/* Speech bubble indicator */}
           <motion.div
-            className="absolute inset-8 rounded-full border-2 border-indigo-400/30"
+            className="absolute top-1/4 right-8 bg-white/95 backdrop-blur-sm rounded-2xl px-4 py-2 shadow-xl"
             animate={{
-              scale: [1, 1.02, 1],
-              opacity: [0.3, 0.5, 0.3],
+              scale: [1, 1.05, 1],
+              y: [0, -3, 0],
             }}
-            transition={{ duration: 1.5, repeat: Infinity }}
+            transition={{ duration: 0.8, repeat: Infinity }}
+          >
+            <div className="flex items-center gap-2">
+              <motion.div 
+                className="w-2 h-2 rounded-full bg-indigo-500"
+                animate={{ scale: [1, 1.3, 1] }}
+                transition={{ duration: 0.4, repeat: Infinity }}
+              />
+              <motion.div 
+                className="w-2 h-2 rounded-full bg-indigo-400"
+                animate={{ scale: [1, 1.3, 1] }}
+                transition={{ duration: 0.4, repeat: Infinity, delay: 0.1 }}
+              />
+              <motion.div 
+                className="w-2 h-2 rounded-full bg-indigo-300"
+                animate={{ scale: [1, 1.3, 1] }}
+                transition={{ duration: 0.4, repeat: Infinity, delay: 0.2 }}
+              />
+            </div>
+            {/* Speech bubble tail */}
+            <div className="absolute -bottom-2 left-4 w-4 h-4 bg-white/95 rotate-45" />
+          </motion.div>
+
+          {/* Pulsing glow around avatar */}
+          <motion.div
+            className="absolute inset-4 rounded-2xl"
+            animate={{
+              boxShadow: [
+                "0 0 20px rgba(99, 102, 241, 0.3), inset 0 0 20px rgba(99, 102, 241, 0.1)",
+                "0 0 40px rgba(99, 102, 241, 0.5), inset 0 0 30px rgba(99, 102, 241, 0.2)",
+                "0 0 20px rgba(99, 102, 241, 0.3), inset 0 0 20px rgba(99, 102, 241, 0.1)",
+              ],
+            }}
+            transition={{ duration: 1, repeat: Infinity, ease: "easeInOut" }}
           />
         </div>
       )}
