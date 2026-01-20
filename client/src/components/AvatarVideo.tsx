@@ -84,7 +84,7 @@ export function AvatarVideo({
       const response = await fetch("/api/tutor/speak", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text })
+        body: JSON.stringify({ text, subject })
       });
 
       // Check if this request is still current

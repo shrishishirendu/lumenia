@@ -189,12 +189,17 @@ export async function validateMathAnswer(
   }
 }
 
-export async function generateTextToSpeech(text: string): Promise<Buffer> {
+export async function generateTextToSpeech(text: string, subject: string = "math"): Promise<Buffer> {
+  // Use different voices for each teacher
+  // Ms. Chen (Math): "nova" - warm, professional female
+  // Mr. Mitchell (English): "onyx" - deep, warm male voice
+  const voice = subject === "english" ? "onyx" : "nova";
+  
   // Use gpt-audio-mini with audio output modality for TTS
   const response = await openai.chat.completions.create({
     model: "gpt-audio-mini",
     modalities: ["text", "audio"],
-    audio: { voice: "nova", format: "wav" },
+    audio: { voice, format: "wav" },
     messages: [
       {
         role: "system",

@@ -9,11 +9,19 @@ interface TalkResponse {
 
 export async function createTalkingAvatar(
   text: string,
-  imageUrl: string
+  imageUrl: string,
+  subject: string = "math"
 ): Promise<{ videoUrl: string; id: string }> {
   if (!DID_API_KEY) {
     throw new Error("D-ID API key not configured");
   }
+
+  // Use different voices for each teacher
+  // Ms. Chen (Math): American female voice
+  // Mr. Mitchell (English): British male voice
+  const voiceId = subject === "english" 
+    ? "en-GB-RyanNeural"  // British male for Mr. Mitchell
+    : "en-US-JennyNeural"; // American female for Ms. Chen
 
   const response = await fetch(`${DID_API_URL}/talks`, {
     method: "POST",
@@ -28,7 +36,7 @@ export async function createTalkingAvatar(
         input: text,
         provider: {
           type: "microsoft",
-          voice_id: "en-US-JennyNeural",
+          voice_id: voiceId,
         },
       },
       config: {
@@ -118,11 +126,17 @@ export async function createStreamingSession(imageUrl: string): Promise<{
 
 export async function sendTextToStream(
   sessionId: string,
-  text: string
+  text: string,
+  subject: string = "math"
 ): Promise<void> {
   if (!DID_API_KEY) {
     throw new Error("D-ID API key not configured");
   }
+
+  // Use different voices for each teacher
+  const voiceId = subject === "english" 
+    ? "en-GB-RyanNeural"  // British male for Mr. Mitchell
+    : "en-US-JennyNeural"; // American female for Ms. Chen
 
   const response = await fetch(`${DID_API_URL}/talks/streams/${sessionId}`, {
     method: "POST",
@@ -136,7 +150,7 @@ export async function sendTextToStream(
         input: text,
         provider: {
           type: "microsoft",
-          voice_id: "en-US-JennyNeural",
+          voice_id: voiceId,
         },
       },
     }),

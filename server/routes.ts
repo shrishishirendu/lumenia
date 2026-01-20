@@ -210,11 +210,11 @@ export async function registerRoutes(
   // Text-to-speech endpoint
   app.post("/api/tutor/speak", async (req: any, res) => {
     try {
-      const { text } = req.body;
+      const { text, subject } = req.body;
       if (!text) return res.status(400).json({ error: "Text required" });
 
       const { generateTextToSpeech } = await import("./ai-tutor");
-      const audioBuffer = await generateTextToSpeech(text);
+      const audioBuffer = await generateTextToSpeech(text, subject || "math");
 
       res.set("Content-Type", "audio/wav");
       res.send(audioBuffer);
@@ -420,7 +420,7 @@ export async function registerRoutes(
       const avatarUrl = `${protocol}://${host}/static/avatar/${avatarFile}`;
 
       const { createTalkingAvatar } = await import("./did-avatar");
-      const result = await createTalkingAvatar(text, avatarUrl);
+      const result = await createTalkingAvatar(text, avatarUrl, subject || "math");
       res.json(result);
     } catch (error) {
       console.error("Error creating talking avatar:", error);
