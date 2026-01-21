@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { LayoutDashboard, GraduationCap, LogOut, UserCircle, TrendingUp, Home, Settings, Brain, Megaphone } from "lucide-react";
+import { LayoutDashboard, GraduationCap, LogOut, UserCircle, TrendingUp, Home, Settings, Brain, Megaphone, Server } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth";
 
@@ -83,6 +83,21 @@ export function Nav() {
               title="Marketing Agent"
             >
               <Megaphone className="w-5 h-5" />
+            </Button>
+          </Link>
+        )}
+        
+        {/* Operations Agent - Admin/Teacher only */}
+        {isAdmin && (
+          <Link href="/ops-agent">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className={`w-full h-12 rounded-xl transition-all ${isActive('/ops-agent') ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted'}`}
+              data-testid="nav-ops-agent"
+              title="Operations Agent"
+            >
+              <Server className="w-5 h-5" />
             </Button>
           </Link>
         )}

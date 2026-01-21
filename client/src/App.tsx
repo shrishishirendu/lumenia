@@ -16,6 +16,7 @@ import TutorDashboard from "@/pages/TutorDashboard";
 import StudentDashboard from "@/pages/StudentDashboard";
 import Orchestration from "@/pages/Orchestration";
 import MarketingAgent from "@/pages/MarketingAgent";
+import OpsAgent from "@/pages/OpsAgent";
 
 function Router() {
   return (
@@ -27,6 +28,7 @@ function Router() {
       <Route path="/admin" component={AdminPanel} />
       <Route path="/orchestration" component={Orchestration} />
       <Route path="/marketing-agent" component={MarketingAgent} />
+      <Route path="/ops-agent" component={OpsAgent} />
       <Route path="/tutor" component={TutorDashboard} />
       <Route path="/student" component={StudentDashboard} />
       <Route path="/parent" component={ParentPortal} />
