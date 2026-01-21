@@ -87,8 +87,8 @@ export function Nav() {
           </Link>
         )}
         
-        {/* Student Home - Students only */}
-        {isStudent && (
+        {/* Student Home - Students only (not for teachers/owners) */}
+        {isStudent && !isAdmin && (
           <Link href="/student">
             <Button 
               variant="ghost" 
