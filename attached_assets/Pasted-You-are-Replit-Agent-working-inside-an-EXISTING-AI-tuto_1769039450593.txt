@@ -1,0 +1,249 @@
+You are Replit Agent working inside an EXISTING AI tutoring platform codebase that already has a Marketing Agent “control room” pattern (autonomy levels, monitoring UI, logs, approvals). Do NOT rebuild from scratch. Port and adapt that framework to create a fully functional OPERATIONS AGENT (Ops Agent).
+
+GOAL
+Implement an Operations Agent “control room” that keeps the tutoring platform stable and learning quality high by:
+- Monitoring system/session health (mock telemetry for now)
+- Detecting issues early (alerts/triage)
+- Recommending mitigations (workflow-first)
+- Managing human handoffs to tutors/admin
+- Enforcing safe autonomy levels (0–3)
+- Logging every decision with reasoning + confidence
+- Providing an emergency stop + policy settings
+
+IMPORTANT: Phase 1 for Ops Agent is workflow + governance + simulated telemetry.
+Do NOT integrate real external observability tools yet.
+Use mock telemetry generators and stable schemas that can be wired later.
+
+────────────────────────────────────────
+CORE CONCEPTS
+────────────────────────────────────────
+Ops Agent is NOT marketing. It optimizes “calm reliability” and “learning uptime,” not revenue.
+
+Ops Agent must operate as:
+- A monitoring + triage system (primary)
+- An action recommender (secondary)
+- A safe auto-mitigation executor only at higher autonomy (later)
+
+The UI workflow is the backbone.
+The agent proposes and acts only within autonomy permissions.
+
+────────────────────────────────────────
+AUTONOMY LEVELS (REQUIRED)
+────────────────────────────────────────
+LEVEL 0 — OBSERVE ONLY
+- Agent can: monitor, detect, draft incident/alert entries, recommend mitigations
+- Agent cannot: apply mitigations, change policies, escalate automatically
+
+LEVEL 1 — ASSISTED EXECUTION
+- Agent can: notify human, generate “Apply mitigation” buttons, create handoff packs
+- Human must click to apply mitigations and to assign human tutor
+
+LEVEL 2 — SEMI-AUTONOMOUS
+- Agent can: auto-apply SAFE mitigations within guardrails (pre-approved list)
+- Must notify human for each action taken
+- Cannot change policies or trigger major state changes
+
+LEVEL 3 — AUTONOMOUS WITH GUARDRAILS
+- Agent can: apply mitigations, throttle load, open/close incidents, trigger handoffs
+- Must: log every action, show reasoning + confidence, alert human on thresholds
+- Must: auto-downshift autonomy on repeated low-confidence or policy breach
+
+Autonomy level must be:
+- Settable by human in UI
+- Logged with timestamp and actor
+- Show “WILL / WILL NOT” for the current level
+
+────────────────────────────────────────
+OPS AGENT PAGES / ROUTES
+────────────────────────────────────────
+Create new routes following existing patterns:
+- /ops-agent (Ops Control Room)
+- /ops-agent/settings (Policies & thresholds)
+Optional:
+- /ops-agent/incidents (History)
+- /ops-agent/handoffs (Tutor handoff queue)
+
+Add nav item “Operations Agent” in admin/operator navigation only (NOT student).
+
+────────────────────────────────────────
+DATA MODELS (TYPE-SAFE)
+────────────────────────────────────────
+Implement TypeScript interfaces + storage (use existing storage approach; DB if exists, else localStorage/in-memory).
+
+1) OpsPolicy (editable by human)
+- autonomy: { level: 0|1|2|3, confidenceThreshold, requireApprovalForMajorActions: boolean }
+- slaTargets: { p95ResponseMs, maxErrorRatePct, minSessionSuccessPct, maxTimeToHandoffMins }
+- loadGuardrails: { maxConcurrentSessions, maxTutorUtilizationPct, throttleStepPct }
+- learningQualityGuardrails: { maxStuckEventsPerSession, maxHintsPerStep, maxEarlyExitRatePct }
+- mitigationPermissions:
+    { safeMitigationsEnabled: string[], majorActionsRequireApproval: boolean }
+- notifications: { enableInAppAlerts: true, leadLikeToasts: true }
+- emergencyStop: { enabled: boolean }
+
+2) TelemetrySnapshot (mocked initially)
+- timestamp
+- system: { uptimePct, errorRatePct, p50ResponseMs, p95ResponseMs }
+- sessions: { active, startedLastHour, successRatePct, earlyExitRatePct }
+- tutoring: { avgHintsPerSession, avgStuckEvents, humanHandoffCount }
+- capacity: { tutorUtilizationPct }
+
+3) OpsAlert
+- id, createdAt, severity: "low"|"medium"|"high"|"critical"
+- category: "latency"|"errors"|"session_failures"|"quality_drop"|"capacity_overload"|"handoff_needed"
+- description (human readable)
+- triggerMetrics (structured)
+- recommendedMitigations[] (references to mitigation catalog)
+- confidence (0–100)
+- status: "open"|"acknowledged"|"resolved"
+
+4) MitigationCatalogItem
+- id
+- name
+- description
+- type: "safe"|"major"
+- actionKey (used by executor)
+Examples:
+  - "degrade_voice_mode"
+  - "reduce_concurrency_10pct"
+  - "switch_to_lightweight_responses"
+  - "pause_new_focus_sessions"
+  - "trigger_human_handoff"
+
+5) OpsActionLog
+- timestamp
+- actionType: "alert_created"|"mitigation_applied"|"mitigation_recommended"|"policy_changed"|"handoff_triggered"|"incident_opened"|"incident_closed"
+- what / why / alternatives / confidence / autonomyLevelAtTime
+- actor: "ai"|"human"
+- relatedIds (alertId, incidentId, studentId)
+
+6) HumanHandoffCase
+- id, createdAt, status: "new"|"assigned"|"in_progress"|"resolved"
+- studentId (mock ok)
+- reason: "stuck_loop"|"low_confidence"|"parent_request"|"complex_topic"|"behavioral"
+- contextPack:
+   { sessionSummary, lastAttempts, whatWasTried, recommendedTutorApproach }
+- slaTimerMins
+- assignedTo (optional)
+
+────────────────────────────────────────
+MOCK TELEMETRY GENERATOR (REQUIRED)
+────────────────────────────────────────
+Implement a background simulator (client-side timer or server cron-like loop) that updates TelemetrySnapshot every 15–30 seconds with realistic variation.
+Add “Inject Incident” buttons in Ops UI to simulate:
+- latency spike
+- error spike
+- capacity overload
+- learning quality drop (stuck loops)
+This is critical for testing ops logic and UI without real integrations.
+
+────────────────────────────────────────
+OPS AGENT LOGIC (WORKFLOW-FIRST)
+────────────────────────────────────────
+Implement an Ops “Detector + Recommender” engine:
+
+1) Detect anomalies:
+- if p95ResponseMs > slaTargets.p95ResponseMs → create latency alert
+- if errorRatePct > maxErrorRatePct → create errors alert
+- if session success < minSessionSuccessPct → session failures alert
+- if tutorUtilizationPct > maxTutorUtilizationPct → capacity overload alert
+- if earlyExitRatePct or stuck/hints exceed thresholds → quality drop alert
+
+2) For each alert, propose mitigations from the catalog with:
+- reasoning
+- alternatives considered
+- confidence score
+
+3) Apply mitigations based on autonomy:
+- Level 0: recommend only
+- Level 1: show “Apply” button; human clicks
+- Level 2: auto-apply SAFE mitigations only; notify human
+- Level 3: auto-apply safe + major actions per policy; request approval for major if configured
+
+4) Human handoff:
+When learning-quality thresholds are breached for a student/session (mock a studentId), create a HumanHandoffCase with a context pack and add to the Handoff Queue.
+At high autonomy, it can auto-create and notify; assignment always human unless policy permits.
+
+────────────────────────────────────────
+OPS CONTROL ROOM UI REQUIREMENTS
+────────────────────────────────────────
+/ops-agent should include:
+
+A) Ops Intent Narrative Panel (top)
+Generated each refresh:
+“Maintain X% session success and keep p95 latency under Y ms while supporting up to Z concurrent sessions; pause scaling if utilization exceeds W%.”
+Also show: whyNow (2 bullets) and stopConditions.
+
+B) Live Health Dashboard
+Cards:
+- Uptime
+- p95 latency
+- Error rate
+- Active sessions
+- Tutor utilization
+- Session success rate
+Include trend mini-sparklines if lightweight.
+
+C) Alerts & Triage Queue
+List open alerts with:
+- severity, category, time, description
+- recommended mitigations with “Apply” buttons (respect autonomy)
+- acknowledge / resolve actions
+- confidence + reasoning tooltip/modal
+
+D) Human Handoff Queue
+List cases with:
+- reason, sla timer, context summary
+- “Assign” (human)
+- “Mark resolved” + notes
+
+E) Decision / Action Log
+Structured entries:
+- decision, trigger, why, alternatives, confidence, autonomy, actor
+Filter by severity/category/time.
+
+F) Simulator Controls (for testing)
+- Inject incident buttons
+- Toggle simulator on/off
+- Reset state
+
+────────────────────────────────────────
+SETTINGS PAGE
+────────────────────────────────────────
+/ops-agent/settings must allow editing:
+- autonomy level + thresholds
+- SLA targets
+- load guardrails
+- learning quality guardrails
+- mitigation permissions (which safe mitigations are allowed)
+- major-actions require approval toggle
+- emergency stop
+
+Include “Reset defaults” and “Version history” (keep last 5 states).
+
+────────────────────────────────────────
+SAFETY REQUIREMENTS
+────────────────────────────────────────
+- Emergency stop disables auto-apply and disables “AI actions”
+- Major actions must require approval by default
+- Every auto action must generate a log entry
+- No student PII displayed; use anonymized IDs
+
+────────────────────────────────────────
+DELIVERABLES
+────────────────────────────────────────
+1) Implement Ops Agent pages with navigation.
+2) Implement schemas + storage.
+3) Implement telemetry simulator + incident injection.
+4) Implement detector/recommender engine + autonomy enforcement.
+5) Implement triage + handoff queues.
+6) Add README section: Ops Agent, how to test via simulator.
+
+ACCEPTANCE TESTS
+- Alerts appear when simulated metrics cross thresholds.
+- Recommended mitigations appear and are logged.
+- Autonomy changes what can be auto-applied.
+- Human handoff cases are generated and can be assigned/resolved.
+- Emergency stop prevents auto actions.
+- Intent narrative is always visible and coherent.
+
+Now implement this iteratively in small commits, starting with data models + UI skeleton, then simulator, then detection logic, then autonomy enforcement.
