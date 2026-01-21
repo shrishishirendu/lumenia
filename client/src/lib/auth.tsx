@@ -4,6 +4,7 @@ interface User {
   id: string;
   email?: string;
   username?: string;
+  role?: string;
 }
 
 interface AuthContextType {
@@ -20,16 +21,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check auth status on mount
-    fetch("/api/auth/check")
-      .then(res => res.json())
-      .then(data => {
-        if (data.loggedIn && data.user) {
-          setUser(data.user);
+    // Check auth status and fetch profile with role
+    const checkAuth = async () => {
+      try {
+        const authRes = await fetch("/api/auth/check");
+        const authData = await authRes.json();
+        if (authData.loggedIn && authData.user) {
+          // Also fetch profile to get role
+          const profileRes = await fetch("/api/profile");
+          if (profileRes.ok) {
+            const profile = await profileRes.json();
+            setUser({ ...authData.user, role: profile.role || "student" });
+          } else {
+            setUser({ ...authData.user, role: "student" });
+          }
         }
-      })
-      .catch(console.error)
-      .finally(() => setLoading(false));
+      } catch (error) {
+        console.error("Auth check failed:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    checkAuth();
   }, []);
 
   const login = () => {

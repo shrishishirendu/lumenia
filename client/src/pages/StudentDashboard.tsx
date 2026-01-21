@@ -8,9 +8,7 @@ import { Progress } from "@/components/ui/progress";
 import { 
   BookOpen, 
   Clock, 
-  Trophy,
   TrendingUp,
-  Calendar,
   PlayCircle,
   ChevronRight,
   Star
@@ -98,10 +96,10 @@ export default function StudentDashboard() {
           <div className="flex justify-between items-start">
             <div>
               <h1 className="text-3xl font-serif font-bold text-foreground">My Learning</h1>
-              <p className="text-muted-foreground mt-1">Track your progress and continue learning</p>
+              <p className="text-muted-foreground mt-1">Pick up where you left off, or explore something new</p>
             </div>
             <Button onClick={() => startLesson("math")} className="gap-2" data-testid="button-start-lesson">
-              <PlayCircle className="w-4 h-4" /> Start Lesson
+              <PlayCircle className="w-4 h-4" /> Focus Session
             </Button>
           </div>
 
@@ -114,24 +112,24 @@ export default function StudentDashboard() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{sessions.length}</div>
-                <p className="text-xs text-muted-foreground">Total lessons completed</p>
+                <p className="text-xs text-muted-foreground">Learning sessions</p>
               </CardContent>
             </Card>
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium flex items-center gap-2">
-                  <Trophy className="w-4 h-4" /> Problems Solved
+                  <Clock className="w-4 h-4" /> Practice
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{totalProblemsCorrect}</div>
-                <p className="text-xs text-muted-foreground">of {totalProblemsAttempted} attempted</p>
+                <div className="text-2xl font-bold">{totalProblemsAttempted}</div>
+                <p className="text-xs text-muted-foreground">Problems explored</p>
               </CardContent>
             </Card>
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium flex items-center gap-2">
-                  <TrendingUp className="w-4 h-4" /> Accuracy
+                  <TrendingUp className="w-4 h-4" /> Progress
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -142,14 +140,14 @@ export default function StudentDashboard() {
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium flex items-center gap-2">
-                  <Star className="w-4 h-4" /> Topics Mastered
+                  <Star className="w-4 h-4" /> Skills Growing
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
                   {progress.filter(p => p.masteryLevel >= 80).length}
                 </div>
-                <p className="text-xs text-muted-foreground">80%+ mastery</p>
+                <p className="text-xs text-muted-foreground">Getting stronger</p>
               </CardContent>
             </Card>
           </div>
@@ -266,14 +264,14 @@ export default function StudentDashboard() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Topic Progress</CardTitle>
-              <CardDescription>Your mastery level for each topic</CardDescription>
+              <CardTitle>Your Journey</CardTitle>
+              <CardDescription>Skills you're building</CardDescription>
             </CardHeader>
             <CardContent>
               {progress.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <TrendingUp className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                  <p>Start learning to track your progress</p>
+                  <p>Start exploring to see your journey unfold</p>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -282,12 +280,12 @@ export default function StudentDashboard() {
                       <div className="flex items-center justify-between mb-2">
                         <span className="font-medium text-sm">{p.topic}</span>
                         <Badge variant={p.masteryLevel >= 80 ? "default" : "secondary"}>
-                          {p.masteryLevel}%
+                          {p.masteryLevel >= 80 ? "Strong" : "Growing"}
                         </Badge>
                       </div>
                       <Progress value={p.masteryLevel} />
                       <p className="text-xs text-muted-foreground mt-2">
-                        {p.problemsCorrect}/{p.problemsAttempted} correct
+                        {p.problemsAttempted} problems explored
                       </p>
                     </div>
                   ))}

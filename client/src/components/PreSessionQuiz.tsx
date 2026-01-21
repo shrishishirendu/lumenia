@@ -169,25 +169,19 @@ export function PreSessionQuiz({ onComplete, onSkip }: PreSessionQuizProps) {
       <Card className="max-w-2xl mx-auto mt-8">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            {results.passed ? (
-              <CheckCircle className="w-6 h-6 text-green-500" />
-            ) : (
-              <XCircle className="w-6 h-6 text-orange-500" />
-            )}
-            Quiz Complete!
+            <CheckCircle className="w-6 h-6 text-primary" />
+            Ready to Continue
           </CardTitle>
           <CardDescription>
-            Review of: {lessonTitle}
+            Warm-up complete: {lessonTitle}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="text-center py-4">
-            <div className="text-4xl font-bold text-primary">{results.percentage}%</div>
-            <p className="text-muted-foreground mt-1">
-              {results.score} of {results.totalPoints} points
-            </p>
-            <p className={`mt-2 font-medium ${results.passed ? 'text-green-600' : 'text-orange-600'}`}>
-              {results.passed ? "Great job! You're ready to continue." : "Let's review the concepts as we move forward."}
+            <p className="text-lg font-medium text-foreground">
+              {results.passed 
+                ? "You've got a good handle on this material. Let's build on what you know!" 
+                : "You're making progress. We'll revisit these ideas as we go."}
             </p>
           </div>
           
@@ -196,7 +190,7 @@ export function PreSessionQuiz({ onComplete, onSkip }: PreSessionQuizProps) {
             className="w-full"
             data-testid="button-continue-lesson"
           >
-            Continue to Lesson <ChevronRight className="w-4 h-4 ml-2" />
+            Continue Learning <ChevronRight className="w-4 h-4 ml-2" />
           </Button>
         </CardContent>
       </Card>
@@ -212,17 +206,17 @@ export function PreSessionQuiz({ onComplete, onSkip }: PreSessionQuizProps) {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <BookOpen className="w-5 h-5" />
-          Quick Review Quiz
+          Quick Warm-up
         </CardTitle>
         <CardDescription>
-          Let's review what you learned in: {lessonTitle}
+          Let's revisit: {lessonTitle}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="flex items-center justify-between text-sm text-muted-foreground">
-          <span>Question {currentQuestionIndex + 1} of {questions.length}</span>
+          <span>{currentQuestionIndex + 1} of {questions.length}</span>
           <Button variant="ghost" size="sm" onClick={onSkip} data-testid="button-skip-quiz">
-            Skip Quiz
+            Skip for now
           </Button>
         </div>
 

@@ -7,7 +7,7 @@ import { DrawingCanvas } from "@/components/DrawingCanvas";
 import { PreSessionQuiz } from "@/components/PreSessionQuiz";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Mic, MicOff, MessageSquare, Send, User, Loader2, BookOpen, Calculator, GraduationCap, HelpCircle, Volume2, Pencil, Keyboard } from "lucide-react";
+import { Mic, MicOff, MessageSquare, Send, User, Loader2, BookOpen, Calculator, GraduationCap, HelpCircle, Volume2, Pencil, Target, Clock, Sparkles, ArrowRight } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
@@ -35,7 +35,7 @@ export default function Classroom() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [chatInput, setChatInput] = useState("");
   const [showChat, setShowChat] = useState(false);
-  const [currentHint, setCurrentHint] = useState("Let's start with a simple problem. Are you ready?");
+  const [currentHint, setCurrentHint] = useState("Ready when you are! Take your time and let's explore together.");
   const [currentSpeechText, setCurrentSpeechText] = useState<string | undefined>(undefined);
   const [showHumanTutorDialog, setShowHumanTutorDialog] = useState(false);
   const [humanTutorReason, setHumanTutorReason] = useState("");
@@ -56,6 +56,8 @@ export default function Classroom() {
   const audioChunksRef = useRef<Blob[]>([]);
   const sessionIdRef = useRef<number | null>(null);
   const messagesRef = useRef<Message[]>([]);
+  
+  const [learningMode, setLearningMode] = useState<"focus" | "quickhelp" | "workspace">("focus");
   
   const MATH_TOPICS = [
     "Linear Equations",
@@ -147,17 +149,12 @@ export default function Classroom() {
   const handleQuizComplete = (passed: boolean, score: number) => {
     setShowPreSessionQuiz(false);
     setQuizCompleted(true);
-    if (passed) {
-      toast({
-        title: "Great job!",
-        description: `You scored ${score}% on the review quiz. Let's continue learning!`
-      });
-    } else {
-      toast({
-        title: "Review Complete",
-        description: "We'll review some concepts as we continue with your lesson."
-      });
-    }
+    toast({
+      title: "Warm-up complete",
+      description: passed 
+        ? "You're ready to keep building on what you know!" 
+        : "We'll explore these ideas together as we go."
+    });
     startNewSession();
   };
 
@@ -654,18 +651,11 @@ export default function Classroom() {
       <audio ref={audioRef} />
       
       <main className="flex-1 md:ml-20 p-4 md:p-6 h-screen flex flex-col gap-4">
-        {/* Header */}
-        <header className="flex justify-between items-center mb-2">
-            <div className="flex items-center gap-4">
-                <div>
-                    <h1 className="text-2xl font-serif font-semibold">
-                        {selectedSubject === "math" ? "Mathematics" : "English"}: {currentTopic}
-                    </h1>
-                    <p className="text-muted-foreground text-sm">
-                        {selectedSubject === "math" ? "Australian Curriculum • Years 6-12" : "Language, Literature & Literacy • Years 6-12"}
-                    </p>
-                </div>
-                <div className="flex items-center gap-2">
+        {/* Header - Simplified Action Bar */}
+        <header className="flex flex-col gap-3 mb-2">
+            {/* Top Row - Subject Selection & Mode Actions */}
+            <div className="flex justify-between items-center">
+                <div className="flex items-center gap-3">
                     <Select 
                         value={selectedSubject} 
                         onValueChange={(value: "math" | "english") => {
@@ -674,13 +664,13 @@ export default function Classroom() {
                             setMessages([]);
                             setWhiteboardContent(value === "math" ? DEFAULT_MATH_CONTENT : DEFAULT_ENGLISH_CONTENT);
                             setCurrentHint(value === "math" 
-                                ? "Let's work through some math problems together. What would you like to practice?"
-                                : "Let's explore the English language together. What would you like to work on?"
+                                ? "Ready when you are! What would you like to explore today?"
+                                : "Let's discover something new together. Where shall we begin?"
                             );
                         }}
                     >
                         <SelectTrigger className="w-[140px]" data-testid="select-subject">
-                            <SelectValue placeholder="Select subject" />
+                            <SelectValue placeholder="Subject" />
                         </SelectTrigger>
                         <SelectContent>
                             <SelectItem value="math">
@@ -703,7 +693,7 @@ export default function Classroom() {
                         }}
                     >
                         <SelectTrigger className="w-[180px]" data-testid="select-topic">
-                            <SelectValue placeholder="Select topic" />
+                            <SelectValue placeholder="Topic" />
                         </SelectTrigger>
                         <SelectContent>
                             {(selectedSubject === "math" ? MATH_TOPICS : ENGLISH_TOPICS).map(topic => (
@@ -711,10 +701,16 @@ export default function Classroom() {
                             ))}
                         </SelectContent>
                     </Select>
+                </div>
+                
+                {/* Primary Action Buttons - Clear Student Intents */}
+                <div className="flex items-center gap-2">
+                    {/* Focus Session - Primary CTA */}
                     <Button
-                        variant="secondary"
-                        size="sm"
+                        variant={learningMode === "focus" ? "default" : "outline"}
+                        className="gap-2"
                         onClick={async () => {
+                            setLearningMode("focus");
                             const response = await fetch("/api/sessions", {
                                 method: "POST",
                                 headers: { "Content-Type": "application/json" },
@@ -724,64 +720,38 @@ export default function Classroom() {
                                 const session = await response.json();
                                 setSessionId(session.id);
                                 setMessages([]);
-                                toast({
-                                    title: "New Session Started",
-                                    description: `Ready to learn ${currentTopic}!`
-                                });
+                                setCurrentHint(`Let's focus on ${currentTopic}. Take your time - we'll work through this together.`);
                             }
                         }}
-                        data-testid="button-start-session"
+                        data-testid="button-focus-session"
                     >
-                        Start Session
+                        <Target className="w-4 h-4" /> Focus Session
+                    </Button>
+                    
+                    {/* Quick Help - Secondary CTA */}
+                    <Button
+                        variant={learningMode === "quickhelp" ? "default" : "secondary"}
+                        className="gap-2"
+                        onClick={() => {
+                            setLearningMode("quickhelp");
+                            setShowChat(true);
+                            setCurrentHint("What's on your mind? Ask me anything - I'm here to help.");
+                        }}
+                        data-testid="button-quick-help"
+                    >
+                        <HelpCircle className="w-4 h-4" /> Quick Help
+                    </Button>
+                    
+                    {/* Show My Work - Tertiary CTA */}
+                    <Button
+                        variant={learningMode === "workspace" ? "default" : "ghost"}
+                        className="gap-2"
+                        onClick={() => setLearningMode("workspace")}
+                        data-testid="button-show-work"
+                    >
+                        <Pencil className="w-4 h-4" /> Show My Work
                     </Button>
                 </div>
-            </div>
-            <div className="flex gap-2">
-                <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
-                    <Button 
-                        variant={teachingStyle === "socratic" ? "default" : "ghost"}
-                        size="sm"
-                        className="gap-1"
-                        onClick={() => setTeachingStyle("socratic")}
-                        data-testid="button-style-socratic"
-                    >
-                        <HelpCircle className="w-3 h-3" /> Q&A
-                    </Button>
-                    <Button 
-                        variant={teachingStyle === "direct" ? "default" : "ghost"}
-                        size="sm"
-                        className="gap-1"
-                        onClick={() => setTeachingStyle("direct")}
-                        data-testid="button-style-direct"
-                    >
-                        <GraduationCap className="w-3 h-3" /> Direct
-                    </Button>
-                </div>
-                <Button 
-                    variant={showChat ? "default" : "outline"}
-                    className="gap-2"
-                    onClick={() => setShowChat(!showChat)}
-                    data-testid="button-toggle-chat"
-                >
-                    <MessageSquare className="w-4 h-4" /> Chat
-                </Button>
-                <Button 
-                    className={`gap-2 transition-all ${isRecording ? 'bg-red-500 hover:bg-red-600 text-white animate-pulse' : ''}`}
-                    onClick={toggleMic}
-                    disabled={isAvatarSpeaking}
-                    data-testid="button-toggle-mic"
-                >
-                    {isRecording ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
-                    {isRecording ? "Stop Recording" : `Speak to ${selectedSubject === "english" ? "Mr. Mitchell" : "Ms. Chen"}`}
-                </Button>
-                <Button 
-                    variant="outline"
-                    className="gap-2"
-                    onClick={() => setShowHumanTutorDialog(true)}
-                    data-testid="button-request-human"
-                >
-                    <User className="w-4 h-4" /> Human Tutor
-                </Button>
             </div>
         </header>
 
@@ -791,6 +761,32 @@ export default function Classroom() {
             {/* Left Sidebar: Teacher Info + Chat */}
             <div className={`${showChat ? 'lg:col-span-3' : 'lg:col-span-3'} flex flex-col gap-4 min-h-0`}>
                 
+                {/* Session Compass - Today's Focus */}
+                {learningMode === "focus" && (
+                    <Card className="p-4 glass-card border-primary/20">
+                        <div className="flex items-center gap-2 mb-3">
+                            <Target className="w-4 h-4 text-primary" />
+                            <span className="text-xs font-bold text-primary uppercase tracking-wider">Today's Focus</span>
+                        </div>
+                        <div className="space-y-2 text-sm">
+                            <div className="flex items-center justify-between">
+                                <span className="text-muted-foreground">Skill</span>
+                                <span className="font-medium">{currentTopic}</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                                <span className="text-muted-foreground">Time</span>
+                                <span className="font-medium flex items-center gap-1">
+                                    <Clock className="w-3 h-3" /> 25-40 min
+                                </span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                                <span className="text-muted-foreground">Goal</span>
+                                <span className="font-medium text-primary">Build understanding</span>
+                            </div>
+                        </div>
+                    </Card>
+                )}
+
                 {/* Teacher Info Panel - Compact */}
                 <Card className="p-4 glass-card">
                     <div className="flex items-center gap-3 mb-3">
@@ -804,7 +800,7 @@ export default function Classroom() {
                                 {selectedSubject === "english" ? "Mr. James Mitchell" : "Ms. Eleanor Chen"}
                             </h3>
                             <p className="text-xs text-muted-foreground">
-                                {selectedSubject === "math" ? "Mathematics Tutor" : "English Tutor"}
+                                Today's focus: {currentTopic}
                             </p>
                         </div>
                         <AnimatePresence>
@@ -821,19 +817,40 @@ export default function Classroom() {
                         </AnimatePresence>
                     </div>
                     
-                    {/* Voice Visualizer */}
-                    <div className="flex justify-center py-2">
+                    {/* Voice & Interaction Controls */}
+                    <div className="flex items-center justify-between gap-2">
                         <VoiceVisualizer 
                             isActive={isAvatarSpeaking || (micActive && !isAvatarSpeaking)} 
                             mode={isAvatarSpeaking ? "speaking" : "listening"} 
                         />
+                        <div className="flex gap-1">
+                            <Button
+                                size="sm"
+                                variant={isRecording ? "destructive" : "secondary"}
+                                className="gap-1"
+                                onClick={toggleMic}
+                                disabled={isAvatarSpeaking}
+                                data-testid="button-toggle-mic"
+                            >
+                                {isRecording ? <MicOff className="w-3 h-3" /> : <Mic className="w-3 h-3" />}
+                            </Button>
+                            <Button
+                                size="sm"
+                                variant="ghost"
+                                className="gap-1"
+                                onClick={() => setShowHumanTutorDialog(true)}
+                                data-testid="button-request-human"
+                            >
+                                <User className="w-3 h-3" />
+                            </Button>
+                        </div>
                     </div>
                 </Card>
 
-                {/* Teacher Says Panel */}
+                {/* Tutor Says Panel - Calm, Encouraging Tone */}
                 <Card className="p-4 glass-card flex-shrink-0">
                     <span className="text-xs font-bold text-primary uppercase tracking-wider mb-2 block">
-                        {selectedSubject === "english" ? "Mr. Mitchell" : "Ms. Chen"} Says
+                        {selectedSubject === "english" ? "Mr. Mitchell" : "Ms. Chen"}
                     </span>
                     <AnimatePresence mode="wait">
                         <motion.p
@@ -851,13 +868,18 @@ export default function Classroom() {
 
                 {/* Quick Chat Input (always visible) */}
                 <Card className="p-4 glass-card flex-1 flex flex-col min-h-0">
-                    <h3 className="font-semibold text-sm mb-3">Ask a Question</h3>
+                    <h3 className="font-semibold text-sm mb-3">
+                        {learningMode === "quickhelp" ? "Quick Help" : "Ask a Question"}
+                    </h3>
                     
                     {/* Messages */}
                     <div className="flex-1 overflow-y-auto space-y-2 mb-3 pr-1 min-h-[100px]" data-testid="chat-messages-container">
                         {messages.length === 0 ? (
                             <p className="text-muted-foreground text-xs text-center py-4">
-                                Type a question, draw your work, or use voice input.
+                                {learningMode === "quickhelp" 
+                                    ? "What would you like help with? I'm here whenever you need me."
+                                    : "Take your time. Ask me anything when you're ready."
+                                }
                             </p>
                         ) : (
                             messages.slice(-6).map((msg, idx) => (
@@ -935,7 +957,7 @@ export default function Classroom() {
 
             {/* Main: Whiteboard - Primary Focus */}
             <div className={`${showChat ? 'lg:col-span-6' : 'lg:col-span-9'} h-full min-h-0 flex flex-col`}>
-                <Tabs defaultValue="view" className="flex-1 flex flex-col">
+                <Tabs value={learningMode === "workspace" ? "draw" : "view"} onValueChange={(v) => setLearningMode(v === "draw" ? "workspace" : "focus")} className="flex-1 flex flex-col">
                     <TabsList className="mb-2 self-start">
                         <TabsTrigger value="view" className="gap-1">
                             <BookOpen className="w-4 h-4" /> Lesson
@@ -953,13 +975,13 @@ export default function Classroom() {
                                 <div>
                                     <h3 className="font-semibold text-lg">Your Workspace</h3>
                                     <p className="text-sm text-muted-foreground">
-                                        Write or draw your work here - your tutor will analyze it and provide feedback
+                                        Try the problem here. I'll guide you if needed.
                                     </p>
                                 </div>
                                 {isAnalyzingDrawing && (
                                     <div className="flex items-center gap-2 text-primary">
                                         <Loader2 className="w-4 h-4 animate-spin" />
-                                        <span className="text-sm">Analyzing your work...</span>
+                                        <span className="text-sm">Looking at your work...</span>
                                     </div>
                                 )}
                             </div>
