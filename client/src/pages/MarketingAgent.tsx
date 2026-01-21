@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/lib/auth";
 import { useMarketingAgent, AUTONOMY_LEVELS, type AutonomyLevel, type Campaign, type Lead, type MarketingStrategy } from "@/lib/marketingAgent";
@@ -49,19 +49,44 @@ import {
   Megaphone,
   UserPlus,
   Phone,
-  BookOpen
+  BookOpen,
+  Sparkles,
+  Loader2
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { IntentNarrativePanel } from "@/components/IntentNarrativePanel";
+import { ProposalQueue } from "@/components/ProposalQueue";
+import { MarketingAgentSettings } from "@/components/MarketingAgentSettings";
+import { 
+  type MarketingPolicy, 
+  type MarketingProposal, 
+  type IntentNarrative,
+  marketingStorage,
+  getMockSituationSnapshot
+} from "@/lib/marketingAgentModels";
+import { generateIntentNarrative } from "@/lib/intentNarrativeGenerator";
 
 export default function MarketingAgent() {
   const { toast } = useToast();
   const { user, loading } = useAuth();
   const [, setLocation] = useLocation();
-  const [activeTab, setActiveTab] = useState("autonomy");
+  const [activeTab, setActiveTab] = useState("proposals");
   const [showStrategyDialog, setShowStrategyDialog] = useState(false);
   const [showCampaignDialog, setShowCampaignDialog] = useState(false);
   const [showInstructionDialog, setShowInstructionDialog] = useState(false);
   const [confirmLevelChange, setConfirmLevelChange] = useState<AutonomyLevel | null>(null);
+  
+  const [showSettingsDialog, setShowSettingsDialog] = useState(false);
+  const [showGenerateDialog, setShowGenerateDialog] = useState(false);
+  const [policy, setPolicy] = useState<MarketingPolicy | null>(null);
+  const [proposals, setProposals] = useState<MarketingProposal[]>([]);
+  const [intentNarrative, setIntentNarrative] = useState<IntentNarrative | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generateForm, setGenerateForm] = useState({
+    objective: "acquisition" as "acquisition" | "nurture" | "re_engage" | "brand_trust",
+    notes: "",
+    timeWindow: "week" as "week" | "month"
+  });
   
   const {
     state,
@@ -108,6 +133,145 @@ export default function MarketingAgent() {
     type: "strategy_change" as const,
     instruction: ""
   });
+
+  useEffect(() => {
+    setPolicy(marketingStorage.loadPolicy());
+    setProposals(marketingStorage.loadProposals());
+  }, []);
+
+  const refreshIntentNarrative = useCallback(() => {
+    const currentPolicy = policy || marketingStorage.loadPolicy();
+    const strategyMemory = marketingStorage.loadStrategyMemory();
+    const situationSnapshot = getMockSituationSnapshot();
+    
+    const narrative = generateIntentNarrative({
+      policy: currentPolicy,
+      strategyMemory,
+      situationSnapshot
+    });
+    setIntentNarrative(narrative);
+  }, [policy]);
+
+  useEffect(() => {
+    if (policy) {
+      refreshIntentNarrative();
+    }
+  }, [policy, refreshIntentNarrative]);
+
+  const handleGenerateProposal = async () => {
+    const currentPolicy = policy || marketingStorage.loadPolicy();
+    
+    if (currentPolicy.aiControls.emergencyStopEnabled) {
+      toast({ title: "Emergency Stop Active", description: "AI generation is disabled", variant: "destructive" });
+      return;
+    }
+
+    const rateLimit = marketingStorage.checkRateLimit();
+    if (!rateLimit.allowed) {
+      toast({ 
+        title: "Rate Limit Reached", 
+        description: `Try again at ${rateLimit.resetAt.toLocaleTimeString()}`, 
+        variant: "destructive" 
+      });
+      return;
+    }
+
+    setIsGenerating(true);
+    try {
+      const strategyMemory = marketingStorage.loadStrategyMemory();
+      const situationSnapshot = getMockSituationSnapshot();
+      const narrative = intentNarrative || generateIntentNarrative({
+        policy: currentPolicy,
+        strategyMemory,
+        situationSnapshot
+      });
+
+      const response = await fetch("/api/marketing/proposals/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          objective: generateForm.objective,
+          notesFromHuman: generateForm.notes,
+          timeWindow: generateForm.timeWindow,
+          systemPrompt: currentPolicy.systemPrompt,
+          policy: currentPolicy,
+          strategyMemory,
+          situationSnapshot,
+          intentNarrative: narrative
+        })
+      });
+
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || "Failed to generate proposal");
+      }
+
+      const data = await response.json();
+      
+      marketingStorage.incrementRateLimit();
+      
+      const newProposal = marketingStorage.createProposal({
+        createdBy: "ai",
+        status: "draft",
+        intentNarrative: data.proposal.intentNarrative || narrative.headline,
+        situationSnapshot,
+        strategy: data.proposal.strategy,
+        campaignDrafts: data.proposal.campaignDrafts?.map((d: any, i: number) => ({
+          ...d,
+          id: `draft_${Date.now()}_${i}`
+        })) || [],
+        budgetPlan: data.proposal.budgetPlan,
+        risksAndSafeguards: data.proposal.risksAndSafeguards,
+        decisionLogEntry: {
+          ...data.proposal.decisionLogEntry,
+          autonomyLevel: currentPolicy.autonomy.level
+        },
+        humanRequests: data.proposal.humanRequests || { approvalsNeeded: [], questions: [] }
+      });
+
+      setProposals(marketingStorage.loadProposals());
+      setShowGenerateDialog(false);
+      setGenerateForm({ objective: "acquisition", notes: "", timeWindow: "week" });
+      
+      toast({ 
+        title: "Proposal Generated", 
+        description: `Confidence: ${data.proposal.decisionLogEntry?.confidence || "N/A"}%` 
+      });
+    } catch (error: any) {
+      console.error("Proposal generation error:", error);
+      toast({ title: "Generation Failed", description: error.message, variant: "destructive" });
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleApproveProposal = (id: string) => {
+    marketingStorage.approveProposal(id, user?.email || "admin");
+    setProposals(marketingStorage.loadProposals());
+    toast({ title: "Proposal Approved", description: "The proposal has been approved" });
+  };
+
+  const handleRejectProposal = (id: string, reason: string) => {
+    marketingStorage.rejectProposal(id, user?.email || "admin", reason);
+    setProposals(marketingStorage.loadProposals());
+    toast({ title: "Proposal Rejected", description: "The proposal has been rejected" });
+  };
+
+  const handleArchiveProposal = (id: string) => {
+    marketingStorage.archiveProposal(id);
+    setProposals(marketingStorage.loadProposals());
+    toast({ title: "Proposal Archived" });
+  };
+
+  const handleDuplicateProposal = (id: string) => {
+    marketingStorage.duplicateProposal(id, user?.email || "admin");
+    setProposals(marketingStorage.loadProposals());
+    toast({ title: "Proposal Duplicated", description: "A copy has been created in drafts" });
+  };
+
+  const handlePolicyChange = (newPolicy: MarketingPolicy) => {
+    setPolicy(newPolicy);
+  };
 
   const userRole = user?.role;
   const isAdmin = userRole === "owner" || userRole === "teacher";
@@ -298,14 +462,37 @@ export default function MarketingAgent() {
               <Button size="sm" variant="destructive" onClick={emergencyStop} data-testid="button-emergency-stop">
                 <AlertTriangle className="h-4 w-4 mr-1" /> Emergency Stop
               </Button>
+              <Button size="sm" variant="outline" onClick={() => setShowSettingsDialog(true)} data-testid="button-settings">
+                <Settings className="h-4 w-4 mr-1" /> Settings
+              </Button>
             </div>
           </div>
         </div>
       </header>
 
-      <div className="container mx-auto px-4 py-6">
+      <div className="container mx-auto px-4 py-6 space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="flex-1">
+            <IntentNarrativePanel narrative={intentNarrative} />
+          </div>
+          <div className="ml-4 flex flex-col gap-2">
+            <Button onClick={refreshIntentNarrative} variant="outline" size="sm" data-testid="button-analyze-intent">
+              <RefreshCw className="h-4 w-4 mr-1" /> Refresh Analysis
+            </Button>
+            <Button onClick={() => setShowGenerateDialog(true)} disabled={policy?.aiControls.emergencyStopEnabled} data-testid="button-generate-proposal">
+              <Sparkles className="h-4 w-4 mr-1" /> Generate Proposal
+            </Button>
+          </div>
+        </div>
+
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid grid-cols-6 w-full max-w-4xl">
+          <TabsList className="grid grid-cols-7 w-full max-w-5xl">
+            <TabsTrigger value="proposals" className="flex items-center gap-2" data-testid="tab-proposals">
+              <Sparkles className="h-4 w-4" /> Proposals
+              {proposals.filter(p => p.status === "draft" || p.status === "in_review").length > 0 && (
+                <Badge className="ml-1">{proposals.filter(p => p.status === "draft" || p.status === "in_review").length}</Badge>
+              )}
+            </TabsTrigger>
             <TabsTrigger value="autonomy" className="flex items-center gap-2" data-testid="tab-autonomy">
               <Shield className="h-4 w-4" /> Autonomy
             </TabsTrigger>
@@ -326,6 +513,16 @@ export default function MarketingAgent() {
               <FileText className="h-4 w-4" /> Decision Log
             </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="proposals" className="space-y-6">
+            <ProposalQueue
+              proposals={proposals}
+              onApprove={handleApproveProposal}
+              onReject={handleRejectProposal}
+              onArchive={handleArchiveProposal}
+              onDuplicate={handleDuplicateProposal}
+            />
+          </TabsContent>
 
           <TabsContent value="autonomy" className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -1331,6 +1528,99 @@ export default function MarketingAgent() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={showGenerateDialog} onOpenChange={setShowGenerateDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5" />
+              Generate AI Proposal
+            </DialogTitle>
+            <DialogDescription>
+              The AI will create a marketing proposal based on current policy and situation
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Objective</Label>
+              <Select
+                value={generateForm.objective}
+                onValueChange={(v: any) => setGenerateForm({ ...generateForm, objective: v })}
+              >
+                <SelectTrigger data-testid="select-objective">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="acquisition">Acquisition - Get new students</SelectItem>
+                  <SelectItem value="nurture">Nurture - Engage trial users</SelectItem>
+                  <SelectItem value="re_engage">Re-engage - Win back inactive users</SelectItem>
+                  <SelectItem value="brand_trust">Brand Trust - Build awareness</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Time Window</Label>
+              <Select
+                value={generateForm.timeWindow}
+                onValueChange={(v: any) => setGenerateForm({ ...generateForm, timeWindow: v })}
+              >
+                <SelectTrigger data-testid="select-timewindow">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="week">This Week</SelectItem>
+                  <SelectItem value="month">This Month</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Notes for AI (optional)</Label>
+              <Textarea
+                placeholder="Any specific guidance or context for the AI..."
+                value={generateForm.notes}
+                onChange={(e) => setGenerateForm({ ...generateForm, notes: e.target.value })}
+                data-testid="input-generate-notes"
+              />
+            </div>
+            {policy?.aiControls.emergencyStopEnabled && (
+              <Alert variant="destructive">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>
+                  Emergency stop is active. AI generation is disabled.
+                </AlertDescription>
+              </Alert>
+            )}
+            <div className="text-sm text-muted-foreground">
+              Rate limit: {marketingStorage.checkRateLimit().remaining} proposals remaining this hour
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowGenerateDialog(false)}>Cancel</Button>
+            <Button 
+              onClick={handleGenerateProposal} 
+              disabled={isGenerating || policy?.aiControls.emergencyStopEnabled}
+              data-testid="button-confirm-generate"
+            >
+              {isGenerating ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-1 animate-spin" /> Generating...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="h-4 w-4 mr-1" /> Generate Proposal
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <MarketingAgentSettings
+        isOpen={showSettingsDialog}
+        onClose={() => setShowSettingsDialog(false)}
+        userId={user?.email || "admin"}
+        onPolicyChange={handlePolicyChange}
+      />
     </div>
   );
 }

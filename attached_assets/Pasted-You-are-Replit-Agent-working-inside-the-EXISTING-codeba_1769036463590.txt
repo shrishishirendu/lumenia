@@ -1,0 +1,172 @@
+You are Replit Agent working inside the EXISTING codebase that already has a Marketing Agent monitoring/control UI (autonomy levels, campaign drafts, decision logs, budget panel, leads feed). Do NOT rebuild from scratch. Extend it safely.
+
+GOAL (PHASE 1)
+Turn the Marketing Agent from “control panel + simulated logic” into a REAL AI-assisted Proposal Engine, while keeping governance workflow first:
+- AI generates structured proposals (strategy + campaigns + budget plan + risks) → goes into Drafts/Review queue
+- Human approves/rejects/edits → only then anything moves to “Ready/Active”
+- Add System Prompt + Policy storage (editable)
+- Add Intent Narrative Generator panel at top of monitoring page
+- NO chat interface in Phase 1 (chat comes later). Keep the UI workflow as the primary interface.
+
+NON-NEGOTIABLE PRINCIPLES
+1) AI NEVER directly publishes/spends in Phase 1. It only proposes.
+2) Every proposal must be explainable: what/why/alternatives/confidence.
+3) Respect existing autonomy levels, but in Phase 1 autonomy only affects how often proposals are generated and how aggressive optimizations are suggested (not execution).
+4) Add cost controls (token limits, model selection, rate limiting) and store trace logs.
+
+IMPLEMENTATION TASKS
+
+A) DATA MODELS / STORAGE (use existing patterns; if no DB, use localStorage + server in-memory store; if DB exists, use it)
+Create typed models (TypeScript interfaces) and persist them:
+
+1) MarketingPolicy (editable by human)
+- brandVoice: { toneGuidelines, forbiddenClaims[], requiredDisclaimers[] }
+- autonomy: { level: 0|1|2|3, confidenceThreshold, requireApprovalForNewStrategy: boolean }
+- budget: { monthlyCap, dailyCap, currency, alertThresholdPct }
+- channels: {
+   googleAds: { enabled, allowedActions: ["draft"] },
+   metaAds: { enabled, allowedActions: ["draft"] },
+   email: { enabled, allowedActions: ["draft"] },
+   smsWhatsapp: { enabled, allowedActions: ["draft"], optInRequired: true },
+   organicSocial: { enabled, allowedActions: ["draft"] },
+   websiteLanding: { enabled, allowedActions: ["draft"] }
+ }
+- capacityGuardrails: { maxNewStudentsPerWeek, maxTutorUtilizationPct }
+- outcomeGuardrails: { min2WeekRetentionPct, maxComplaintRatePct }
+
+2) MarketingStrategyMemory
+- currentThesis (plain English)
+- targetSegments[]
+- messageAngles[]
+- whatWorked[]
+- whatFailed[]
+- seasonalityNotes[]
+- lastUpdated
+
+3) MarketingProposal (AI output; immutable once created except via “human edits” copy)
+- id, createdAt, createdBy ("ai"|"human"), status: "draft"|"in_review"|"approved"|"rejected"|"archived"
+- intentNarrative: string
+- situationSnapshot: { capacity, outcomes, funnel } (can be mocked if not available)
+- strategy: { segment, messageAngle, channels[], timeline, assumptions[] }
+- campaignDrafts[]:
+    - type: "meta_ad"|"google_search_ad"|"email_sequence"|"organic_post"|"landing_copy"
+    - title
+    - primaryText/copy
+    - variants[]
+    - creativePrompt (for image/video generation, text only)
+    - CTA
+    - complianceChecklist: { noGuarantees, noManipulativeUrgency, privacyOK }
+- budgetPlan: { recommendedDailySpend, recommendedMonthlySpend, allocationByChannel[] }
+- risksAndSafeguards: { risks[], stopConditions[] }
+- decisionLogEntry: { what, why, alternatives, confidence, autonomyLevel }
+- humanRequests: { approvalsNeeded[], questions[] }
+
+4) MarketingDecisionLog
+- timestamp, actionType: "proposal_created"|"policy_changed"|"proposal_approved"|"proposal_rejected"
+- details (structured)
+- autonomyLevelAtTime
+- confidence (if applicable)
+
+NOTE: Even if you mock “capacity/outcomes/funnel”, keep schema stable so later we can plug real metrics.
+
+B) SYSTEM PROMPT + POLICY EDITOR UI
+Add a new page or tab under marketing agent:
+- /marketing-agent/settings (or a Settings modal)
+It must allow human to edit and save:
+1) Marketing Agent System Prompt (large textarea)
+2) MarketingPolicy fields (budget caps, forbidden claims, channel toggles, thresholds)
+3) Strategy Memory quick edits (current thesis, what worked/failed)
+
+IMPORTANT: Provide “Reset to Default” buttons and version history (at least keep last 5 saved versions in storage).
+
+C) INTENT NARRATIVE GENERATOR (REQUIRED)
+Implement a pure function/module:
+generateIntentNarrative({ policy, strategyMemory, situationSnapshot, recentPerformance }) -> {
+  headline: string,
+  whyNow: string[],
+  assumptions: string[],
+  stopConditions: string[]
+}
+
+Rules:
+- Headline format:
+  “Acquire X–Y <segment> this <time window> using <message angle> via <channels>, while keeping <guardrails> within limits.”
+- X–Y should be conservative and derived from:
+  min(weeklyCapacitySlots, budgetCap/estimatedCPA, outcomeRiskFactor)
+- If outcome risk is high or tutor utilization is high:
+  headline must become “Stabilize outcomes and pause scaling this week…” and propose remediation campaigns (education content, nurturing) instead of acquisition.
+
+Show this Intent panel at the TOP of /marketing-agent, always visible.
+
+D) PROPOSAL ENGINE (AI-ASSISTED)
+Add backend API route(s) that call OpenAI (already integrated per repo). If OpenAI keys are missing, fall back to mocked proposal generator but keep identical output schema.
+
+Routes:
+- POST /api/marketing/proposals/generate
+  Input: { objective?: string, notesFromHuman?: string, timeWindow?: "week"|"month" }
+  Behavior:
+   1) Load MarketingPolicy + StrategyMemory + recent proposals
+   2) Build a prompt using the stored System Prompt + current policy + strategy memory + any situation snapshot
+   3) Ask AI to output STRICT JSON matching MarketingProposal schema (no extra keys)
+   4) Validate JSON (zod or runtime validator)
+   5) Save proposal with status="draft"
+   6) Log decision entry with confidence and autonomy level
+
+Prompting requirements:
+- Use “JSON only” instruction
+- Provide schema in prompt
+- Include forbidden claims and compliance checklist
+- Include autonomy level (but remind: Phase 1 = propose only, no execution)
+- Enforce token limit and max cost guard (fail gracefully)
+
+E) MARKETING AGENT MONITORING PAGE UPDATES
+On /marketing-agent page add:
+1) Intent Narrative Panel (headline + whyNow + stop conditions)
+2) Proposal Queue panel:
+   - List proposals with status pills
+   - View details page/modal
+   - Approve / Reject / Archive
+   - “Duplicate & Edit” (creates human-edited copy)
+3) “Generate Proposal” button with a small form:
+   - objective dropdown: Acquisition / Nurture / Re-engage / Brand trust
+   - notesFromHuman textarea
+4) Decision Log improvements:
+   - Show “Decision / Trigger / Reasoning / Alternatives / Confidence / Autonomy”
+5) Lead notification panel:
+   - For now mock leads, but ensure UI has “recommended human action” field
+   - Add toast/banner when a new lead arrives
+   - Allow “Mark contacted” state
+
+F) COST / SAFETY CONTROLS
+- Add basic rate limit: max 5 proposal generations/hour
+- Add model selector in settings (default a cost-effective model)
+- Add max tokens and timeout
+- Add “Emergency Stop” that disables AI calls and only allows manual edits
+
+G) TESTING & DX
+- Add minimal unit tests for:
+  - intent narrative generator
+  - proposal schema validation
+- Add README section:
+  - how to configure prompt/policy
+  - where data is stored
+  - how to generate proposals
+  - safety limits
+
+ACCEPTANCE CRITERIA
+1) Human can set autonomy level and policies from Settings.
+2) Human can generate an AI proposal (or mock) that lands in Drafts.
+3) Proposal includes: intent narrative, strategy, campaign drafts, budget plan, risks, confidence.
+4) Human can approve/reject proposals; all actions logged.
+5) Monitoring page always shows current intent narrative clearly.
+6) No publishing/spending actions occur in Phase 1.
+
+IMPLEMENT IN SMALL COMMITS
+Do the work in this order:
+1) Models + storage + settings UI
+2) Intent generator + panel
+3) Proposal generator API + validation
+4) Proposal queue UI + decision log formatting
+5) Safety controls + tests + README
+
+Now implement Phase 1.

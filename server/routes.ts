@@ -7,6 +7,7 @@ import { registerChatRoutes } from "./replit_integrations/chat";
 import { registerAudioRoutes } from "./replit_integrations/audio";
 import { registerImageRoutes } from "./replit_integrations/image";
 import { tutoringStorage } from "./storage";
+import marketingAgentRoutes from "./routes/marketingAgent";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -23,6 +24,9 @@ export async function registerRoutes(
   registerChatRoutes(app);
   registerAudioRoutes(app);
   registerImageRoutes(app);
+  
+  // Marketing Agent API routes
+  app.use("/api/marketing", marketingAgentRoutes);
 
   // Tutoring-specific routes
   // Get student profile
