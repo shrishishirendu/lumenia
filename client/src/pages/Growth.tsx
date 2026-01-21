@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
+import { useLocation } from "wouter";
 import { Nav } from "@/components/Nav";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { useAuth } from "@/lib/auth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { motion } from "framer-motion";
@@ -42,6 +44,8 @@ interface ChatMessage {
 }
 
 export default function Growth() {
+    const { user, loading } = useAuth();
+    const [, setLocation] = useLocation();
     const [activeTab, setActiveTab] = useState("marketing");
     const [salesMessages, setSalesMessages] = useState<ChatMessage[]>([
       { role: "user", content: "Hi, I saw your ad about the personalized math tutoring. My son has ADHD and struggles with standard Zoom classes. Does this work for him?" },
@@ -102,6 +106,36 @@ export default function Growth() {
       }
     };
     
+    const userRole = user?.role;
+    const isAdmin = userRole === "owner" || userRole === "teacher";
+
+    useEffect(() => {
+      if (!loading && user && !isAdmin) {
+        setLocation("/");
+      }
+    }, [loading, user, isAdmin, setLocation]);
+
+    if (loading) {
+      return (
+        <div className="min-h-screen bg-background flex items-center justify-center">
+          <div className="text-muted-foreground">Loading...</div>
+        </div>
+      );
+    }
+
+    if (!user || !isAdmin) {
+      return (
+        <div className="min-h-screen bg-background flex items-center justify-center">
+          <Card className="max-w-md">
+            <CardHeader>
+              <CardTitle>Access Denied</CardTitle>
+              <CardDescription>This page is only accessible to administrators.</CardDescription>
+            </CardHeader>
+          </Card>
+        </div>
+      );
+    }
+
     return (
         <div className="min-h-screen bg-background flex font-sans">
             <Nav />

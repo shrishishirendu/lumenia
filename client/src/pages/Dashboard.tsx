@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
+import { useLocation } from "wouter";
 import { Nav } from "@/components/Nav";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowUpRight, Users, DollarSign, Activity, Clock, Bot, Zap, Globe, MessageSquare, GraduationCap } from "lucide-react";
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
 import { motion, AnimatePresence } from "framer-motion";
+import { useAuth } from "@/lib/auth";
 
 const data = [
   { name: 'Mon', students: 400, revenue: 2400 },
@@ -73,6 +75,39 @@ function AgentTerminal({ name, type, agentType, icon: Icon, color }: { name: str
 }
 
 export default function Dashboard() {
+  const { user, loading } = useAuth();
+  const [, setLocation] = useLocation();
+  
+  const userRole = user?.role;
+  const isAdmin = userRole === "owner" || userRole === "teacher";
+
+  useEffect(() => {
+    if (!loading && user && !isAdmin) {
+      setLocation("/");
+    }
+  }, [loading, user, isAdmin, setLocation]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-muted-foreground">Loading...</div>
+      </div>
+    );
+  }
+
+  if (!user || !isAdmin) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Card className="max-w-md">
+          <CardHeader>
+            <CardTitle>Access Denied</CardTitle>
+            <CardDescription>This page is only accessible to administrators.</CardDescription>
+          </CardHeader>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background flex font-sans">
       <Nav />
