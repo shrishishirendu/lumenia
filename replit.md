@@ -70,3 +70,25 @@ Preferred communication style: Simple, everyday language.
 - `express-session` / `connect-pg-simple`: Session management
 - `passport` / `openid-client`: Authentication
 - `p-limit` / `p-retry`: Batch processing utilities
+
+## Recent Changes
+
+### January 2026 - Learning Orchestration System
+Added admin-only Learning Orchestration System (`/orchestration`) with:
+- **Learning Plan Manager**: Create/edit learning plans with subjects, hours, intensity, modalities
+- **Session Orchestrator**: Configure session limits, cooldowns, burnout protection (persisted to localStorage)
+- **Parent Interaction Panel**: AI-generated plan proposals with trade-off explanations
+- **Workflow Monitor**: Alerts for stuck students, overuse patterns, escalation flags
+- **Autonomous Agents Dashboard**: Marketing, Admissions, Operations, Academic Quality agents with:
+  - Mandate display
+  - Actions taken with reasoning
+  - Confidence scores
+  - Human override controls (Pause/Resume/Override)
+- **AI Admin Agent**: Plan generation, parent negotiation with explainable decisions
+- **Role-based access control**: Only owner/teacher roles can access orchestration
+
+### UX Refinements - Focus + Flow + Workspace Model
+- Role-based navigation hiding admin features from students
+- Classroom header with Focus Session, Quick Help, Show My Work CTAs
+- Session Compass panel in Focus mode
+- Calm, encouraging, non-evaluative copy throughout (no scores/rankings)

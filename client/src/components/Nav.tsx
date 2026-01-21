@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { LayoutDashboard, GraduationCap, LogOut, UserCircle, TrendingUp, Home } from "lucide-react";
+import { LayoutDashboard, GraduationCap, LogOut, UserCircle, TrendingUp, Home, Settings, Brain } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth";
 
@@ -53,6 +53,21 @@ export function Nav() {
               title="Growth Engine"
             >
               <TrendingUp className="w-5 h-5" />
+            </Button>
+          </Link>
+        )}
+        
+        {/* Learning Orchestration - Admin/Teacher only */}
+        {isAdmin && (
+          <Link href="/orchestration">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className={`w-full h-12 rounded-xl transition-all ${isActive('/orchestration') ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted'}`}
+              data-testid="nav-orchestration"
+              title="Learning Orchestration"
+            >
+              <Brain className="w-5 h-5" />
             </Button>
           </Link>
         )}

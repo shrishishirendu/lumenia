@@ -1,0 +1,84 @@
+You are extending an existing AI tutoring platform with ADMIN and AGENT AUTONOMY.
+
+DO NOT rebuild UI from scratch.
+Extend current architecture.
+
+GOAL:
+Create a Learning Orchestration System with:
+- Admin Control Panel
+- AI Admin Agent
+- Fully autonomous Marketing, Admissions, Operations agents
+- Clear human override and explainability
+
+ADMIN PANEL FEATURES:
+1) Learning Plan Manager
+   - Subjects per student
+   - Weekly/monthly hour limits
+   - Learning intensity presets
+   - Allowed modalities (Focus, Flow, Human)
+
+2) Session Orchestrator
+   - Max Focus Sessions/week
+   - Flow Tutor limits
+   - Cooldown rules
+   - Burnout protection
+
+3) Parent Interaction Panel
+   - AI-generated plan proposals
+   - Editable by admin
+   - Clear explanation of trade-offs
+
+4) Workflow Monitor
+   - Students stuck
+   - Overuse of Flow
+   - Skipped anchors
+   - Escalation flags
+
+AI ADMIN AGENT:
+- Generates learning plans based on constraints
+- Negotiates with parent (mock conversational UI)
+- Adjusts weekly goals automatically
+- Explains every decision
+- Escalates to human admin when confidence is low
+
+AGENT AUTONOMY:
+Marketing Agent:
+- Can generate campaigns
+- Adjust budgets
+- Pause campaigns when capacity is low
+
+Admissions Agent:
+- Qualifies leads
+- Sets expectations
+- Rejects bad-fit enrollments
+
+Operations Agent:
+- Monitors system health
+- AI-human handoffs
+- SLA adherence
+
+Academic Quality Agent (NEW):
+- Monitors learning outcomes vs time
+- Flags shallow learning
+- Suggests curriculum adjustments
+
+TECH:
+- Use existing stack
+- Use localStorage / mock state
+- No real external APIs
+- All agents must expose:
+  - Mandate
+  - Actions taken
+  - Reasoning
+  - Confidence score
+
+UI PRINCIPLES:
+- Calm, professional
+- Explainable AI
+- Human override always visible
+- Clear separation of Student, Parent, Admin views
+
+SUCCESS:
+- Admin can configure learning without micromanaging
+- Agents act autonomously within guardrails
+- System prioritizes learning quality over growth
