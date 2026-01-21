@@ -92,3 +92,15 @@ Added admin-only Learning Orchestration System (`/orchestration`) with:
 - Classroom header with Focus Session, Quick Help, Show My Work CTAs
 - Session Compass panel in Focus mode
 - Calm, encouraging, non-evaluative copy throughout (no scores/rankings)
+
+### January 2026 - Marketing Agent Phase 1 (AI-Powered Proposal Engine)
+Added AI-powered proposal generation system for Marketing Agent:
+- **Data Models**: MarketingPolicy, MarketingProposal, MarketingStrategyMemory, DecisionLog with localStorage persistence
+- **Settings UI**: 5-tab modal with System Prompt editor, Policy fields (brand voice, autonomy, channels, guardrails), Budget limits, Strategy Memory, AI Controls (model selection, token limits)
+- **Intent Narrative Generator**: Context-aware headline generator based on capacity/retention/outcomes signals
+- **Proposal Generation API**: `/api/marketing/proposals/generate` endpoint with OpenAI integration
+- **Server-side Validation**: Zod schemas for PolicySchema, ProposalRequestSchema, AIProposalResponseSchema
+- **Safety Controls**: Rate limiting (10/hour per user), emergency stop endpoint, compliance checklist enforcement
+- **UI Components**: IntentNarrativePanel, ProposalQueue with approve/reject/archive actions
+- **Key Files**: `server/routes/marketingAgent.ts`, `client/src/lib/marketingAgentModels.ts`, `client/src/components/MarketingAgentSettings.tsx`, `client/src/components/IntentNarrativePanel.tsx`, `client/src/components/ProposalQueue.tsx`
+- **Phase 1 Constraints**: Propose-only mode (AI never executes), all proposals include decision logs with what/why/alternatives/confidence, confidence threshold 70%
