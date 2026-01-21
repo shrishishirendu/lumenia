@@ -1,0 +1,243 @@
+You are extending an existing AI tutoring platform by implementing a fully functional AI MARKETING AGENT with graduated autonomy and full human oversight.
+
+DO NOT build a toy demo.
+Build a production-ready, explainable agent system with:
+- Clear logic
+- Human control
+- Safe autonomy
+- Monitoring & intervention UI
+
+────────────────────────────────────────
+CORE PHILOSOPHY
+────────────────────────────────────────
+The Marketing Agent is NOT an ad bot.
+It is a Growth Strategist constrained by:
+- Learning quality
+- Capacity limits
+- Brand ethics
+- Human approval
+
+The agent must ALWAYS:
+- Explain what it is doing
+- Expose its strategy
+- Respect autonomy levels
+- Allow human override at any time
+
+────────────────────────────────────────
+AUTONOMY CONTROL SYSTEM (REQUIRED)
+────────────────────────────────────────
+
+Create a Marketing Autonomy Controller with 4 levels:
+
+LEVEL 0 — OBSERVE ONLY
+• Agent can:
+  - Analyze data
+  - Propose strategies
+  - Draft campaigns
+  - Generate creatives (ads, posts, emails)
+• Agent CANNOT:
+  - Publish anything
+  - Spend money
+• Human actions:
+  - Review proposals
+  - Approve/reject ideas
+
+LEVEL 1 — ASSISTED EXECUTION
+• Agent can:
+  - Publish approved content
+  - Schedule posts
+  - Run A/B tests on approved creatives
+• Agent CANNOT:
+  - Launch new campaigns
+  - Increase budget
+• Human actions:
+  - Approve campaign start
+  - Approve spend limits
+
+LEVEL 2 — SEMI-AUTONOMOUS
+• Agent can:
+  - Launch campaigns within approved strategy
+  - Adjust daily budgets within cap
+  - Pause underperforming ads
+• Agent MUST:
+  - Notify human of every launch
+  - Request approval for strategy changes
+• Human actions:
+  - Approve strategy shifts
+  - Monitor outcomes
+
+LEVEL 3 — AUTONOMOUS WITH GUARDRAILS
+• Agent can:
+  - Launch and optimize campaigns
+  - Adjust targeting and creatives
+  - Pause marketing when capacity is full
+• Agent MUST:
+  - Log every decision
+  - Provide reasoning + confidence score
+  - Immediately notify human on:
+    - New leads
+    - Budget thresholds
+    - Performance drops
+• Human actions:
+  - Ethics oversight
+  - Crisis intervention
+  - Budget approval
+
+Autonomy level must be:
+- Changeable in UI
+- Logged with timestamp
+- Require confirmation
+
+────────────────────────────────────────
+MARKETING AGENT CORE JOBS
+────────────────────────────────────────
+
+At every autonomy level, the agent must explicitly perform and display:
+
+1. MARKET SITUATION ANALYSIS
+• Capacity status
+• Student retention health
+• Tutor availability
+• Dropout & complaint signals
+
+2. STRATEGY DEFINITION
+• Target audience
+• Message angle (confidence, clarity, exam, relief)
+• Channel mix
+• Risk assessment
+
+3. CAMPAIGN DESIGN
+• Ad copy variants
+• Visual prompts
+• Landing message
+• CTA reasoning
+
+4. EXECUTION PLAN
+• Channels used
+• Budget per channel
+• Timeline
+• Success metrics
+
+5. MONITORING & OPTIMIZATION
+• CPA
+• Conversion funnel
+• Retention quality
+• Parent sentiment
+
+6. LEAD HANDLING
+• Detect new lead instantly
+• Notify human via:
+  - On-screen alert
+  - Message panel
+• Include:
+  - Lead source
+  - Campaign
+  - Suggested next action
+
+────────────────────────────────────────
+CHANNELS TO SUPPORT
+────────────────────────────────────────
+
+Implement logic for:
+• Paid Ads (Google, Meta, YouTube)
+• Email campaigns
+• Messaging (WhatsApp / SMS — mock)
+• Organic social media
+• Website landing optimization
+
+Agent must show:
+- Why each channel was chosen
+- What message is used
+- What risk exists
+
+────────────────────────────────────────
+HUMAN-IN-LOOP CONTROLS (MANDATORY)
+────────────────────────────────────────
+
+Create a MARKETING AGENT MONITORING PAGE with:
+
+1. AUTONOMY CONTROL PANEL
+• Current autonomy level
+• Change autonomy level
+• Lock critical actions
+• Emergency stop
+
+2. STRATEGY VIEW
+• Current strategy (plain English)
+• Target audience
+• Key assumptions
+• Risks identified
+
+3. CAMPAIGN REVIEW PANEL
+• Drafted posts/ads/emails
+• Approval buttons
+• Edit & comment capability
+
+4. BUDGET CONTROL
+• Approved monthly budget
+• Current spend
+• Increase/decrease controls
+• Spend alerts
+
+5. LIVE LEADS FEED
+• Real-time lead notifications
+• Lead source & intent
+• Suggested human action
+
+6. DECISION LOG (CRITICAL)
+• Timestamp
+• Action taken
+• Reasoning
+• Confidence score
+• Autonomy level at decision time
+
+────────────────────────────────────────
+AGENT EXPLAINABILITY RULES
+────────────────────────────────────────
+
+Every autonomous action must output:
+• “What I did”
+• “Why I did it”
+• “What I considered but rejected”
+• Confidence score (0–100)
+
+If confidence < 70%, agent must request human input.
+
+────────────────────────────────────────
+HUMAN INSTRUCTIONS INTERFACE
+────────────────────────────────────────
+
+Allow human to:
+• Change strategy direction
+• Add constraints
+• Reject assumptions
+• Inject new ideas
+• Pause agent thinking
+• Reset agent context
+
+Agent must confirm:
+“I understand the change. Here’s how my behavior will change.”
+
+────────────────────────────────────────
+TECH CONSTRAINTS
+────────────────────────────────────────
+• Use existing project stack
+• No external APIs required
+• Mock campaign execution
+• Store state in localStorage / in-memory
+• Clean modular code
+
+────────────────────────────────────────
+SUCCESS CRITERIA
+────────────────────────────────────────
+• Human understands what agent is doing
+• Agent never surprises the human
+• Autonomy can be increased or reduced safely
+• Marketing aligns with learning quality
+• Leads are immediately visible to human
+
+Now implement this system step-by-step, starting with:
+1) Autonomy Controller
+2) Marketing Agent core logic
+3) Monitoring UI
+4) Decision logs
