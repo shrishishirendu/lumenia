@@ -481,7 +481,7 @@ export default function SessionFlow() {
         </div>
         
         <Card className="p-6">
-          <h3 className="text-lg font-semibold mb-4">Session Summary</h3>
+          <h3 className="text-lg font-semibold mb-4">Mentora's Notes</h3>
           <div className="grid grid-cols-2 gap-4">
             <div className="text-center p-3 bg-slate-50 rounded-lg">
               <Clock className="h-5 w-5 mx-auto text-muted-foreground mb-1" />

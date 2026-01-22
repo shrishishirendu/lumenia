@@ -45,7 +45,7 @@ export default function Landing() {
       </div>
 
       <header className="relative z-10 container mx-auto px-6 py-6 flex justify-between items-center">
-        <div className="font-serif text-2xl font-bold tracking-tight">Virtual Human.</div>
+        <div className="font-serif text-2xl font-bold tracking-tight">Lumenia</div>
         <div className="flex gap-4">
             {user ? (
               <>
@@ -95,15 +95,15 @@ export default function Landing() {
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
                       <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
                     </span>
-                    Live AI Tutors Available 24/7
+                    Mentora Available 24/7
                 </div>
                 <h1 className="text-6xl md:text-7xl font-serif font-medium leading-[1.1] mb-6">
-                    A Tutor with a <br/>
-                    <span className="text-primary italic">Human Heart</span>.
+                    Guided Learning,<br/>
+                    <span className="text-primary italic">Done Right</span>.
                 </h1>
                 <p className="text-xl text-muted-foreground max-w-lg leading-relaxed">
-                    Experience the Socratic method with a photorealistic AI avatar. 
-                    Real-time voice interaction, emotional intelligence, and 100% accurate math guidance.
+                    Meet Mentora, your child's personal learning guide. 
+                    Real-time voice interaction, patient guidance, and curriculum-aligned support for Years 6-12.
                 </p>
             </motion.div>
 

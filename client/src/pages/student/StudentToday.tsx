@@ -214,8 +214,8 @@ export default function StudentToday() {
                 <HelpCircle className="h-5 w-5 text-white" />
               </div>
               <div>
-                <CardTitle className="text-lg">Quick Help</CardTitle>
-                <CardDescription>Ask a question anytime</CardDescription>
+                <CardTitle className="text-lg">Ask Mentora</CardTitle>
+                <CardDescription>Get help anytime you need it</CardDescription>
               </div>
             </div>
           </CardHeader>

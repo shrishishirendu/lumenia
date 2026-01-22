@@ -1,0 +1,110 @@
+You are Replit Agent working inside the EXISTING Lumenia tutoring platform codebase.
+Auth + RBAC + separate layouts for Student/Parent/Tutor/Admin are working.
+
+TRACK A — PHASE 1 (Quiet Internal Alignment)
+This phase is intentionally LOW RISK:
+- Text + small UI polish only
+- NO route changes
+- NO auth logic changes
+- NO API changes
+- NO database migrations
+
+We are updating naming + first impression to align brand:
+Platform name: Lumenia
+Student-facing learning guide: Mentora
+
+────────────────────────────────────────
+1) GLOBAL BRAND COPY UPDATES (ALL ROLES)
+────────────────────────────────────────
+Update all global headers / app title references:
+- “Welcome to Lumenia”
+- App name: “Lumenia”
+
+Footer:
+- Replace any placeholder footer text with: “© Lumenia”
+
+Do not change URLs or navigation structure.
+
+────────────────────────────────────────
+2) STUDENT-FACING LANGUAGE UPDATES (STUDENT AREA ONLY)
+────────────────────────────────────────
+In Student pages and student session flows, replace consistently:
+- “AI Tutor” / “Virtual Tutor” / “Assistant” → “Mentora”
+- “Ask AI” → “Ask Mentora”
+- “Session Summary” → “Mentora’s Notes”
+- “Tutor says…” → “Mentora suggests…”
+
+Important rules:
+- Do NOT call Mentora “AI” in student UI.
+- Keep tone calm and encouraging.
+
+────────────────────────────────────────
+3) ONE-LINE CLARITY (LOGIN/ABOUT TOOLTIP)
+────────────────────────────────────────
+Add a subtle informational line (login page or info tooltip/icon):
+“Lumenia is a guided learning platform. Mentora is your child’s learning guide.”
+
+Add it once (not repeated everywhere), ideally on the login/welcome screen.
+
+────────────────────────────────────────
+4) FIRST PAGE (LOGIN / WELCOME SCREEN) REFINEMENT (UI ONLY)
+────────────────────────────────────────
+The first page currently feels overlapped/confusing between roles. Refine it to be clean and role-aware WITHOUT changing auth logic.
+
+Goal of login page:
+- Clear branding (Lumenia)
+- Clear entry points (Student/Parent/Tutor + Admin separate)
+- Clear logout entry exists elsewhere (already implemented), but login page should be “calm, not cluttered”
+
+Implement the following UI adjustments:
+
+A) Branding header
+- Large title: “Welcome to Lumenia”
+- Subtitle (small): “Guided learning, done right.”
+- Small info line/tooltip with the one-line clarity statement (from section 3)
+
+B) Role selection clarity (NO logic change)
+If you currently have a combined login for all:
+- Show 3 role tiles/buttons: Student, Parent, Tutor
+- Each tile simply sets a UI label/help text (it can still use the same login form underneath)
+- Keep the existing login POST/flow unchanged
+- After login, RBAC redirect continues to work as it already does
+
+C) Admin entry separation (UI link only)
+- Add an “Admin Login” link/button that routes to /admin/login (already exists)
+- Make it visually smaller (not competing with student/parent/tutor)
+
+D) Remove overlap cues
+- Ensure the login page does NOT show links meant for logged-in dashboards (no student/parent/tutor/admin nav here)
+- If a user is already logged in and lands on /login, show a gentle message:
+  “You’re already signed in. Continue to your dashboard.”
+  with one button: “Go to Dashboard”
+(no change to auth—just a UI conditional)
+
+────────────────────────────────────────
+5) CONSISTENCY CHECKS (MUST PASS)
+────────────────────────────────────────
+- No regression in RBAC.
+- Student cannot see Parent/Tutor/Admin nav items.
+- Parent cannot see Student/Tutor/Admin nav items.
+- Tutor cannot see Student/Parent/Admin nav items.
+- Admin stays in /admin namespace.
+
+Text changes must not break any tests or route guards.
+
+────────────────────────────────────────
+DELIVERABLES
+────────────────────────────────────────
+- Updated copy across app: Lumenia + Mentora naming
+- Refined login page layout with clear role entry + separate admin link
+- One-line clarity statement added once
+- Footer updated to “© Lumenia”
+
+DO NOT:
+- change routes
+- change auth
+- change DB schema
+- add chat
+- add new features beyond the above polish
+
+Implement in small commits and keep changes reversible.

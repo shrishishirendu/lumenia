@@ -3,15 +3,16 @@ import { useLocation } from "wouter";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { GraduationCap, Users, BookOpen, Shield, Loader2, ArrowRight } from "lucide-react";
+import { GraduationCap, Users, BookOpen, Shield, Loader2, ArrowRight, Info } from "lucide-react";
 import { getRoleHomeRoute } from "@/components/ProtectedRoute";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 type RoleOption = "student" | "parent" | "tutor" | "admin";
 
-const roleConfig = {
+const mainRoleConfig = {
   student: {
     title: "Student",
-    description: "Access your classroom, practice problems, and track your learning journey",
+    description: "Access your classroom, practice with Mentora, and track your learning journey",
     icon: Users,
     color: "bg-blue-500",
     hoverColor: "hover:border-blue-500",
@@ -19,7 +20,7 @@ const roleConfig = {
   },
   parent: {
     title: "Parent",
-    description: "Monitor your child's progress, view reports, and communicate with tutors",
+    description: "Monitor your child's progress, view reports, and stay connected",
     icon: BookOpen,
     color: "bg-green-500",
     hoverColor: "hover:border-green-500",
@@ -32,21 +33,15 @@ const roleConfig = {
     color: "bg-purple-500",
     hoverColor: "hover:border-purple-500",
     textColor: "text-purple-600"
-  },
-  admin: {
-    title: "Administrator",
-    description: "Full platform access with dashboard, analytics, and system controls",
-    icon: Shield,
-    color: "bg-red-500",
-    hoverColor: "hover:border-red-500",
-    textColor: "text-red-600"
   }
 };
+
+type MainRoleOption = "student" | "parent" | "tutor";
 
 export default function Login() {
   const { user, loading, login } = useAuth();
   const [, setLocation] = useLocation();
-  const [selectedRole, setSelectedRole] = useState<RoleOption | null>(null);
+  const [selectedRole, setSelectedRole] = useState<MainRoleOption | null>(null);
 
   useEffect(() => {
     if (!loading && user) {
@@ -55,18 +50,14 @@ export default function Login() {
     }
   }, [user, loading, setLocation]);
 
-  const handleRoleSelect = (role: RoleOption) => {
+  const handleRoleSelect = (role: MainRoleOption) => {
     setSelectedRole(role);
   };
 
   const handleLogin = () => {
     if (selectedRole) {
       sessionStorage.setItem("intended_role", selectedRole);
-      if (selectedRole === "admin") {
-        setLocation("/admin/login");
-      } else {
-        login();
-      }
+      login();
     }
   };
 
@@ -78,6 +69,25 @@ export default function Login() {
     );
   }
 
+  if (user) {
+    const homeRoute = getRoleHomeRoute(user.role || "student");
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 p-4" data-testid="login-page">
+        <Card className="w-full max-w-md text-center p-8">
+          <div className="mx-auto mb-4 w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center">
+            <GraduationCap className="h-8 w-8 text-primary" />
+          </div>
+          <h2 className="text-xl font-semibold mb-2">You're already signed in</h2>
+          <p className="text-muted-foreground mb-6">Continue to your dashboard to get started.</p>
+          <Button onClick={() => setLocation(homeRoute)} className="w-full" data-testid="go-to-dashboard">
+            Go to Dashboard
+            <ArrowRight className="ml-2 h-4 w-4" />
+          </Button>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 p-4" data-testid="login-page">
       <div className="w-full max-w-2xl">
@@ -85,14 +95,25 @@ export default function Login() {
           <div className="mx-auto mb-4 w-20 h-20 rounded-2xl bg-primary flex items-center justify-center">
             <GraduationCap className="h-10 w-10 text-primary-foreground" />
           </div>
-          <h1 className="text-3xl font-bold text-foreground">Virtual Human Tutor</h1>
-          <p className="text-muted-foreground mt-2">
-            Select your role to continue
-          </p>
+          <h1 className="text-3xl font-bold text-foreground">Welcome to Lumenia</h1>
+          <p className="text-muted-foreground mt-1">Guided learning, done right.</p>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <p className="text-xs text-muted-foreground mt-3 inline-flex items-center gap-1 cursor-help">
+                  <Info className="h-3 w-3" />
+                  About Lumenia
+                </p>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs">
+                <p>Lumenia is a guided learning platform. Mentora is your child's learning guide.</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-          {(Object.entries(roleConfig) as [RoleOption, typeof roleConfig.student][]).map(([role, config]) => {
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          {(Object.entries(mainRoleConfig) as [MainRoleOption, typeof mainRoleConfig.student][]).map(([role, config]) => {
             const Icon = config.icon;
             const isSelected = selectedRole === role;
             
@@ -131,7 +152,7 @@ export default function Login() {
         >
           {selectedRole ? (
             <>
-              Continue as {roleConfig[selectedRole].title}
+              Continue as {mainRoleConfig[selectedRole].title}
               <ArrowRight className="ml-2 h-4 w-4" />
             </>
           ) : (
@@ -139,8 +160,19 @@ export default function Login() {
           )}
         </Button>
 
-        <p className="text-xs text-center text-muted-foreground mt-6">
-          By signing in, you agree to our Terms of Service and Privacy Policy
+        <div className="mt-6 text-center">
+          <button 
+            onClick={() => setLocation("/admin/login")}
+            className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+            data-testid="admin-login-link"
+          >
+            <Shield className="inline-block h-3 w-3 mr-1" />
+            Admin Login
+          </button>
+        </div>
+
+        <p className="text-xs text-center text-muted-foreground mt-4">
+          © Lumenia · Terms of Service · Privacy Policy
         </p>
       </div>
     </div>

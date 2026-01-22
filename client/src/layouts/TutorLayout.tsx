@@ -17,8 +17,8 @@ export function TutorLayout({ children }: TutorLayoutProps) {
       <nav className="fixed left-0 top-0 bottom-0 w-20 flex flex-col items-center py-6 bg-card border-r border-border z-50 shadow-sm" data-testid="tutor-nav">
         <div className="mb-6">
           <Link href="/tutor">
-            <div className="w-10 h-10 rounded-xl bg-purple-500 flex items-center justify-center text-white font-serif font-bold text-xl cursor-pointer">
-              V
+            <div className="w-10 h-10 rounded-xl bg-purple-500 flex items-center justify-center text-white font-serif font-bold text-xl cursor-pointer" title="Lumenia">
+              L
             </div>
           </Link>
         </div>

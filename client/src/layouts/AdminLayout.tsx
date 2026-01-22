@@ -20,8 +20,8 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       <nav className="fixed left-0 top-0 bottom-0 w-20 flex flex-col items-center py-6 bg-card border-r border-border z-50 shadow-sm" data-testid="admin-nav">
         <div className="mb-6">
           <Link href="/admin">
-            <div className="w-10 h-10 rounded-xl bg-red-500 flex items-center justify-center text-white font-serif font-bold text-xl cursor-pointer">
-              <Shield className="w-5 h-5" />
+            <div className="w-10 h-10 rounded-xl bg-red-500 flex items-center justify-center text-white font-serif font-bold text-xl cursor-pointer" title="Lumenia Admin">
+              L
             </div>
           </Link>
         </div>

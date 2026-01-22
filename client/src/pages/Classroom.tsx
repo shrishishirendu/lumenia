@@ -152,7 +152,7 @@ export default function Classroom() {
       console.error("Failed to initialize session:", error);
       toast({
         title: "Connection Error",
-        description: "Could not start tutoring session. Please refresh.",
+        description: "Could not connect to Mentora. Please refresh.",
         variant: "destructive"
       });
     }
@@ -362,7 +362,7 @@ export default function Classroom() {
           console.error("Chat response failed:", chatRes.status);
           toast({
             title: "Response Error",
-            description: "The tutor couldn't respond. Please try again.",
+            description: "Mentora couldn't respond. Please try again.",
             variant: "destructive"
           });
         }
@@ -526,7 +526,7 @@ export default function Classroom() {
 
       toast({
         title: "Work Received",
-        description: "Your tutor is reviewing your work!"
+        description: "Mentora is reviewing your work!"
       });
     } catch (error) {
       console.error("Drawing analysis error:", error);
