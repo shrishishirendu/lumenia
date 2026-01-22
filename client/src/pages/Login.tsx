@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
@@ -42,13 +42,6 @@ export default function Login() {
   const { user, loading, login } = useAuth();
   const [, setLocation] = useLocation();
   const [selectedRole, setSelectedRole] = useState<MainRoleOption | null>(null);
-
-  useEffect(() => {
-    if (!loading && user) {
-      const homeRoute = getRoleHomeRoute(user.role || "student");
-      setLocation(homeRoute);
-    }
-  }, [user, loading, setLocation]);
 
   const handleRoleSelect = (role: MainRoleOption) => {
     setSelectedRole(role);
