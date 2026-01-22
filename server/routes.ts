@@ -61,6 +61,32 @@ export async function registerRoutes(
     }
   });
 
+  // Set user role (called after login with role selection)
+  app.post("/api/profile/role", async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+      
+      const { role } = req.body;
+      const validRoles = ["student", "parent", "teacher", "owner"];
+      
+      if (!role || !validRoles.includes(role)) {
+        return res.status(400).json({ error: "Invalid role" });
+      }
+      
+      const mappedRole = role === "tutor" ? "teacher" : role === "admin" ? "owner" : role;
+      
+      const profile = await tutoringStorage.upsertProfile({
+        userId,
+        role: mappedRole
+      });
+      res.json(profile);
+    } catch (error) {
+      console.error("Error setting role:", error);
+      res.status(500).json({ error: "Failed to set role" });
+    }
+  });
+
   // Get student progress
   app.get("/api/progress", async (req: any, res) => {
     try {

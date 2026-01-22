@@ -21,19 +21,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check auth status and fetch profile with role
     const checkAuth = async () => {
       try {
         const authRes = await fetch("/api/auth/check");
         const authData = await authRes.json();
         if (authData.loggedIn && authData.user) {
-          // Also fetch profile to get role
-          const profileRes = await fetch("/api/profile");
-          if (profileRes.ok) {
-            const profile = await profileRes.json();
-            setUser({ ...authData.user, role: profile.role || "student" });
+          const intendedRole = sessionStorage.getItem("intended_role");
+          
+          if (intendedRole) {
+            sessionStorage.removeItem("intended_role");
+            const roleMap: Record<string, string> = {
+              student: "student",
+              parent: "parent", 
+              tutor: "teacher",
+              admin: "owner"
+            };
+            const mappedRole = roleMap[intendedRole] || "student";
+            
+            await fetch("/api/profile/role", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ role: mappedRole })
+            });
+            
+            setUser({ ...authData.user, role: mappedRole });
           } else {
-            setUser({ ...authData.user, role: "student" });
+            const profileRes = await fetch("/api/profile");
+            if (profileRes.ok) {
+              const profile = await profileRes.json();
+              setUser({ ...authData.user, role: profile.role || "student" });
+            } else {
+              setUser({ ...authData.user, role: "student" });
+            }
           }
         }
       } catch (error) {
