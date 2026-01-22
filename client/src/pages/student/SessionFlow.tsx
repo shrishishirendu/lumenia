@@ -185,30 +185,34 @@ export default function SessionFlow() {
   };
 
   const handleFinish = async () => {
-    if (state.sessionId) {
-      const timeSpent = Math.floor((Date.now() - state.startTime) / 1000);
-      const warmupScore = calculateScore(state.warmupResults.questions, state.warmupResults.answers);
-      const exitPassed = calculateScore(state.exitTicketResults.questions, state.exitTicketResults.answers) >= 80;
-      
-      let outcomeStatus = "practicing";
-      if (exitPassed && state.hintsUsed <= 2) {
-        outcomeStatus = "mastered";
-      } else if (!exitPassed || state.hintsUsed > 5) {
-        outcomeStatus = "needs_help";
+    try {
+      if (state.sessionId) {
+        const timeSpent = Math.floor((Date.now() - state.startTime) / 1000);
+        const warmupScore = calculateScore(state.warmupResults.questions, state.warmupResults.answers);
+        const exitPassed = calculateScore(state.exitTicketResults.questions, state.exitTicketResults.answers) >= 80;
+        
+        let outcomeStatus = "practicing";
+        if (exitPassed && state.hintsUsed <= 2) {
+          outcomeStatus = "mastered";
+        } else if (!exitPassed || state.hintsUsed > 5) {
+          outcomeStatus = "needs_help";
+        }
+        
+        await updateSessionMutation.mutateAsync({
+          endedAt: new Date().toISOString(),
+          warmupResults: JSON.stringify(state.warmupResults),
+          lessonCompleted: true,
+          practiceResults: JSON.stringify(state.practiceResults),
+          reflectionText: state.reflectionText,
+          exitTicketResults: JSON.stringify({ ...state.exitTicketResults, passed: exitPassed }),
+          timeSpentSec: timeSpent,
+          hintsUsed: state.hintsUsed,
+          outcomeStatus,
+          sessionSummary: `Completed ${topicName} session. Score: ${warmupScore}%. Exit ticket: ${exitPassed ? "Passed" : "Needs review"}.`
+        });
       }
-      
-      await updateSessionMutation.mutateAsync({
-        endedAt: new Date().toISOString(),
-        warmupResults: JSON.stringify(state.warmupResults),
-        lessonCompleted: true,
-        practiceResults: JSON.stringify(state.practiceResults),
-        reflectionText: state.reflectionText,
-        exitTicketResults: JSON.stringify({ ...state.exitTicketResults, passed: exitPassed }),
-        timeSpentSec: timeSpent,
-        hintsUsed: state.hintsUsed,
-        outcomeStatus,
-        sessionSummary: `Completed ${topicName} session. Score: ${warmupScore}%. Exit ticket: ${exitPassed ? "Passed" : "Needs review"}.`
-      });
+    } catch (error) {
+      console.error("Error saving session:", error);
     }
     setLocation("/student");
   };
