@@ -18,6 +18,8 @@ import Unauthorized from "@/pages/Unauthorized";
 
 import Classroom from "@/pages/Classroom";
 import StudentDashboard from "@/pages/StudentDashboard";
+import StudentToday from "@/pages/student/StudentToday";
+import SessionFlow from "@/pages/student/SessionFlow";
 import ParentPortal from "@/pages/ParentPortal";
 import TutorDashboard from "@/pages/TutorDashboard";
 
@@ -44,7 +46,27 @@ function StudentHomePage() {
   return (
     <ProtectedRoute allowedRoles={["student"]}>
       <StudentLayout>
+        <StudentToday />
+      </StudentLayout>
+    </ProtectedRoute>
+  );
+}
+
+function StudentLegacyDashboard() {
+  return (
+    <ProtectedRoute allowedRoles={["student"]}>
+      <StudentLayout>
         <StudentDashboard />
+      </StudentLayout>
+    </ProtectedRoute>
+  );
+}
+
+function StudentSessionPage() {
+  return (
+    <ProtectedRoute allowedRoles={["student"]}>
+      <StudentLayout>
+        <SessionFlow />
       </StudentLayout>
     </ProtectedRoute>
   );
@@ -149,7 +171,9 @@ function Router() {
       <Route path="/unauthorized" component={Unauthorized} />
       
       <Route path="/student" component={StudentHomePage} />
+      <Route path="/student/today" component={StudentHomePage} />
       <Route path="/student/classroom" component={StudentClassroomPage} />
+      <Route path="/student/session/:subject/:topic" component={StudentSessionPage} />
       
       <Route path="/parent" component={ParentHomePage} />
       

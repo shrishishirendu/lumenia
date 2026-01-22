@@ -87,6 +87,150 @@ export async function registerRoutes(
     }
   });
 
+  // Student Dashboard (Learning Loop)
+  app.get("/api/student/dashboard", async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+      
+      const profile = await tutoringStorage.getProfileByUserId(userId);
+      if (!profile) return res.status(404).json({ error: "Profile not found" });
+      
+      const memory = await tutoringStorage.getStudentMemory(profile.id);
+      const latestSession = await tutoringStorage.getLatestSessionAttempt(profile.id);
+      
+      res.json({
+        memory: memory || {
+          lastSubject: null,
+          lastTopicId: null,
+          lastTopicName: null,
+          streakCount: 0,
+          dailyGoalMinutes: 15,
+          todayMinutesCompleted: 0
+        },
+        hasWarmupQuestions: !!latestSession,
+        nextSession: null
+      });
+    } catch (error) {
+      console.error("Error fetching student dashboard:", error);
+      res.status(500).json({ error: "Failed to fetch dashboard" });
+    }
+  });
+
+  // Get topic mastery for student
+  app.get("/api/student/mastery", async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+      
+      const profile = await tutoringStorage.getProfileByUserId(userId);
+      if (!profile) return res.status(404).json({ error: "Profile not found" });
+      
+      const mastery = await tutoringStorage.getTopicMasteryByStudent(profile.id);
+      res.json(mastery);
+    } catch (error) {
+      console.error("Error fetching mastery:", error);
+      res.status(500).json({ error: "Failed to fetch mastery" });
+    }
+  });
+
+  // Get session attempts for student
+  app.get("/api/student/sessions", async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+      
+      const profile = await tutoringStorage.getProfileByUserId(userId);
+      if (!profile) return res.status(404).json({ error: "Profile not found" });
+      
+      const sessions = await tutoringStorage.getSessionAttemptsByStudent(profile.id);
+      res.json(sessions);
+    } catch (error) {
+      console.error("Error fetching sessions:", error);
+      res.status(500).json({ error: "Failed to fetch sessions" });
+    }
+  });
+
+  // Create new session attempt
+  app.post("/api/student/sessions", async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+      
+      const profile = await tutoringStorage.getProfileByUserId(userId);
+      if (!profile) return res.status(404).json({ error: "Profile not found" });
+      
+      const { subject, topicId, topicName } = req.body;
+      
+      const session = await tutoringStorage.createSessionAttempt({
+        studentId: profile.id,
+        subject: subject || "math",
+        topicId: topicId || "linear_equations",
+        topicName: topicName || "Linear Equations"
+      });
+      
+      await tutoringStorage.upsertStudentMemory({
+        studentId: profile.id,
+        lastSubject: session.subject,
+        lastTopicId: session.topicId,
+        lastTopicName: session.topicName,
+        lastActiveDate: new Date()
+      });
+      
+      res.json(session);
+    } catch (error) {
+      console.error("Error creating session:", error);
+      res.status(500).json({ error: "Failed to create session" });
+    }
+  });
+
+  // Update session attempt
+  app.patch("/api/student/sessions/:id", async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+      
+      const sessionId = parseInt(req.params.id);
+      const updates = req.body;
+      
+      const session = await tutoringStorage.updateSessionAttempt(sessionId, updates);
+      res.json(session);
+    } catch (error) {
+      console.error("Error updating session:", error);
+      res.status(500).json({ error: "Failed to update session" });
+    }
+  });
+
+  // Update topic mastery
+  app.post("/api/student/mastery", async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+      
+      const profile = await tutoringStorage.getProfileByUserId(userId);
+      if (!profile) return res.status(404).json({ error: "Profile not found" });
+      
+      const { subject, topicId, topicName, masteryStatus, accuracyRolling, hintsRolling, mistakeTags } = req.body;
+      
+      const mastery = await tutoringStorage.upsertTopicMastery({
+        studentId: profile.id,
+        subject,
+        topicId,
+        topicName,
+        masteryStatus,
+        accuracyRolling,
+        hintsRolling,
+        mistakeTags,
+        lastSeenAt: new Date()
+      });
+      
+      res.json(mastery);
+    } catch (error) {
+      console.error("Error updating mastery:", error);
+      res.status(500).json({ error: "Failed to update mastery" });
+    }
+  });
+
   // Get student progress
   app.get("/api/progress", async (req: any, res) => {
     try {
