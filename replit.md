@@ -104,3 +104,13 @@ Added AI-powered proposal generation system for Marketing Agent:
 - **UI Components**: IntentNarrativePanel, ProposalQueue with approve/reject/archive actions
 - **Key Files**: `server/routes/marketingAgent.ts`, `client/src/lib/marketingAgentModels.ts`, `client/src/components/MarketingAgentSettings.tsx`, `client/src/components/IntentNarrativePanel.tsx`, `client/src/components/ProposalQueue.tsx`
 - **Phase 1 Constraints**: Propose-only mode (AI never executes), all proposals include decision logs with what/why/alternatives/confidence, confidence threshold 70%
+
+### January 2026 - Operations Agent Phase 1 (AI-Powered Monitoring & Alerting)
+Added AI-powered operations monitoring and alerting system:
+- **Data Models**: OpsPolicy, TelemetrySnapshot, OpsAlert, MitigationCatalog, OpsActionLog, HumanHandoffCase with localStorage persistence
+- **Settings UI**: 5-tab modal with Autonomy levels (0-3), SLA targets (uptime, latency, error rate, CSAT), Load guardrails (CPU, memory, session limits), Quality guardrails (quiz pass rate, engagement, escalation rate), Mitigation permissions
+- **Telemetry Simulator**: Real-time mock telemetry generation (15s intervals) with manual incident injection buttons (latency spike, error spike, capacity overload, quality drop)
+- **Detector/Recommender Engine**: Automated anomaly detection when telemetry breaches policy thresholds, generates alerts with severity levels and recommended mitigations
+- **Ops Control Room UI**: `/ops-agent` with health dashboard (CPU, Memory, Sessions, Latency gauges), alerts queue with approve/reject actions, handoff queue with SLA tracking, decision log, intent narrative panel
+- **Key Files**: `client/src/lib/opsAgentModels.ts`, `client/src/lib/telemetrySimulator.ts`, `client/src/components/OpsAgentSettings.tsx`, `client/src/pages/OpsAgent.tsx`
+- **Phase 1 Constraints**: Alert/propose-only mode (no auto-execution without approval), autonomy level 0-1 by default, human-in-the-loop for all mitigations, confidence threshold 70%
