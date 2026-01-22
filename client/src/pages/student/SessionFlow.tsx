@@ -126,12 +126,31 @@ export default function SessionFlow() {
 
   const handleAnswer = (questionId: string, answer: string, section: "warmup" | "practice" | "exit_ticket") => {
     setState(prev => {
-      const key = `${section}Results` as keyof SessionState;
-      const results = prev[key] as { questions: Question[]; answers: Record<string, string> };
-      return {
-        ...prev,
-        [key]: { ...results, answers: { ...results.answers, [questionId]: answer } }
-      };
+      if (section === "warmup") {
+        return {
+          ...prev,
+          warmupResults: { 
+            ...prev.warmupResults, 
+            answers: { ...prev.warmupResults.answers, [questionId]: answer } 
+          }
+        };
+      } else if (section === "practice") {
+        return {
+          ...prev,
+          practiceResults: { 
+            ...prev.practiceResults, 
+            answers: { ...prev.practiceResults.answers, [questionId]: answer } 
+          }
+        };
+      } else {
+        return {
+          ...prev,
+          exitTicketResults: { 
+            ...prev.exitTicketResults, 
+            answers: { ...prev.exitTicketResults.answers, [questionId]: answer } 
+          }
+        };
+      }
     });
   };
 
