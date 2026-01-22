@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
-import { Nav } from "@/components/Nav";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useAuth } from "@/lib/auth";
@@ -137,10 +136,8 @@ export default function Growth() {
     }
 
     return (
-        <div className="min-h-screen bg-background flex font-sans">
-            <Nav />
-            
-            <main className="flex-1 md:ml-20 p-8">
+        <div className="min-h-screen bg-background font-sans">
+            <main className="p-8">
                 <div className="max-w-6xl mx-auto space-y-8">
                     
                     {/* Header */}

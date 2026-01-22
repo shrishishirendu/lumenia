@@ -1,4 +1,3 @@
-import { Nav } from "@/components/Nav";
 import { AvatarVideo } from "@/components/AvatarVideo";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,10 +5,8 @@ import { Play, Calendar, TrendingUp, MessageCircle } from "lucide-react";
 
 export default function ParentPortal() {
   return (
-    <div className="min-h-screen bg-background flex font-sans">
-      <Nav />
-      
-      <main className="flex-1 md:ml-20 p-8">
+    <div className="min-h-screen bg-background font-sans">
+      <main className="p-8">
         <div className="max-w-5xl mx-auto space-y-8">
             
             <header>

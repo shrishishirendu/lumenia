@@ -1,0 +1,160 @@
+You are Replit Agent working inside the EXISTING tutoring platform codebase. We have login issues and role/page overlaps between Student, Teacher/Tutor, Parent, and Admin. Fix authentication, authorization, navigation, logout, and role separation properly.
+
+GOAL
+Implement clean, secure, and user-friendly authentication + role-based access control (RBAC) so:
+- Student, Parent, Tutor/Teacher, Admin experiences are clearly separated
+- No page overlap or accidental access
+- Logout is reliable everywhere
+- Admin has a distinct login flow and a 360° view dashboard
+- Navigation shows only what the logged-in role should see
+
+DO NOT rebuild the whole app. Refactor the existing auth/layout structure.
+
+────────────────────────────────────────
+PROBLEMS TO SOLVE (CURRENT)
+────────────────────────────────────────
+1) Role overlap: Student pages, Parent pages, Teacher/Tutor pages, Admin pages bleed into each other.
+2) Login issues: inconsistent session state, users appear logged in but see wrong nav/pages.
+3) Missing/weak logout: no clear logout page and logout does not reliably clear session.
+4) Admin login must be separate and stricter, and Admin needs a 360° view across the platform.
+
+────────────────────────────────────────
+TARGET DESIGN (WHAT TO BUILD)
+────────────────────────────────────────
+
+A) AUTHENTICATION
+- Single auth system for all roles (shared underlying auth), but separate entry points:
+  - /login (Student/Parent/Tutor)
+  - /admin/login (Admin only)
+- Support email+password (or existing provider) and session persistence.
+- On login success, redirect based on role:
+  - student -> /student
+  - parent  -> /parent
+  - tutor   -> /tutor
+  - admin   -> /admin
+
+B) AUTHORIZATION (RBAC)
+Implement a role-based guard system:
+Roles:
+- "student"
+- "parent"
+- "tutor" (or "teacher")
+- "admin"
+
+Rules:
+- Each route belongs to exactly one role namespace:
+  - /student/*
+  - /parent/*
+  - /tutor/*
+  - /admin/*
+- A user can only access routes in their namespace (admin can access admin only).
+- If unauthorized:
+  - Redirect to a friendly /unauthorized page
+  - Log the attempt (for dev console + optional admin audit log)
+
+C) LAYOUT SEPARATION (NO OVERLAP)
+- Create a dedicated layout per role:
+  - StudentLayout: “My Classroom” as primary, no admin links
+  - ParentLayout: “Parent Portal” primary, progress + communications
+  - TutorLayout: student roster + session queue + notes
+  - AdminLayout: 360° dashboard + agents + settings
+- Remove shared top nav that mixes roles. Role decides the entire nav.
+
+D) LOGOUT (MUST FIX)
+- Add a visible “Logout” in every role layout, same position (top right).
+- Implement a /logout route that:
+  - clears session tokens/cookies/localStorage
+  - invalidates server session (if present)
+  - redirects to correct login page:
+    - admin -> /admin/login
+    - others -> /login
+- After logout, user should not be able to go “Back” and see protected pages. Ensure route guards re-check auth.
+
+E) ADMIN LOGIN: DIFFERENT AND STRICTER
+Admin requirements:
+- Admin users must be marked explicitly (role=admin).
+- /admin/login only accepts admin accounts.
+- If a non-admin tries /admin/login, show error: “Admin access only.”
+Optional (recommended if easy):
+- Add an extra admin security step:
+  - OTP code / email code / “admin passcode” env var check (simple)
+- Admin session timeout shorter than student/parent sessions (configurable).
+
+F) ADMIN 360° VIEW (HIGH LEVEL)
+Admin dashboard should show:
+- Students count, active sessions, tutor utilization, recent signups
+- Parent communications queue
+- Agent dashboards (Marketing/Ops/etc)
+- Search bar: search student name/id and jump to student 360 view
+
+Student 360 view for Admin:
+- Profile, grade, enrolled subjects
+- Activity timeline (sessions, topics, quizzes)
+- Learning signals (stuck events, handoffs)
+- Parent notes + tutor notes
+- Billing/subscription summary (if exists)
+
+This 360° view is ADMIN-ONLY.
+
+────────────────────────────────────────
+IMPLEMENTATION TASKS (STEP BY STEP)
+────────────────────────────────────────
+
+1) Identify current auth mechanism
+- Find existing auth files, session storage, and user object structure.
+- Consolidate into a single “auth service” module:
+  - getCurrentUser()
+  - login()
+  - logout()
+  - hasRole()
+  - requireAuth()
+
+2) Create RBAC middleware / route guard
+- If Next.js: implement middleware.ts with role-based route protection.
+- If React Router: implement <ProtectedRoute allowedRoles=[...]> wrapper.
+- Ensure all /student, /parent, /tutor, /admin routes are protected.
+
+3) Create Role Layouts and namespace routes
+- Move existing pages into role namespaces (even if just route aliases at first).
+- Ensure nav items are role-specific and do not show other roles.
+
+4) Implement /logout and add Logout button everywhere
+- Ensure session cleared fully (cookie/localStorage/server).
+- Add /unauthorized and /session-expired pages.
+
+5) Implement /admin/login flow
+- Separate UI + stricter checks.
+- Redirect admin to /admin dashboard.
+- Non-admin blocked.
+
+6) Add Admin 360 dashboard skeleton + Student 360 view skeleton
+- Do not implement every metric; start with structure and mock data.
+- Add search + navigation.
+
+7) Regression checks
+- Login as student -> cannot access /parent /tutor /admin
+- Login as parent -> cannot access /student /tutor /admin
+- Login as tutor -> cannot access /student /parent /admin
+- Login as admin -> cannot access student UI routes (admin stays in admin namespace)
+- Logout works reliably and blocks back-navigation access.
+
+────────────────────────────────────────
+ACCEPTANCE CRITERIA (MUST PASS)
+────────────────────────────────────────
+- No role overlap in navigation or routes.
+- Each role has its own layout and “home” landing route.
+- Admin has separate /admin/login and a 360° dashboard.
+- Logout clears session reliably and prevents access to protected routes.
+- Unauthorized access redirects to /unauthorized with a clear message.
+
+────────────────────────────────────────
+DELIVERABLES
+────────────────────────────────────────
+- Updated route structure with namespaces
+- RBAC guard implementation
+- Separate layouts and nav per role
+- Dedicated logout route/page
+- Admin login page + admin dashboard skeleton + student 360 skeleton
+- Short README section: “Roles & Access Model” and how to test with sample accounts
+
+Now implement this carefully, in small commits, without breaking existing UI more than necessary.

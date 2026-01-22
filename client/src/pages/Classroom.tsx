@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "@/lib/auth";
-import { Nav } from "@/components/Nav";
 import { Whiteboard } from "@/components/Whiteboard";
 import { VoiceVisualizer } from "@/components/VoiceVisualizer";
 import { DrawingCanvas } from "@/components/DrawingCanvas";
@@ -633,9 +632,8 @@ export default function Classroom() {
   // Show pre-session quiz if needed
   if (showPreSessionQuiz) {
     return (
-      <div className="min-h-screen bg-background flex font-sans">
-        <Nav />
-        <main className="flex-1 md:ml-20 p-4 md:p-6">
+      <div className="min-h-screen bg-background font-sans">
+        <main className="p-4 md:p-6">
           <PreSessionQuiz 
             onComplete={handleQuizComplete}
             onSkip={handleQuizSkip}
@@ -646,11 +644,10 @@ export default function Classroom() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex font-sans">
-      <Nav />
+    <div className="min-h-screen bg-background font-sans">
       <audio ref={audioRef} />
       
-      <main className="flex-1 md:ml-20 p-4 md:p-6 h-screen flex flex-col gap-4">
+      <main className="p-4 md:p-6 h-screen flex flex-col gap-4">
         {/* Header - Simplified Action Bar */}
         <header className="flex flex-col gap-3 mb-2">
             {/* Top Row - Subject Selection & Mode Actions */}

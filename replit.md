@@ -114,3 +114,23 @@ Added AI-powered operations monitoring and alerting system:
 - **Ops Control Room UI**: `/ops-agent` with health dashboard (CPU, Memory, Sessions, Latency gauges), alerts queue with approve/reject actions, handoff queue with SLA tracking, decision log, intent narrative panel
 - **Key Files**: `client/src/lib/opsAgentModels.ts`, `client/src/lib/telemetrySimulator.ts`, `client/src/components/OpsAgentSettings.tsx`, `client/src/pages/OpsAgent.tsx`
 - **Phase 1 Constraints**: Alert/propose-only mode (no auto-execution without approval), autonomy level 0-1 by default, human-in-the-loop for all mitigations, confidence threshold 70%
+
+### January 2026 - Role-Based Access Control (RBAC) Refactoring
+Implemented comprehensive authentication and authorization system:
+- **Role Namespaced Routes**: Routes now organized by role namespace (`/student/*`, `/parent/*`, `/tutor/*`, `/admin/*`)
+- **ProtectedRoute Component**: Client-side route guard with role validation and redirect logic (`client/src/components/ProtectedRoute.tsx`)
+- **Role-Specific Layouts**: Separate navigation layouts for each role:
+  - `StudentLayout`: Blue theme, My Learning + Classroom + Practice
+  - `ParentLayout`: Green theme, Portal + Progress + Messages
+  - `TutorLayout`: Purple theme, Dashboard + Students + Sessions + Notes
+  - `AdminLayout`: Red theme, 360° Dashboard + Students + Growth + Orchestration + Marketing + Ops
+- **Dedicated Pages**:
+  - `/login` - Student/Parent/Tutor login
+  - `/admin/login` - Admin-only login with access code verification
+  - `/logout` - Proper session cleanup (clears localStorage, sessionStorage, server session)
+  - `/unauthorized` - Access denied page with role-appropriate home redirect
+- **Admin 360° Dashboard** (`/admin`): Platform overview with student search, stats, alerts, quick links
+- **Student 360° View** (`/admin/students/:id`): Admin-only detailed student profile with activity timeline, learning signals, notes, billing
+- **Server-side Role Middleware**: `server/middleware/roleAuth.ts` with `requireRole()`, `requireAdmin`, `requireTeacher` helpers
+- **Legacy Route Redirects**: Old routes (`/classroom`, `/dashboard`, `/growth`, etc.) redirect to new namespaced routes
+- **Key Files**: `client/src/layouts/*Layout.tsx`, `client/src/pages/admin/*.tsx`, `client/src/components/ProtectedRoute.tsx`, `server/middleware/roleAuth.ts`

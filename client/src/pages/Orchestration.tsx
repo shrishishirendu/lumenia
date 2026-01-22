@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { Nav } from "@/components/Nav";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -205,10 +204,8 @@ export default function Orchestration() {
   const pendingDecisions = decisions.filter(d => d.status === "pending");
 
   return (
-    <div className="min-h-screen bg-background flex font-sans">
-      <Nav />
-      
-      <main className="flex-1 md:ml-20 p-8 bg-muted/20">
+    <div className="min-h-screen bg-background font-sans">
+      <main className="p-8 bg-muted/20">
         <div className="max-w-7xl mx-auto space-y-8">
           
           <div className="flex justify-between items-start">
