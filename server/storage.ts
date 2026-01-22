@@ -23,6 +23,7 @@ import {
   topicMastery,
   sessionAttempts,
   studentMemory,
+  leads,
   type Profile,
   type InsertProfile,
   type TutoringSession,
@@ -70,7 +71,9 @@ import {
   type SessionAttempt,
   type InsertSessionAttempt,
   type StudentMemory,
-  type InsertStudentMemory
+  type InsertStudentMemory,
+  type Lead,
+  type InsertLead
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, sql } from "drizzle-orm";
@@ -210,6 +213,10 @@ export interface ITutoringStorage {
   // Student Memory (Learning Loop)
   getStudentMemory(studentId: number): Promise<StudentMemory | undefined>;
   upsertStudentMemory(memory: InsertStudentMemory): Promise<StudentMemory>;
+  
+  // Leads (Public)
+  createLead(lead: InsertLead): Promise<Lead>;
+  getAllLeads(): Promise<Lead[]>;
 }
 
 class TutoringStorage implements ITutoringStorage {
@@ -709,6 +716,16 @@ class TutoringStorage implements ITutoringStorage {
     }
     const [created] = await db.insert(studentMemory).values(memoryData).returning();
     return created;
+  }
+
+  // Leads (Public)
+  async createLead(leadData: InsertLead): Promise<Lead> {
+    const [lead] = await db.insert(leads).values(leadData).returning();
+    return lead;
+  }
+
+  async getAllLeads(): Promise<Lead[]> {
+    return db.select().from(leads).orderBy(desc(leads.createdAt));
   }
 }
 

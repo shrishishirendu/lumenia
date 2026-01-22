@@ -28,6 +28,30 @@ export async function registerRoutes(
   // Marketing Agent API routes
   app.use("/api/marketing", marketingAgentRoutes);
 
+  // Lead capture (public - no auth required)
+  app.post("/api/leads", async (req: any, res) => {
+    try {
+      const { parentName, email, childYearLevel, message } = req.body;
+      
+      if (!parentName || !email || !childYearLevel) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+      
+      const lead = await tutoringStorage.createLead({
+        parentName,
+        email,
+        childYearLevel,
+        message: message || null
+      });
+      
+      console.log(`New lead captured: ${email} for Year ${childYearLevel}`);
+      res.status(201).json({ success: true, id: lead.id });
+    } catch (error) {
+      console.error("Error capturing lead:", error);
+      res.status(500).json({ error: "Failed to submit request" });
+    }
+  });
+
   // Tutoring-specific routes
   // Get student profile
   app.get("/api/profile", async (req: any, res) => {

@@ -425,5 +425,19 @@ export type InsertQuizAnswer = z.infer<typeof insertQuizAnswerSchema>;
 export type LessonProgress = typeof lessonProgress.$inferSelect;
 export type InsertLessonProgress = z.infer<typeof insertLessonProgressSchema>;
 
+// Early access leads
+export const leads = pgTable("leads", {
+  id: serial("id").primaryKey(),
+  parentName: text("parent_name").notNull(),
+  email: text("email").notNull(),
+  childYearLevel: integer("child_year_level").notNull(),
+  message: text("message"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertLeadSchema = createInsertSchema(leads).omit({ id: true, createdAt: true });
+export type Lead = typeof leads.$inferSelect;
+export type InsertLead = z.infer<typeof insertLeadSchema>;
+
 // Re-export from auth
 import { users } from "./models/auth";

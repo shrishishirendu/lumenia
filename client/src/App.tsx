@@ -11,7 +11,9 @@ import { TutorLayout } from "@/layouts/TutorLayout";
 import { AdminLayout } from "@/layouts/AdminLayout";
 
 import NotFound from "@/pages/not-found";
-import Landing from "@/pages/Landing";
+import PublicLanding from "@/pages/PublicLanding";
+import Privacy from "@/pages/Privacy";
+import Terms from "@/pages/Terms";
 import Login from "@/pages/Login";
 import Logout from "@/pages/Logout";
 import Unauthorized from "@/pages/Unauthorized";
@@ -177,7 +179,9 @@ function AdminOpsPage() {
 function Router() {
   return (
     <Switch>
-      <Route path="/" component={Landing} />
+      <Route path="/" component={PublicLanding} />
+      <Route path="/privacy" component={Privacy} />
+      <Route path="/terms" component={Terms} />
       <Route path="/login" component={Login} />
       <Route path="/logout" component={Logout} />
       <Route path="/unauthorized" component={Unauthorized} />

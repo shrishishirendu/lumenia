@@ -1,0 +1,137 @@
+PUBLISHING STRATEGY FOR LUMENIA (SAFE PUBLIC RELEASE)
+
+Context:
+- Domain lumenia.au is registered.
+- Core app is still under active development.
+- Auth + RBAC + student learning loop are in progress and should NOT be publicly exposed yet.
+- We want public presence + credibility WITHOUT risking the app.
+
+HIGH-LEVEL DECISION
+We are publishing in TWO LAYERS:
+1) Public marketing / trust layer (now)
+2) Application layer (later)
+
+This is intentional. Do not merge them yet.
+
+────────────────────────────────────────
+PHASE B1 — WHAT TO PUBLISH NOW (MANDATORY)
+────────────────────────────────────────
+
+Publish ONLY a public landing page under the domain:
+→ https://lumenia.au
+
+This landing page must be:
+- Accessible without login
+- Safe to index
+- Stable even if the app changes
+
+DO NOT publish the app login or dashboards yet.
+
+────────────────────────────────────────
+TECHNICAL STRUCTURE (REQUIRED)
+────────────────────────────────────────
+
+1) Separate the landing page from the app
+- Landing page lives at `/`
+- App remains on existing Replit URL for now
+- No auth middleware on landing page routes
+
+2) Domain strategy
+- lumenia.au → Landing page
+- app.lumenia.au → RESERVED (do not connect yet)
+
+3) Hosting
+- Landing page can be:
+  a) A static build deployed via Replit / hosting provider
+  b) Or a simple server-rendered public route
+- HTTPS must be enabled
+
+────────────────────────────────────────
+LANDING PAGE CONTENT (MINIMAL & FINAL)
+────────────────────────────────────────
+
+The landing page must include:
+
+1) Hero
+   - Title: “Lumenia”
+   - Subtitle: “Guided learning for Years 6–12 — calm, personal, effective.”
+   - Primary CTA: “Request early access”
+
+2) What Lumenia is
+   - Short explanation of guided learning
+   - No heavy AI claims
+   - Focus on structure, care, and progress
+
+3) Mentora explanation
+   - “Mentora is your child’s learning guide within Lumenia”
+   - Avoid technical language
+
+4) Subjects
+   - Mathematics
+   - English
+   - “More coming soon”
+
+5) Lead capture
+   - Simple form: name, email, child year level (6–12)
+   - On submit:
+     - Store securely (DB if available, else server-side store)
+     - OR email notification to admin
+   - Show confirmation message
+
+6) Footer
+   - © Lumenia
+   - Privacy
+   - Terms
+
+────────────────────────────────────────
+SECURITY & SAFETY RULES (CRITICAL)
+────────────────────────────────────────
+
+- Do NOT expose:
+  - /login
+  - /admin
+  - /student
+  - /parent
+  - /tutor
+- Do NOT link to the app from the landing page yet
+- Do NOT index app routes (robots.txt if needed)
+- Do NOT move auth cookies or sessions to lumenia.au
+
+This prevents accidental access, trust issues, and partial experiences.
+
+────────────────────────────────────────
+WHAT NOT TO DO (VERY IMPORTANT)
+────────────────────────────────────────
+
+- Do NOT point lumenia.au directly to the app
+- Do NOT deploy the login page publicly yet
+- Do NOT expose unfinished dashboards
+- Do NOT announce “AI-powered” aggressively
+- Do NOT combine marketing + app domains yet
+
+────────────────────────────────────────
+PHASE B2 — LATER (NOT NOW)
+────────────────────────────────────────
+
+Only after:
+- Student learning loop is stable
+- Parent portal is reviewed
+- Ops guardrails are hardened
+
+Then we will:
+- Deploy the app to app.lumenia.au
+- Keep lumenia.au as marketing + trust layer
+- Add controlled login access
+
+────────────────────────────────────────
+SUCCESS CRITERIA FOR THIS PHASE
+────────────────────────────────────────
+
+- lumenia.au loads fast and looks professional
+- Parents understand what Lumenia is in <30 seconds
+- Leads are captured reliably
+- No accidental access to the app
+- App development continues uninterrupted
+
+This phase is about credibility, not traffic.
+Stability over speed.
