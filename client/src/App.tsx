@@ -73,7 +73,9 @@ function TutorHomePage() {
 function AdminHomePage() {
   return (
     <ProtectedRoute allowedRoles={["admin", "owner", "teacher"]}>
-      <AdminDashboard />
+      <AdminLayout>
+        <AdminDashboard />
+      </AdminLayout>
     </ProtectedRoute>
   );
 }
@@ -81,7 +83,9 @@ function AdminHomePage() {
 function AdminStudentsPage() {
   return (
     <ProtectedRoute allowedRoles={["admin", "owner", "teacher"]}>
-      <AdminStudents />
+      <AdminLayout>
+        <AdminStudents />
+      </AdminLayout>
     </ProtectedRoute>
   );
 }
@@ -89,7 +93,9 @@ function AdminStudentsPage() {
 function AdminStudent360Page() {
   return (
     <ProtectedRoute allowedRoles={["admin", "owner", "teacher"]}>
-      <Student360 />
+      <AdminLayout>
+        <Student360 />
+      </AdminLayout>
     </ProtectedRoute>
   );
 }

@@ -1,8 +1,11 @@
 import { Router, type Request, type Response } from "express";
 import OpenAI from "openai";
 import { z } from "zod";
+import { requireAdmin } from "../middleware/roleAuth";
 
 const router = Router();
+
+router.use(requireAdmin);
 
 const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
