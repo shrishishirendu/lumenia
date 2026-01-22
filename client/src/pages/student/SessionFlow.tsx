@@ -79,10 +79,12 @@ export default function SessionFlow() {
   const params = useParams<{ subject: string; topic: string }>();
   const [, setLocation] = useLocation();
   const subject = params.subject || "math";
-  const topicId = params.topic || "linear_equations";
+  const rawTopicId = params.topic || "linear_equations";
+  const isWarmupMode = rawTopicId === "warmup";
+  const topicId = isWarmupMode ? "linear_equations" : rawTopicId;
   
   const topicConfig = getTopic(subject, topicId);
-  const topicName = topicConfig?.name || "Linear Equations";
+  const topicName = isWarmupMode ? "Review Session" : (topicConfig?.name || "Linear Equations");
 
   const [state, setState] = useState<SessionState>({
     currentStep: "warmup",

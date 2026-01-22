@@ -46,7 +46,8 @@ export default function Onboarding() {
         description: "Your profile is ready. Let's start learning!"
       });
 
-      setLocation("/classroom");
+      const redirectPath = role === "student" ? "/student" : role === "parent" ? "/parent" : role === "tutor" ? "/tutor" : "/student";
+      setLocation(redirectPath);
     } catch (error) {
       toast({
         title: "Error",
