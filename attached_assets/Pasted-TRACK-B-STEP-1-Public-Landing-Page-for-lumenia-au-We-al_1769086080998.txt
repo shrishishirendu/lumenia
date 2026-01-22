@@ -1,0 +1,65 @@
+TRACK B — STEP 1: Public Landing Page for lumenia.au
+
+We already own lumenia.au. Do NOT move the app to the domain yet.
+Create a clean public landing page that can be hosted separately and safely.
+
+GOAL
+- Landing page on the root domain (lumenia.au) OR a deployable static build that I can host
+- No login required
+- Premium, calm design
+- Collect “early access” leads
+
+REQUIREMENTS
+1) Create a new public route: / (Home / Landing)
+   - Must be accessible without authentication.
+   - Must not show student/parent/tutor/admin navigation.
+
+2) Landing page sections:
+   A) Hero:
+      - Title: “Lumenia”
+      - Subtitle: “Guided learning for Years 6–12 — calm, personal, effective.”
+      - CTA1: “Request early access”
+      - CTA2: “See how it works” (scroll)
+
+   B) How it works (3 cards):
+      - Warm-up quiz (2 minutes)
+      - Micro-lesson + adaptive practice
+      - Mentora’s Notes + mastery tracking
+
+   C) Mentora section:
+      - “Meet Mentora — your child’s learning guide”
+      - Explain Mentora as a guide (avoid saying “AI” prominently)
+
+   D) Subjects:
+      - Mathematics, English (more coming soon)
+
+   E) Parent reassurance:
+      - Human-in-the-loop
+      - Weekly progress summaries
+      - Safe guardrails + privacy-focused
+
+   F) Lead form:
+      Fields: parentName, email, childYearLevel (dropdown 6–12), optionalMessage
+      Submit saves lead to DB if available; if no DB, save to a JSON file or simple store.
+      After submit: show success state + “We’ll contact you soon.”
+
+   G) Footer:
+      - “© Lumenia”
+      - Links: Privacy, Terms (can be simple placeholder pages /privacy /terms)
+
+3) Add basic SEO:
+   - page title: “Lumenia | Guided learning for Years 6–12”
+   - meta description
+
+4) Keep design consistent with our platform: calm, premium, minimal clutter.
+   No heavy animations. Mobile responsive.
+
+DELIVERABLES
+- Landing page route + privacy/terms pages
+- Lead capture storage + simple admin view (optional) OR log submissions safely on server
+- No impact to existing app routes or RBAC
+
+Do NOT:
+- change auth
+- expose admin panels publicly
+- move app to custom domain yet
