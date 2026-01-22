@@ -15,6 +15,7 @@ import Landing from "@/pages/Landing";
 import Login from "@/pages/Login";
 import Logout from "@/pages/Logout";
 import Unauthorized from "@/pages/Unauthorized";
+import Onboarding from "@/pages/Onboarding";
 
 import Classroom from "@/pages/Classroom";
 import StudentDashboard from "@/pages/StudentDashboard";
@@ -169,6 +170,7 @@ function Router() {
       <Route path="/login" component={Login} />
       <Route path="/logout" component={Logout} />
       <Route path="/unauthorized" component={Unauthorized} />
+      <Route path="/onboarding" component={Onboarding} />
       
       <Route path="/student" component={StudentHomePage} />
       <Route path="/student/today" component={StudentHomePage} />
