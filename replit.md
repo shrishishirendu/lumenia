@@ -134,3 +134,26 @@ Implemented comprehensive authentication and authorization system:
 - **Server-side Role Middleware**: `server/middleware/roleAuth.ts` with `requireRole()`, `requireAdmin`, `requireTeacher` helpers
 - **Legacy Route Redirects**: Old routes (`/classroom`, `/dashboard`, `/growth`, etc.) redirect to new namespaced routes
 - **Key Files**: `client/src/layouts/*Layout.tsx`, `client/src/pages/admin/*.tsx`, `client/src/components/ProtectedRoute.tsx`, `server/middleware/roleAuth.ts`
+
+### January 2026 - Student Learning Loop MVP
+Added structured learning experience with mastery tracking:
+- **Student Today Page** (`/student`): Personalized dashboard with 5 core cards:
+  - Warmup Quiz: Quick review of prior session concepts
+  - Continue Learning: Resume last topic with progress tracking
+  - Quick Help: Direct access to AI tutor assistance
+  - Daily Goal: Progress indicator with streak tracking
+  - Next Session: Scheduled session display
+- **Session Flow** (`/student/session/:subject/:topic`): 6-step guided learning experience:
+  1. Warmup: 3 review questions from last session
+  2. Lesson: Key concept explanation with multiple explanation styles
+  3. Practice: 4 problems with hint feature and immediate feedback
+  4. Reflection: Open-ended reflection prompts
+  5. Exit Ticket: 2 assessment questions to verify understanding
+  6. Next Steps: Session summary with scores and recommendations
+- **API Endpoints**: 
+  - `GET /api/student/dashboard` - Dashboard data with memory and session info
+  - `GET/POST /api/student/sessions` - Session management
+  - `PATCH /api/student/sessions/:id` - Update session progress
+  - `GET/POST /api/student/mastery` - Topic mastery tracking
+- **Onboarding Flow**: Role-based redirect after profile creation
+- **Key Files**: `client/src/pages/student/StudentToday.tsx`, `client/src/pages/student/SessionFlow.tsx`, `server/routes.ts`
