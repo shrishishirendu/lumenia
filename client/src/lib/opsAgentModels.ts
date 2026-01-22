@@ -5,6 +5,7 @@ export type AlertStatus = "open" | "acknowledged" | "resolved";
 export type MitigationType = "safe" | "major";
 export type HandoffReason = "stuck_loop" | "low_confidence" | "parent_request" | "complex_topic" | "behavioral";
 export type HandoffStatus = "new" | "assigned" | "in_progress" | "resolved";
+export type SystemState = "stable" | "degraded" | "at_risk";
 
 export interface OpsPolicy {
   id: string;
@@ -162,8 +163,26 @@ export interface HumanHandoffCase {
 
 export interface OpsIntentNarrative {
   headline: string;
+  protectingNow: string;
   whyNow: string[];
   stopConditions: string[];
+}
+
+export interface MitigationCooldown {
+  mitigationId: string;
+  appliedAt: Date;
+  cooldownMins: number;
+  expiresAt: Date;
+}
+
+export interface DecisionEpisode {
+  id: string;
+  incidentId?: string;
+  startedAt: Date;
+  endedAt?: Date;
+  triggerAlert?: string;
+  actions: OpsActionLog[];
+  summary?: string;
 }
 
 export interface PolicyVersion {
@@ -714,43 +733,267 @@ export class OpsAgentStorage {
 
 export const opsStorage = new OpsAgentStorage();
 
-export function generateIntentNarrative(policy: OpsPolicy, telemetry: TelemetrySnapshot): OpsIntentNarrative {
+export function determineSystemState(
+  policy: OpsPolicy,
+  telemetry: TelemetrySnapshot,
+  openAlerts: OpsAlert[]
+): SystemState {
+  const { slaTargets, loadGuardrails } = policy;
+  const { system, capacity } = telemetry;
+
+  const hasCriticalAlert = openAlerts.some(a => a.severity === "critical" && a.status !== "resolved");
+  const hasHighAlert = openAlerts.some(a => a.severity === "high" && a.status !== "resolved");
+
+  if (hasCriticalAlert || system.errorRatePct > slaTargets.maxErrorRatePct * 1.5 || 
+      system.p95ResponseMs > slaTargets.p95ResponseMs * 1.5) {
+    return "at_risk";
+  }
+
+  if (hasHighAlert || system.errorRatePct > slaTargets.maxErrorRatePct ||
+      system.p95ResponseMs > slaTargets.p95ResponseMs ||
+      capacity.tutorUtilizationPct > loadGuardrails.maxTutorUtilizationPct) {
+    return "degraded";
+  }
+
+  return "stable";
+}
+
+export function getSystemStateLabel(state: SystemState): { label: string; color: string; description: string } {
+  const labels: Record<SystemState, { label: string; color: string; description: string }> = {
+    stable: { label: "Stable", color: "bg-green-100 text-green-800 border-green-300", description: "All systems healthy" },
+    degraded: { label: "Degraded", color: "bg-yellow-100 text-yellow-800 border-yellow-300", description: "Some metrics outside targets" },
+    at_risk: { label: "At Risk", color: "bg-red-100 text-red-800 border-red-300", description: "Immediate attention required" }
+  };
+  return labels[state];
+}
+
+export function generateIntentNarrative(
+  policy: OpsPolicy, 
+  telemetry: TelemetrySnapshot,
+  openAlerts: OpsAlert[] = []
+): OpsIntentNarrative {
   const { slaTargets, loadGuardrails, learningQualityGuardrails } = policy;
   const { system, sessions, capacity } = telemetry;
 
   const whyNow: string[] = [];
   const stopConditions: string[] = [];
 
+  const systemState = determineSystemState(policy, telemetry, openAlerts);
+  let protectingNow = "Ensuring smooth learning experiences for all active students";
+
+  if (systemState === "at_risk") {
+    protectingNow = "Preventing service disruption for students currently in sessions";
+  } else if (systemState === "degraded") {
+    protectingNow = "Restoring optimal learning conditions while maintaining session quality";
+  }
+
   if (system.p95ResponseMs > slaTargets.p95ResponseMs * 0.8) {
-    whyNow.push(`p95 latency at ${system.p95ResponseMs}ms approaching ${slaTargets.p95ResponseMs}ms threshold`);
-    stopConditions.push("Pause mitigations if latency drops below 80% of threshold");
+    whyNow.push(`Response times rising - students may notice delays`);
+    stopConditions.push("Pause mitigations when response times normalize");
   }
 
   if (system.errorRatePct > slaTargets.maxErrorRatePct * 0.5) {
-    whyNow.push(`Error rate at ${system.errorRatePct.toFixed(1)}% - monitoring closely`);
+    whyNow.push(`Error rate elevated - some students may experience issues`);
   }
 
   if (capacity.tutorUtilizationPct > loadGuardrails.maxTutorUtilizationPct * 0.9) {
-    whyNow.push(`Tutor utilization at ${capacity.tutorUtilizationPct}% - near capacity`);
-    stopConditions.push("Throttle new sessions if utilization exceeds threshold");
+    whyNow.push(`Approaching capacity limits - may need to queue new students`);
+    stopConditions.push("Resume normal capacity when utilization drops");
   }
 
   if (sessions.earlyExitRatePct > learningQualityGuardrails.maxEarlyExitRatePct * 0.8) {
-    whyNow.push(`Early exit rate at ${sessions.earlyExitRatePct}% - quality concern`);
+    whyNow.push(`More students leaving early than expected - investigating causes`);
   }
 
   if (whyNow.length === 0) {
-    whyNow.push("All systems operating within normal parameters");
-    whyNow.push("Monitoring for any emerging issues");
+    whyNow.push("All systems operating smoothly");
+    whyNow.push("Watching for any emerging issues");
   }
 
   if (stopConditions.length === 0) {
-    stopConditions.push("No active mitigations - standard monitoring in effect");
+    stopConditions.push("Continue standard monitoring");
   }
 
-  const headline = `Maintain ${slaTargets.minSessionSuccessPct}% session success and keep p95 latency under ${slaTargets.p95ResponseMs}ms while supporting up to ${loadGuardrails.maxConcurrentSessions} concurrent sessions.`;
+  const headline = `Keep learning smooth for ${sessions.active} active students`;
 
-  return { headline, whyNow, stopConditions };
+  return { headline, protectingNow, whyNow, stopConditions };
+}
+
+export function getPrimaryRecommendation(alerts: OpsAlert[]): { recommendation: string; alertId: string; confidence: number } | null {
+  const openAlerts = alerts.filter(a => a.status !== "resolved");
+  if (openAlerts.length === 0) return null;
+
+  const sortedByPriority = [...openAlerts].sort((a, b) => {
+    const severityOrder = { critical: 0, high: 1, medium: 2, low: 3 };
+    return severityOrder[a.severity] - severityOrder[b.severity];
+  });
+
+  const topAlert = sortedByPriority[0];
+  if (!topAlert.recommendedMitigations.length) {
+    return {
+      recommendation: `Review ${topAlert.category} alert: ${topAlert.description}`,
+      alertId: topAlert.id,
+      confidence: topAlert.confidence
+    };
+  }
+
+  const mitigationId = topAlert.recommendedMitigations[0];
+  const mitigation = MITIGATION_CATALOG.find(m => m.id === mitigationId);
+  if (!mitigation) {
+    return {
+      recommendation: `Address ${topAlert.severity} ${topAlert.category} issue`,
+      alertId: topAlert.id,
+      confidence: topAlert.confidence
+    };
+  }
+
+  const actionVerb = mitigation.type === "safe" ? "Apply" : "Consider";
+  return {
+    recommendation: `${actionVerb} "${mitigation.name}" to address ${topAlert.category} issue`,
+    alertId: topAlert.id,
+    confidence: topAlert.confidence
+  };
+}
+
+const COOLDOWN_STORAGE_KEY = "ops_mitigation_cooldowns";
+const DEFAULT_COOLDOWN_MINS = 10;
+
+export function getMitigationCooldowns(): MitigationCooldown[] {
+  const stored = localStorage.getItem(COOLDOWN_STORAGE_KEY);
+  if (stored) {
+    try {
+      return JSON.parse(stored).map((c: any) => ({
+        ...c,
+        appliedAt: new Date(c.appliedAt),
+        expiresAt: new Date(c.expiresAt)
+      })).filter((c: MitigationCooldown) => new Date(c.expiresAt) > new Date());
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
+export function addMitigationCooldown(mitigationId: string, cooldownMins = DEFAULT_COOLDOWN_MINS): MitigationCooldown {
+  const cooldowns = getMitigationCooldowns();
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + cooldownMins * 60 * 1000);
+  
+  const newCooldown: MitigationCooldown = {
+    mitigationId,
+    appliedAt: now,
+    cooldownMins,
+    expiresAt
+  };
+  
+  const existingIndex = cooldowns.findIndex(c => c.mitigationId === mitigationId);
+  if (existingIndex >= 0) {
+    cooldowns[existingIndex] = newCooldown;
+  } else {
+    cooldowns.push(newCooldown);
+  }
+  
+  localStorage.setItem(COOLDOWN_STORAGE_KEY, JSON.stringify(cooldowns));
+  return newCooldown;
+}
+
+export function isMitigationOnCooldown(mitigationId: string): { onCooldown: boolean; remainingMins?: number } {
+  const cooldowns = getMitigationCooldowns();
+  const cooldown = cooldowns.find(c => c.mitigationId === mitigationId);
+  
+  if (!cooldown) return { onCooldown: false };
+  
+  const now = new Date();
+  if (cooldown.expiresAt <= now) return { onCooldown: false };
+  
+  const remainingMs = cooldown.expiresAt.getTime() - now.getTime();
+  const remainingMins = Math.ceil(remainingMs / 60000);
+  
+  return { onCooldown: true, remainingMins };
+}
+
+export function groupLogsIntoEpisodes(logs: OpsActionLog[]): DecisionEpisode[] {
+  if (logs.length === 0) return [];
+
+  const episodes: DecisionEpisode[] = [];
+  let currentEpisode: DecisionEpisode | null = null;
+  const EPISODE_GAP_MINS = 5;
+
+  const sortedLogs = [...logs].sort((a, b) => 
+    new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+  );
+
+  for (const log of sortedLogs) {
+    const logTime = new Date(log.timestamp);
+
+    if (!currentEpisode) {
+      currentEpisode = {
+        id: log.relatedIds.incidentId || log.id,
+        incidentId: log.relatedIds.incidentId,
+        startedAt: logTime,
+        triggerAlert: log.relatedIds.alertId,
+        actions: [log]
+      };
+    } else {
+      const episodeStart = new Date(currentEpisode.startedAt);
+      const gapMs = episodeStart.getTime() - logTime.getTime();
+      const gapMins = gapMs / 60000;
+
+      if (gapMins > EPISODE_GAP_MINS || 
+          (log.actionType === "incident_opened" || log.actionType === "alert_created")) {
+        currentEpisode.summary = generateEpisodeSummary(currentEpisode);
+        episodes.push(currentEpisode);
+        
+        currentEpisode = {
+          id: log.relatedIds.incidentId || log.id,
+          incidentId: log.relatedIds.incidentId,
+          startedAt: logTime,
+          triggerAlert: log.relatedIds.alertId,
+          actions: [log]
+        };
+      } else {
+        currentEpisode.actions.push(log);
+        currentEpisode.startedAt = logTime;
+        if (log.relatedIds.alertId && !currentEpisode.triggerAlert) {
+          currentEpisode.triggerAlert = log.relatedIds.alertId;
+        }
+      }
+    }
+  }
+
+  if (currentEpisode) {
+    currentEpisode.summary = generateEpisodeSummary(currentEpisode);
+    episodes.push(currentEpisode);
+  }
+
+  return episodes;
+}
+
+function generateEpisodeSummary(episode: DecisionEpisode): string {
+  const actionCount = episode.actions.length;
+  const mitigations = episode.actions.filter(a => a.actionType === "mitigation_applied");
+  const alerts = episode.actions.filter(a => a.actionType === "alert_created");
+  
+  if (mitigations.length > 0 && alerts.length > 0) {
+    return `Detected ${alerts.length} issue(s) and applied ${mitigations.length} fix(es)`;
+  } else if (alerts.length > 0) {
+    return `Detected ${alerts.length} issue(s) - awaiting resolution`;
+  } else if (mitigations.length > 0) {
+    return `Applied ${mitigations.length} mitigation(s)`;
+  } else {
+    return `${actionCount} action(s) recorded`;
+  }
+}
+
+export function getHandoffGoal(reason: HandoffReason): string {
+  const goals: Record<HandoffReason, string> = {
+    stuck_loop: "Help the student regain confidence by finding a different approach that clicks for them",
+    low_confidence: "Rebuild the student's belief in their ability to solve this type of problem",
+    parent_request: "Address parent's specific concerns while maintaining the student's learning momentum",
+    complex_topic: "Break down the concept in a way that connects with this student's existing knowledge",
+    behavioral: "Re-engage the student and help them return to a productive learning mindset"
+  };
+  return goals[reason];
 }
 
 export function detectAnomalies(

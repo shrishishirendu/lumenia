@@ -36,6 +36,8 @@ import {
   type OpsActionLog,
   type HumanHandoffCase,
   type AlertBucket,
+  type DecisionEpisode,
+  type SystemState,
   opsStorage,
   generateIntentNarrative,
   detectAnomalies,
@@ -45,7 +47,14 @@ import {
   categorizeAlertBucket,
   getBucketLabel,
   generateHumanReadableLogSentence,
-  getHandoffReasonExplanation
+  getHandoffReasonExplanation,
+  determineSystemState,
+  getSystemStateLabel,
+  getPrimaryRecommendation,
+  isMitigationOnCooldown,
+  addMitigationCooldown,
+  groupLogsIntoEpisodes,
+  getHandoffGoal
 } from "@/lib/opsAgentModels";
 import {
   startSimulator,
@@ -153,21 +162,30 @@ function AlertCard({
               const mitigation = MITIGATION_CATALOG.find(m => m.id === mitigationId);
               if (!mitigation) return null;
               const canAuto = canAutoApplyMitigation(policy, mitigation);
+              const cooldownStatus = isMitigationOnCooldown(mitigationId);
               
               return (
-                <div key={mitigationId} className="bg-slate-50 rounded-lg p-3 border border-slate-100">
+                <div key={mitigationId} className={`rounded-lg p-3 border ${cooldownStatus.onCooldown ? "bg-gray-100 border-gray-200" : "bg-slate-50 border-slate-100"}`}>
                   <div className="flex items-center justify-between mb-2">
-                    <span className="font-medium text-sm">{mitigation.name}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-sm">{mitigation.name}</span>
+                      {cooldownStatus.onCooldown && (
+                        <Badge variant="outline" className="text-xs bg-gray-50">
+                          <Clock className="h-3 w-3 mr-1" />
+                          {cooldownStatus.remainingMins}m cooldown
+                        </Badge>
+                      )}
+                    </div>
                     <Button
                       size="sm"
-                      variant={canAuto.allowed ? "default" : "outline"}
+                      variant={canAuto.allowed && !cooldownStatus.onCooldown ? "default" : "outline"}
                       onClick={() => onApplyMitigation(alert.id, mitigationId)}
-                      disabled={alert.status === "resolved"}
+                      disabled={alert.status === "resolved" || cooldownStatus.onCooldown}
                       data-testid={`apply-${mitigationId}`}
-                      title={canAuto.reason}
+                      title={cooldownStatus.onCooldown ? `On cooldown for ${cooldownStatus.remainingMins} more minutes` : canAuto.reason}
                     >
                       {canAuto.allowed ? <Bot className="h-3 w-3 mr-1" /> : <Hand className="h-3 w-3 mr-1" />}
-                      Apply
+                      {cooldownStatus.onCooldown ? "Cooling down" : "Apply"}
                     </Button>
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-xs">
@@ -259,6 +277,7 @@ function StudentSupportCard({
   const [assignee, setAssignee] = useState("");
   const [resolveNotes, setResolveNotes] = useState("");
   const explanation = getHandoffReasonExplanation(handoff.reason);
+  const handoffGoal = getHandoffGoal(handoff.reason);
 
   const elapsedMins = Math.round((Date.now() - new Date(handoff.createdAt).getTime()) / 60000);
   const isOverdue = elapsedMins > handoff.slaTimerMins;
@@ -281,6 +300,11 @@ function StudentSupportCard({
           }>
             {handoff.status === "new" ? "Needs attention" : handoff.status}
           </Badge>
+        </div>
+
+        <div className="bg-purple-50 border border-purple-100 rounded-lg p-3">
+          <p className="text-sm font-medium text-purple-900 mb-1">Goal for human tutor:</p>
+          <p className="text-sm text-purple-800">{handoffGoal}</p>
         </div>
 
         <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 space-y-2">
@@ -462,6 +486,16 @@ export default function OpsAgent() {
     const mitigation = MITIGATION_CATALOG.find(m => m.id === mitigationId);
     if (!mitigation) return;
 
+    const cooldownStatus = isMitigationOnCooldown(mitigationId);
+    if (cooldownStatus.onCooldown) {
+      toast({
+        title: "Mitigation on Cooldown",
+        description: `Please wait ${cooldownStatus.remainingMins} more minutes before applying this again`,
+        variant: "destructive"
+      });
+      return;
+    }
+
     const canAuto = canAutoApplyMitigation(policy, mitigation);
 
     opsStorage.addActionLog({
@@ -478,11 +512,14 @@ export default function OpsAgent() {
       relatedIds: { alertId }
     });
 
+    const cooldownMins = mitigation.estimatedRecoveryMins || 10;
+    addMitigationCooldown(mitigationId, cooldownMins);
+
     setActionLog(opsStorage.loadActionLog());
 
     toast({
       title: canAuto.allowed ? "Mitigation Applied" : "Mitigation Applied (Manual)",
-      description: mitigation.name
+      description: `${mitigation.name} - cooldown for ${cooldownMins} minutes`
     });
   };
 
@@ -517,9 +554,12 @@ export default function OpsAgent() {
     });
   };
 
-  const intentNarrative = generateIntentNarrative(policy, telemetry);
-  const autonomyDesc = getAutonomyDescription(policy.autonomy.level);
   const openAlerts = alerts.filter(a => a.status === "open");
+  const intentNarrative = generateIntentNarrative(policy, telemetry, openAlerts);
+  const autonomyDesc = getAutonomyDescription(policy.autonomy.level);
+  const systemState = determineSystemState(policy, telemetry, openAlerts);
+  const systemStateLabel = getSystemStateLabel(systemState);
+  const primaryRec = getPrimaryRecommendation(alerts);
   const pendingHandoffs = handoffs.filter(h => h.status !== "resolved");
 
   const getMetricStatus = (value: number, threshold: number, inverse = false): "normal" | "warning" | "critical" => {
@@ -582,13 +622,23 @@ export default function OpsAgent() {
         </div>
       </div>
 
-      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 pb-4 -mt-2 pt-2">
+      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 pb-4 -mt-2 pt-2 space-y-3">
         <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200" data-testid="intent-narrative">
           <CardContent className="pt-4 pb-3">
             <div className="flex items-start gap-4">
-              <Activity className="h-6 w-6 text-blue-600 mt-1 flex-shrink-0" />
+              <div className="flex flex-col items-center gap-2">
+                <Activity className="h-6 w-6 text-blue-600" />
+                <Badge className={`${systemStateLabel.color} border text-xs whitespace-nowrap`} data-testid="system-state-badge">
+                  {systemStateLabel.label}
+                </Badge>
+              </div>
               <div className="flex-1">
-                <p className="font-medium text-blue-900 text-lg">{intentNarrative.headline}</p>
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="font-medium text-blue-900 text-lg">{intentNarrative.headline}</p>
+                    <p className="text-sm text-blue-700 mt-1">{intentNarrative.protectingNow}</p>
+                  </div>
+                </div>
                 <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <p className="text-xs text-blue-700 font-medium mb-1">Why monitoring now:</p>
@@ -625,6 +675,25 @@ export default function OpsAgent() {
             </div>
           </CardContent>
         </Card>
+
+        {primaryRec && (
+          <Card className="bg-amber-50 border-amber-200" data-testid="primary-recommendation">
+            <CardContent className="py-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Zap className="h-5 w-5 text-amber-600" />
+                  <div>
+                    <p className="text-xs text-amber-700 font-medium">Primary Recommendation</p>
+                    <p className="text-sm text-amber-900">{primaryRec.recommendation}</p>
+                  </div>
+                </div>
+                <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-300">
+                  {primaryRec.confidence}% confidence
+                </Badge>
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       <div className="grid grid-cols-6 gap-4">
@@ -840,21 +909,41 @@ export default function OpsAgent() {
                 <p>No actions logged yet</p>
               </div>
             ) : (
-              <div className="space-y-2">
-                {actionLog.map(log => (
-                  <Card key={log.id} className="text-sm" data-testid={`log-${log.id}`}>
-                    <CardContent className="pt-3 pb-2">
-                      <p className="text-sm mb-2">{generateHumanReadableLogSentence(log)}</p>
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <Badge variant={log.actor === "ai" ? "default" : "secondary"} className="text-xs">
-                          {log.actor === "ai" ? <Bot className="h-3 w-3 mr-1" /> : <Hand className="h-3 w-3 mr-1" />}
-                          {log.actor.toUpperCase()}
-                        </Badge>
-                        <span>{log.actionType.replace(/_/g, " ")}</span>
-                        {log.alternatives.length > 0 && (
-                          <span className="text-muted-foreground">
-                            (Also considered: {log.alternatives.map(a => a.option).join(", ")})
+              <div className="space-y-4">
+                {groupLogsIntoEpisodes(actionLog).map(episode => (
+                  <Card key={episode.id} className="border-l-4 border-l-blue-400" data-testid={`episode-${episode.id}`}>
+                    <CardContent className="pt-4 pb-3">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="text-xs">
+                            <Clock className="h-3 w-3 mr-1" />
+                            {new Date(episode.startedAt).toLocaleTimeString()}
+                          </Badge>
+                          <span className="text-sm font-medium text-muted-foreground">
+                            {episode.summary}
                           </span>
+                        </div>
+                        <Badge variant="secondary" className="text-xs">
+                          {episode.actions.length} action{episode.actions.length !== 1 ? "s" : ""}
+                        </Badge>
+                      </div>
+                      <div className="space-y-2 pl-2 border-l-2 border-gray-100">
+                        {episode.actions.slice(0, 5).map(log => (
+                          <div key={log.id} className="text-sm" data-testid={`log-${log.id}`}>
+                            <p className="text-sm">{generateHumanReadableLogSentence(log)}</p>
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
+                              <Badge variant={log.actor === "ai" ? "default" : "secondary"} className="text-xs">
+                                {log.actor === "ai" ? <Bot className="h-3 w-3 mr-1" /> : <Hand className="h-3 w-3 mr-1" />}
+                                {log.actor.toUpperCase()}
+                              </Badge>
+                              <span>{new Date(log.timestamp).toLocaleTimeString()}</span>
+                            </div>
+                          </div>
+                        ))}
+                        {episode.actions.length > 5 && (
+                          <p className="text-xs text-muted-foreground pl-2">
+                            + {episode.actions.length - 5} more actions
+                          </p>
                         )}
                       </div>
                     </CardContent>
