@@ -117,6 +117,40 @@ export async function registerRoutes(
     }
   });
 
+  // Update daily goal
+  app.post("/api/student/goal", async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+      
+      const profile = await tutoringStorage.getProfileByUserId(userId);
+      if (!profile) return res.status(404).json({ error: "Profile not found" });
+      
+      const { dailyGoalMinutes } = req.body;
+      if (!dailyGoalMinutes || dailyGoalMinutes < 5 || dailyGoalMinutes > 120) {
+        return res.status(400).json({ error: "Invalid goal (5-120 minutes)" });
+      }
+      
+      // Update or create student memory with new goal, preserving existing data
+      const existingMemory = await tutoringStorage.getStudentMemory(profile.id);
+      await tutoringStorage.upsertStudentMemory({
+        studentId: profile.id,
+        dailyGoalMinutes,
+        streakCount: existingMemory?.streakCount ?? 0,
+        todayMinutesCompleted: existingMemory?.todayMinutesCompleted ?? 0,
+        lastActiveDate: existingMemory?.lastActiveDate ?? null,
+        lastSubject: existingMemory?.lastSubject ?? null,
+        lastTopicId: existingMemory?.lastTopicId ?? null,
+        lastTopicName: existingMemory?.lastTopicName ?? null,
+      });
+      
+      res.json({ success: true, dailyGoalMinutes });
+    } catch (error) {
+      console.error("Error updating goal:", error);
+      res.status(500).json({ error: "Failed to update goal" });
+    }
+  });
+
   // Get topic mastery for student
   app.get("/api/student/mastery", async (req: any, res) => {
     try {

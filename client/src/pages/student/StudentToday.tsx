@@ -1,10 +1,13 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useLocation } from "wouter";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { 
   Zap, 
   Play, 
@@ -15,8 +18,12 @@ import {
   Clock,
   BookOpen,
   ArrowRight,
-  Send
+  Send,
+  Calculator,
+  PenTool,
+  Settings
 } from "lucide-react";
+import { apiRequest } from "@/lib/queryClient";
 
 interface StudentMemoryData {
   lastSubject: string | null;
@@ -35,7 +42,11 @@ interface DashboardData {
 
 export default function StudentToday() {
   const [, setLocation] = useLocation();
+  const queryClient = useQueryClient();
   const [quickHelpInput, setQuickHelpInput] = useState("");
+  const [quickHelpSubject, setQuickHelpSubject] = useState<"math" | "english">("math");
+  const [showGoalDialog, setShowGoalDialog] = useState(false);
+  const [newGoalMinutes, setNewGoalMinutes] = useState("15");
 
   const { data: dashboardData, isLoading } = useQuery<DashboardData>({
     queryKey: ["/api/student/dashboard"],
@@ -64,12 +75,29 @@ export default function StudentToday() {
     setLocation(`/student/session/${subject}/${topic}`);
   };
 
-  const handleQuickHelp = () => {
-    if (quickHelpInput.trim()) {
-      setLocation(`/student/classroom?question=${encodeURIComponent(quickHelpInput)}`);
-    } else {
-      setLocation("/student/classroom");
+  const updateGoalMutation = useMutation({
+    mutationFn: async (minutes: number) => {
+      const res = await apiRequest("POST", "/api/student/goal", { dailyGoalMinutes: minutes });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/student/dashboard"] });
+      setShowGoalDialog(false);
     }
+  });
+
+  const handleQuickHelp = () => {
+    const subjectParam = `subject=${quickHelpSubject}`;
+    if (quickHelpInput.trim()) {
+      setLocation(`/student/classroom?${subjectParam}&question=${encodeURIComponent(quickHelpInput)}`);
+    } else {
+      setLocation(`/student/classroom?${subjectParam}`);
+    }
+  };
+
+  const handleSaveGoal = () => {
+    const minutes = parseInt(newGoalMinutes) || 15;
+    updateGoalMutation.mutate(minutes);
   };
 
   const handleBookSession = () => {
@@ -159,10 +187,32 @@ export default function StudentToday() {
               </div>
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-3">
+            <div className="flex gap-2">
+              <Button
+                variant={quickHelpSubject === "math" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setQuickHelpSubject("math")}
+                className={quickHelpSubject === "math" ? "bg-purple-500 hover:bg-purple-600" : ""}
+                data-testid="quick-help-math-btn"
+              >
+                <Calculator className="h-4 w-4 mr-1" />
+                Maths
+              </Button>
+              <Button
+                variant={quickHelpSubject === "english" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setQuickHelpSubject("english")}
+                className={quickHelpSubject === "english" ? "bg-purple-500 hover:bg-purple-600" : ""}
+                data-testid="quick-help-english-btn"
+              >
+                <PenTool className="h-4 w-4 mr-1" />
+                English
+              </Button>
+            </div>
             <div className="flex gap-2">
               <Input
-                placeholder="What do you need help with?"
+                placeholder={`Ask about ${quickHelpSubject === "math" ? "maths" : "English"}...`}
                 value={quickHelpInput}
                 onChange={(e) => setQuickHelpInput(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleQuickHelp()}
@@ -189,6 +239,18 @@ export default function StudentToday() {
                   {streakCount > 0 ? `${streakCount} day streak` : "Start your streak!"}
                 </CardDescription>
               </div>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-8 w-8"
+                onClick={() => {
+                  setNewGoalMinutes(dailyGoalMinutes.toString());
+                  setShowGoalDialog(true);
+                }}
+                data-testid="edit-goal-btn"
+              >
+                <Settings className="h-4 w-4" />
+              </Button>
             </div>
           </CardHeader>
           <CardContent>
@@ -242,6 +304,82 @@ export default function StudentToday() {
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={showGoalDialog} onOpenChange={setShowGoalDialog}>
+        <DialogContent className="sm:max-w-md" data-testid="goal-settings-dialog">
+          <DialogHeader>
+            <DialogTitle>Set Your Daily Goal</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <p className="text-sm text-muted-foreground">
+              Choose how many minutes you'd like to learn each day. Consistent practice builds stronger skills!
+            </p>
+            <RadioGroup
+              value={newGoalMinutes}
+              onValueChange={setNewGoalMinutes}
+              className="grid grid-cols-2 gap-3"
+            >
+              <div>
+                <RadioGroupItem value="10" id="goal-10" className="peer sr-only" />
+                <Label
+                  htmlFor="goal-10"
+                  className="flex flex-col items-center justify-center rounded-lg border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-green-500 peer-data-[state=checked]:bg-green-50 cursor-pointer"
+                >
+                  <span className="text-2xl font-bold">10</span>
+                  <span className="text-sm text-muted-foreground">minutes</span>
+                  <span className="text-xs text-muted-foreground mt-1">Quick session</span>
+                </Label>
+              </div>
+              <div>
+                <RadioGroupItem value="15" id="goal-15" className="peer sr-only" />
+                <Label
+                  htmlFor="goal-15"
+                  className="flex flex-col items-center justify-center rounded-lg border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-green-500 peer-data-[state=checked]:bg-green-50 cursor-pointer"
+                >
+                  <span className="text-2xl font-bold">15</span>
+                  <span className="text-sm text-muted-foreground">minutes</span>
+                  <span className="text-xs text-muted-foreground mt-1">Recommended</span>
+                </Label>
+              </div>
+              <div>
+                <RadioGroupItem value="20" id="goal-20" className="peer sr-only" />
+                <Label
+                  htmlFor="goal-20"
+                  className="flex flex-col items-center justify-center rounded-lg border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-green-500 peer-data-[state=checked]:bg-green-50 cursor-pointer"
+                >
+                  <span className="text-2xl font-bold">20</span>
+                  <span className="text-sm text-muted-foreground">minutes</span>
+                  <span className="text-xs text-muted-foreground mt-1">Focused</span>
+                </Label>
+              </div>
+              <div>
+                <RadioGroupItem value="30" id="goal-30" className="peer sr-only" />
+                <Label
+                  htmlFor="goal-30"
+                  className="flex flex-col items-center justify-center rounded-lg border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-green-500 peer-data-[state=checked]:bg-green-50 cursor-pointer"
+                >
+                  <span className="text-2xl font-bold">30</span>
+                  <span className="text-sm text-muted-foreground">minutes</span>
+                  <span className="text-xs text-muted-foreground mt-1">Deep learning</span>
+                </Label>
+              </div>
+            </RadioGroup>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowGoalDialog(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleSaveGoal} 
+              className="bg-green-500 hover:bg-green-600"
+              disabled={updateGoalMutation.isPending}
+              data-testid="save-goal-btn"
+            >
+              {updateGoalMutation.isPending ? "Saving..." : "Save Goal"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

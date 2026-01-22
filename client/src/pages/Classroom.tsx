@@ -78,6 +78,19 @@ export default function Classroom() {
     "Text Analysis"
   ];
 
+  // Read subject from URL params on mount
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const subjectParam = urlParams.get("subject");
+    if (subjectParam === "english") {
+      setSelectedSubject("english");
+      setWhiteboardContent(DEFAULT_ENGLISH_CONTENT);
+    } else if (subjectParam === "math") {
+      setSelectedSubject("math");
+      setWhiteboardContent(DEFAULT_MATH_CONTENT);
+    }
+  }, []);
+
   // Keep refs in sync with state
   useEffect(() => {
     sessionIdRef.current = sessionId;
