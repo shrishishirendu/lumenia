@@ -84,7 +84,14 @@ export default function SessionFlow() {
   const topicId = isWarmupMode ? "linear_equations" : rawTopicId;
   
   const topicConfig = getTopic(subject, topicId);
-  const topicName = isWarmupMode ? "Review Session" : (topicConfig?.name || "Linear Equations");
+  const topicName = isWarmupMode ? "Quick Review" : (topicConfig?.name || "Linear Equations");
+
+  const WARMUP_ONLY_STEPS: { id: SessionStep; label: string; icon: React.ElementType }[] = [
+    { id: "warmup", label: "Review", icon: Zap },
+    { id: "next_step", label: "Done", icon: CheckCircle }
+  ];
+
+  const activeSteps = isWarmupMode ? WARMUP_ONLY_STEPS : STEPS;
 
   const [state, setState] = useState<SessionState>({
     currentStep: "warmup",
@@ -121,8 +128,8 @@ export default function SessionFlow() {
     createSessionMutation.mutate();
   }, []);
 
-  const currentStepIndex = STEPS.findIndex(s => s.id === state.currentStep);
-  const progressPercent = ((currentStepIndex + 1) / STEPS.length) * 100;
+  const currentStepIndex = activeSteps.findIndex(s => s.id === state.currentStep);
+  const progressPercent = ((currentStepIndex + 1) / activeSteps.length) * 100;
 
   const handleAnswer = (questionId: string, answer: string, section: "warmup" | "practice" | "exit_ticket") => {
     setState(prev => {
@@ -155,7 +162,9 @@ export default function SessionFlow() {
   };
 
   const handleNextStep = () => {
-    const stepOrder: SessionStep[] = ["warmup", "lesson", "practice", "reflection", "exit_ticket", "next_step"];
+    const stepOrder: SessionStep[] = isWarmupMode 
+      ? ["warmup", "next_step"] 
+      : ["warmup", "lesson", "practice", "reflection", "exit_ticket", "next_step"];
     const currentIndex = stepOrder.indexOf(state.currentStep);
     if (currentIndex < stepOrder.length - 1) {
       const nextStep = stepOrder[currentIndex + 1];
@@ -177,7 +186,9 @@ export default function SessionFlow() {
   };
 
   const handlePrevStep = () => {
-    const stepOrder: SessionStep[] = ["warmup", "lesson", "practice", "reflection", "exit_ticket", "next_step"];
+    const stepOrder: SessionStep[] = isWarmupMode 
+      ? ["warmup", "next_step"] 
+      : ["warmup", "lesson", "practice", "reflection", "exit_ticket", "next_step"];
     const currentIndex = stepOrder.indexOf(state.currentStep);
     if (currentIndex > 0) {
       setState(prev => ({ ...prev, currentStep: stepOrder[currentIndex - 1] }));
@@ -421,6 +432,46 @@ export default function SessionFlow() {
     const exitScore = calculateScore(state.exitTicketResults.questions, state.exitTicketResults.answers);
     const timeSpent = Math.floor((Date.now() - state.startTime) / 60000);
     
+    if (isWarmupMode) {
+      return (
+        <div className="space-y-6" data-testid="next-step-step">
+          <div className="text-center mb-6">
+            <Zap className="h-12 w-12 text-amber-500 mx-auto mb-2" />
+            <h2 className="text-2xl font-bold">Review Complete!</h2>
+            <p className="text-muted-foreground">Nice warm-up</p>
+          </div>
+          
+          <Card className="p-6">
+            <h3 className="text-lg font-semibold mb-4">Quick Review Summary</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="text-center p-3 bg-amber-50 rounded-lg">
+                <Star className="h-5 w-5 mx-auto text-amber-500 mb-1" />
+                <p className="text-2xl font-bold">{warmupScore}%</p>
+                <p className="text-xs text-muted-foreground">Review Score</p>
+              </div>
+              <div className="text-center p-3 bg-amber-50 rounded-lg">
+                <CheckCircle className="h-5 w-5 mx-auto text-amber-500 mb-1" />
+                <p className="text-2xl font-bold">{Object.keys(state.warmupResults.answers).length}/{state.warmupResults.questions.length}</p>
+                <p className="text-xs text-muted-foreground">Answered</p>
+              </div>
+            </div>
+          </Card>
+          
+          <Card className="p-6 bg-amber-50 border-amber-200">
+            <h3 className="text-lg font-semibold mb-2 text-amber-800">Ready to Learn?</h3>
+            <p className="text-amber-700 mb-4">
+              {warmupScore >= 80 
+                ? "Great recall! You're warmed up and ready to continue."
+                : "Good effort! Consider reviewing these topics during your next session."}
+            </p>
+            <Button onClick={handleFinish} className="w-full bg-amber-500 hover:bg-amber-600">
+              Back to Today
+            </Button>
+          </Card>
+        </div>
+      );
+    }
+    
     return (
       <div className="space-y-6" data-testid="next-step-step">
         <div className="text-center mb-6">
@@ -487,12 +538,12 @@ export default function SessionFlow() {
       <div className="mb-8">
         <div className="flex items-center justify-between mb-2">
           <span className="text-sm text-muted-foreground capitalize">{subject} • {topicName}</span>
-          <span className="text-sm text-muted-foreground">Step {currentStepIndex + 1} of {STEPS.length}</span>
+          <span className="text-sm text-muted-foreground">Step {currentStepIndex + 1} of {activeSteps.length}</span>
         </div>
         <Progress value={progressPercent} className="h-2 mb-4" />
         
         <div className="flex justify-between">
-          {STEPS.map((step, idx) => {
+          {activeSteps.map((step, idx) => {
             const Icon = step.icon;
             const isActive = step.id === state.currentStep;
             const isComplete = idx < currentStepIndex;
