@@ -101,7 +101,7 @@ export default function StudentToday() {
   };
 
   const handleBookSession = () => {
-    setLocation("/student/classroom");
+    setLocation("/student/practice");
   };
 
   if (isLoading) {
