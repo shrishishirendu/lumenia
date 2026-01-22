@@ -21,8 +21,17 @@ import {
   Send,
   Calculator,
   PenTool,
-  Settings
+  Settings,
+  GraduationCap
 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { type YearLevel } from "@shared/curriculum";
 import { apiRequest } from "@/lib/queryClient";
 
 interface StudentMemoryData {
@@ -32,6 +41,7 @@ interface StudentMemoryData {
   streakCount: number;
   dailyGoalMinutes: number;
   todayMinutesCompleted: number;
+  yearLevel: YearLevel;
 }
 
 interface DashboardData {
@@ -47,6 +57,8 @@ export default function StudentToday() {
   const [quickHelpSubject, setQuickHelpSubject] = useState<"math" | "english">("math");
   const [showGoalDialog, setShowGoalDialog] = useState(false);
   const [newGoalMinutes, setNewGoalMinutes] = useState("15");
+  const [selectedYear, setSelectedYear] = useState<YearLevel>(7);
+  const yearLevels: YearLevel[] = [6, 7, 8, 9, 10, 11, 12];
 
   const { data: dashboardData, isLoading } = useQuery<DashboardData>({
     queryKey: ["/api/student/dashboard"],
@@ -66,13 +78,13 @@ export default function StudentToday() {
 
   const handleStartWarmup = () => {
     const subject = memory?.lastSubject || "math";
-    setLocation(`/student/session/${subject}/warmup`);
+    setLocation(`/student/session/${subject}/warmup?year=${selectedYear}`);
   };
 
   const handleContinueLearning = () => {
     const subject = memory?.lastSubject || "math";
     const topic = memory?.lastTopicId || "linear_equations";
-    setLocation(`/student/session/${subject}/${topic}`);
+    setLocation(`/student/session/${subject}/${topic}?year=${selectedYear}`);
   };
 
   const updateGoalMutation = useMutation({
@@ -87,7 +99,7 @@ export default function StudentToday() {
   });
 
   const handleQuickHelp = () => {
-    const subjectParam = `subject=${quickHelpSubject}`;
+    const subjectParam = `subject=${quickHelpSubject}&year=${selectedYear}`;
     if (quickHelpInput.trim()) {
       setLocation(`/student/classroom?${subjectParam}&question=${encodeURIComponent(quickHelpInput)}`);
     } else {
@@ -115,7 +127,27 @@ export default function StudentToday() {
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-6" data-testid="student-today-page">
       <div className="text-center mb-8">
-        <h1 className="text-3xl font-bold text-foreground mb-2">Welcome back!</h1>
+        <div className="flex justify-center items-center gap-3 mb-4">
+          <h1 className="text-3xl font-bold text-foreground">Welcome back!</h1>
+          <div className="flex items-center gap-2 bg-muted rounded-lg px-3 py-1">
+            <GraduationCap className="h-4 w-4 text-muted-foreground" />
+            <Select 
+              value={selectedYear.toString()} 
+              onValueChange={(val) => setSelectedYear(parseInt(val) as YearLevel)}
+            >
+              <SelectTrigger className="w-24 h-8 border-0 bg-transparent" data-testid="year-selector">
+                <SelectValue placeholder="Year" />
+              </SelectTrigger>
+              <SelectContent>
+                {yearLevels.map((year) => (
+                  <SelectItem key={year} value={year.toString()}>
+                    Year {year}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
         <p className="text-muted-foreground">
           {streakCount > 0 
             ? `You're on a ${streakCount}-day streak! Keep it going.`

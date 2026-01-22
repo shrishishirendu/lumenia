@@ -157,3 +157,35 @@ Added structured learning experience with mastery tracking:
   - `GET/POST /api/student/mastery` - Topic mastery tracking
 - **Onboarding Flow**: Role-based redirect after profile creation
 - **Key Files**: `client/src/pages/student/StudentToday.tsx`, `client/src/pages/student/SessionFlow.tsx`, `server/routes.ts`
+
+### January 2026 - Year-Level Curriculum System
+Added comprehensive year-level curriculum structure for Years 6-12:
+- **Curriculum Data Structure** (`shared/curriculum.ts`):
+  - Types: YearLevel (6-12), Subject (mathematics/english), Term (1-4)
+  - Interfaces: Lesson, PracticeSet, Unit, YearCurriculum
+  - Helper functions: getCurriculum(), getUnit(), getLesson(), getLessonsForYear(), getPracticeSetsForYear()
+- **Mathematics Syllabus** (Years 6-12):
+  - Year 6: Number/Place Value, Fractions/Decimals/Percentages, Patterns/Algebra, Measurement, Geometry, Statistics
+  - Year 7: Integers, Fractions/Ratios, Algebraic Expressions, Linear Equations, Angles, Statistics
+  - Year 8: Index Laws, Linear Equations/Inequalities, Linear Graphs, Pythagoras, Area/Volume, Data Analysis
+  - Year 9: Indices/Surds, Expanding/Factorising, Linear Graphs, Trigonometry, Surface Area/Volume, Probability
+  - Year 10: Quadratic Equations, Parabolas, Simultaneous Equations, Advanced Trigonometry, Probability, Statistics
+  - Year 11: Functions, Polynomials, Exponentials/Logs, Intro Calculus, Trig Functions, Probability Distributions
+  - Year 12: Advanced Differentiation, Applications of Differentiation, Integration, Trig Calculus, Normal Distribution, Exam Prep
+- **English Syllabus** (Years 6-12):
+  - Year 6: Reading Comprehension, Narrative Writing, Grammar, Persuasive Writing, Poetry, Speaking/Presenting
+  - Year 7: Text Analysis, Essay Writing, Vocabulary, Novel Study, Media Literacy, Creative Writing
+  - Year 8: Analytical Writing, Genre Study, Shakespeare Intro, Persuasive Techniques, Poetry Analysis, Report Writing
+  - Year 9: Critical Analysis, Argument Construction, Drama Study, Comparative Analysis, Australian Voices, Feature Articles
+  - Year 10: Literary Theory, Extended Text Study, Shakespeare Mastery, Comparative Study, Persuasive Writing, Exam Prep
+  - Year 11: Reading/Creating, Comparative Study, Argument/Persuasion, Language Analysis, Media/Ethics, Independent Study
+  - Year 12: Text Study, Comparative Study, Argument/Language, Presenting Argument, Exam Preparation, Final Review
+- **Australian Curriculum Alignment**: Each year includes relevant ACARA curriculum codes
+- **Practice Page** (`/student/practice`): Updated to use year-level curriculum with:
+  - Subject toggle (Mathematics/English)
+  - Year selector dropdown (Years 6-12)
+  - Accordion-based unit display with lessons and practice sets
+  - Difficulty badges (foundation/standard/advanced)
+  - Key concepts display for each lesson
+- **Year Selector on Dashboard**: Students can select their year level on the Today page
+- **Key Files**: `shared/curriculum.ts`, `client/src/pages/student/Practice.tsx`, `client/src/pages/student/StudentToday.tsx`
