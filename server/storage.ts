@@ -20,6 +20,9 @@ import {
   quizAttempts,
   quizAnswers,
   lessonProgress,
+  topicMastery,
+  sessionAttempts,
+  studentMemory,
   type Profile,
   type InsertProfile,
   type TutoringSession,
@@ -61,7 +64,13 @@ import {
   type QuizAnswer,
   type InsertQuizAnswer,
   type LessonProgress as LessonProgressType,
-  type InsertLessonProgress
+  type InsertLessonProgress,
+  type TopicMastery,
+  type InsertTopicMastery,
+  type SessionAttempt,
+  type InsertSessionAttempt,
+  type StudentMemory,
+  type InsertStudentMemory
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, sql } from "drizzle-orm";
@@ -184,6 +193,23 @@ export interface ITutoringStorage {
   getLessonProgressByStudent(studentId: number): Promise<LessonProgressType[]>;
   getLessonProgress(studentId: number, lessonId: number): Promise<LessonProgressType | undefined>;
   createOrUpdateLessonProgress(progress: InsertLessonProgress): Promise<LessonProgressType>;
+  
+  // Topic Mastery (Learning Loop)
+  getTopicMasteryByStudent(studentId: number): Promise<TopicMastery[]>;
+  getTopicMastery(studentId: number, subject: string, topicId: string): Promise<TopicMastery | undefined>;
+  upsertTopicMastery(mastery: InsertTopicMastery): Promise<TopicMastery>;
+  getWeakestTopic(studentId: number, subject: string): Promise<TopicMastery | undefined>;
+  
+  // Session Attempts (Learning Loop)
+  createSessionAttempt(attempt: InsertSessionAttempt): Promise<SessionAttempt>;
+  getSessionAttempt(id: number): Promise<SessionAttempt | undefined>;
+  getSessionAttemptsByStudent(studentId: number): Promise<SessionAttempt[]>;
+  getLatestSessionAttempt(studentId: number): Promise<SessionAttempt | undefined>;
+  updateSessionAttempt(id: number, updates: Partial<SessionAttempt>): Promise<SessionAttempt>;
+  
+  // Student Memory (Learning Loop)
+  getStudentMemory(studentId: number): Promise<StudentMemory | undefined>;
+  upsertStudentMemory(memory: InsertStudentMemory): Promise<StudentMemory>;
 }
 
 class TutoringStorage implements ITutoringStorage {
@@ -591,6 +617,97 @@ class TutoringStorage implements ITutoringStorage {
       return updated;
     }
     const [created] = await db.insert(lessonProgress).values({ ...progressData, lastAccessedAt: new Date() }).returning();
+    return created;
+  }
+
+  // Topic Mastery (Learning Loop)
+  async getTopicMasteryByStudent(studentId: number): Promise<TopicMastery[]> {
+    return db.select().from(topicMastery).where(eq(topicMastery.studentId, studentId));
+  }
+
+  async getTopicMastery(studentId: number, subject: string, topicId: string): Promise<TopicMastery | undefined> {
+    const [mastery] = await db.select().from(topicMastery)
+      .where(and(
+        eq(topicMastery.studentId, studentId),
+        eq(topicMastery.subject, subject),
+        eq(topicMastery.topicId, topicId)
+      ));
+    return mastery;
+  }
+
+  async upsertTopicMastery(masteryData: InsertTopicMastery): Promise<TopicMastery> {
+    const existing = await this.getTopicMastery(masteryData.studentId, masteryData.subject, masteryData.topicId);
+    if (existing) {
+      const [updated] = await db.update(topicMastery)
+        .set({ ...masteryData, updatedAt: new Date() })
+        .where(eq(topicMastery.id, existing.id))
+        .returning();
+      return updated;
+    }
+    const [created] = await db.insert(topicMastery).values(masteryData).returning();
+    return created;
+  }
+
+  async getWeakestTopic(studentId: number, subject: string): Promise<TopicMastery | undefined> {
+    const [weakest] = await db.select().from(topicMastery)
+      .where(and(
+        eq(topicMastery.studentId, studentId),
+        eq(topicMastery.subject, subject)
+      ))
+      .orderBy(topicMastery.accuracyRolling)
+      .limit(1);
+    return weakest;
+  }
+
+  // Session Attempts (Learning Loop)
+  async createSessionAttempt(attemptData: InsertSessionAttempt): Promise<SessionAttempt> {
+    const [attempt] = await db.insert(sessionAttempts).values(attemptData).returning();
+    return attempt;
+  }
+
+  async getSessionAttempt(id: number): Promise<SessionAttempt | undefined> {
+    const [attempt] = await db.select().from(sessionAttempts).where(eq(sessionAttempts.id, id));
+    return attempt;
+  }
+
+  async getSessionAttemptsByStudent(studentId: number): Promise<SessionAttempt[]> {
+    return db.select().from(sessionAttempts)
+      .where(eq(sessionAttempts.studentId, studentId))
+      .orderBy(desc(sessionAttempts.startedAt));
+  }
+
+  async getLatestSessionAttempt(studentId: number): Promise<SessionAttempt | undefined> {
+    const [attempt] = await db.select().from(sessionAttempts)
+      .where(eq(sessionAttempts.studentId, studentId))
+      .orderBy(desc(sessionAttempts.startedAt))
+      .limit(1);
+    return attempt;
+  }
+
+  async updateSessionAttempt(id: number, updates: Partial<SessionAttempt>): Promise<SessionAttempt> {
+    const [updated] = await db.update(sessionAttempts)
+      .set(updates)
+      .where(eq(sessionAttempts.id, id))
+      .returning();
+    return updated;
+  }
+
+  // Student Memory (Learning Loop)
+  async getStudentMemory(studentId: number): Promise<StudentMemory | undefined> {
+    const [memory] = await db.select().from(studentMemory).where(eq(studentMemory.studentId, studentId));
+    return memory;
+  }
+
+  async upsertStudentMemory(memoryData: InsertStudentMemory): Promise<StudentMemory> {
+    const existing = await this.getStudentMemory(memoryData.studentId);
+    if (existing) {
+      const [updated] = await db.update(studentMemory)
+        .set({ ...memoryData, updatedAt: new Date() })
+        .where(eq(studentMemory.id, existing.id))
+        .returning();
+      return updated;
+    }
+    const [created] = await db.insert(studentMemory).values(memoryData).returning();
     return created;
   }
 }

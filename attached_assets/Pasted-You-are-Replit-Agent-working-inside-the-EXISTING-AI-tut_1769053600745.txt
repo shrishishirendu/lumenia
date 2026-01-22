@@ -1,0 +1,213 @@
+You are Replit Agent working inside the EXISTING AI tutoring platform codebase.
+Auth + RBAC + separate layouts for Student/Parent/Tutor/Admin are already working.
+
+GOAL (MVP)
+Implement the Student Learning Loop MVP for Math + English:
+1) Student “Today” Home Page (retention driver)
+2) Structured Session Flow v1 (warmup → lesson → practice → reflection → exit ticket → next step)
+3) Mastery Tracking (topic mastery map + simple student memory)
+
+Do NOT rebuild the app.
+Do NOT add new roles.
+Do NOT add marketing/ops features now.
+Focus only on Student learning loop.
+
+────────────────────────────────────────
+PRODUCT REQUIREMENTS
+────────────────────────────────────────
+
+A) STUDENT TODAY PAGE (NEW OR UPGRADE)
+Route: /student/today (or /student as default)
+
+UI must show 5 core cards:
+
+1) “Warm-up Quiz (2 min)”
+- 2–4 questions from last session errors or weakest topic
+- CTA: Start Warm-up
+
+2) “Continue Learning”
+- last subject + last topic
+- progress indicator
+- CTA: Resume Session
+
+3) “Quick Help (Ask a Question)”
+- text input + optional upload + optional voice (if exists)
+- CTA: Get Help Now
+- This uses existing Q&A components if available
+
+4) “Daily Goal”
+- default: 10–15 minutes (configurable)
+- streak indicator (days in a row)
+- “You’re X minutes away from today’s goal”
+
+5) “Next Scheduled Session”
+- show next scheduled session if scheduling exists
+- if not, show “No session booked” and CTA “Book a session” (can be placeholder)
+
+IMPORTANT: Today page should feel calm and motivating.
+No clutter. One primary CTA at the top.
+
+B) STRUCTURED SESSION FLOW v1
+Route: /student/session/:subject/:topic (or similar)
+
+Session must be a guided sequence with steps:
+
+Step 1: Warmup Quiz (2–4 Qs)
+- Generate questions based on:
+  - last session mistakes for this subject, OR
+  - weakest topic in mastery map
+- Show immediate feedback + hint
+- Capture attempt data
+
+Step 2: Micro Lesson (3–5 mins)
+- One concept explanation + 1 worked example
+- Provide “Explain differently” button (visual / analogy / step-by-step)
+- Capture if student requested alternate explanation
+
+Step 3: Practice Set (adaptive)
+- Start easy → medium → challenge
+- After each question, update difficulty based on correctness and hints
+- Allow scratchpad/workspace if already exists
+- Capture attempts, hints, time-on-task
+
+Step 4: Reflection
+- 2 quick prompts:
+  - “What was the key idea?”
+  - “Where did you feel stuck?”
+- Save reflection text
+
+Step 5: Exit Ticket (1–2 Qs)
+- Must test the same concept
+- If failed, recommend “Mini-review” and do NOT mark mastered
+
+Step 6: Next Step
+- Show:
+  - what improved
+  - what to do next
+  - suggested next topic
+  - optional “Homework: 3 questions” (can be generated and stored)
+
+Session End must generate a compact “Session Summary” for student view:
+- score, time, hints used, outcome (mastered / practicing / needs help)
+
+C) MASTERY TRACKING (CORE)
+Implement a simple Mastery Map per student per subject:
+Statuses:
+- not_started
+- learning
+- practiced
+- mastered
+
+Store for each topic:
+- masteryStatus
+- lastSeenAt
+- accuracyRolling (e.g., last 10 attempts)
+- commonMistakes tags (simple strings)
+- confidence (optional slider based on performance)
+
+When to update mastery:
+- If exit ticket passed with acceptable threshold (e.g., >=80% overall + low hints): move toward mastered
+- If repeated errors / high hints: move toward learning/practiced
+- Never jump straight to mastered without exit ticket success
+
+D) STUDENT MEMORY (LIGHTWEIGHT PERSONALIZATION)
+Store:
+- preferredExplanationStyle: "step_by_step"|"visual"|"analogy"|"concise"
+- motivationPreference: “gentle” / “energetic” (optional)
+- lastTopic, lastSubject
+- lastMistakes[] (questionId or concept tags)
+
+Use memory to:
+- pick explanation style defaults
+- choose warmup questions
+- determine next step recommendation
+
+────────────────────────────────────────
+DATA & STORAGE (MVP)
+────────────────────────────────────────
+Use existing DB if present. If not, implement localStorage + mock API now, but keep schemas stable.
+
+Implement models/interfaces:
+
+StudentProfile:
+- id, name, grade (6–12), subjectsEnabled[], createdAt
+
+TopicMastery:
+- subject, topicId, topicName
+- masteryStatus
+- accuracyRolling
+- hintsRolling
+- lastSeenAt
+- mistakeTags[]
+
+SessionAttempt:
+- id, studentId, subject, topicId
+- startedAt, endedAt
+- warmupResults, practiceResults, exitTicketResults
+- hintsUsed, timeSpentSec
+- outcomeStatus (mastered/practicing/needs_help)
+- reflectionText
+
+StudentMemory:
+- preferredExplanationStyle
+- lastSubject, lastTopicId
+- lastMistakeTags[]
+- streakCount, lastActiveDate
+
+Create a “Topic Catalog” for Math + English:
+- For MVP, seed topics for at least:
+  Math: Linear equations, fractions, decimals, percentages, geometry basics
+  English: Reading comprehension, grammar basics, essay paragraph structure, vocabulary
+Keep it in a config file and render per grade later.
+
+────────────────────────────────────────
+AI INTEGRATION (OPTIONAL FOR MVP)
+────────────────────────────────────────
+If OpenAI is integrated already:
+- Use AI only for:
+  - generating question text + options
+  - generating explanations in micro lesson
+  - generating feedback/hints
+- Strictly store generated content so sessions are replayable.
+
+If no AI keys:
+- Use curated question bank JSON for now.
+
+IMPORTANT: Do not build a full chat tutor yet. This is a guided session flow.
+
+────────────────────────────────────────
+UI/UX REQUIREMENTS
+────────────────────────────────────────
+- The session flow must show a clear progress indicator (Step 1 of 6 etc.)
+- Use calm, student-friendly language
+- One primary action per screen
+- Provide “Need help?” button that triggers quick help/handoff event (stub ok)
+
+────────────────────────────────────────
+INTEGRATION WITH OTHER PORTALS (MINIMAL)
+────────────────────────────────────────
+- Parent portal: show “Weekly summary” placeholder fed by SessionAttempt summaries (basic)
+- Tutor portal: show “Handoff needed” placeholder if session outcome = needs_help
+- Admin portal: can view mastery map + session attempts for a student (read-only)
+
+Do NOT expand beyond placeholders; just connect the data.
+
+────────────────────────────────────────
+ACCEPTANCE CRITERIA
+────────────────────────────────────────
+1) Student Today page works and shows Warmup/Continue/QuickHelp/DailyGoal/NextSession.
+2) Student can complete a session end-to-end through all 6 steps.
+3) SessionAttempt is saved and can be viewed later.
+4) Mastery map updates based on exit ticket results.
+5) Warmup quiz pulls from lastMistakeTags or weakest topic.
+6) No auth/RBAC regression.
+
+IMPLEMENTATION ORDER (DO THIS SEQUENTIALLY)
+1) Topic Catalog + Mastery schemas + storage
+2) Student Today page with basic cards wired to saved data
+3) Session Flow pages + state machine for steps
+4) Save SessionAttempt + update mastery + update memory
+5) Add minimal parent/tutor/admin read-only surfaces
+6) Polish UI copy and progress indicators
+
+Now implement Student Learning Loop MVP.

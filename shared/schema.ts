@@ -272,6 +272,84 @@ export const lessonProgress = pgTable("lesson_progress", {
   lastAccessedAt: timestamp("last_accessed_at"),
 });
 
+// ============================================
+// STUDENT LEARNING LOOP MVP TABLES
+// ============================================
+
+// Topic Mastery - detailed mastery tracking per topic per student
+export const topicMastery = pgTable("topic_mastery", {
+  id: serial("id").primaryKey(),
+  studentId: integer("student_id").notNull().references(() => profiles.id, { onDelete: "cascade" }),
+  subject: text("subject").notNull(), // "math" | "english"
+  topicId: text("topic_id").notNull(), // e.g., "linear_equations", "reading_comprehension"
+  topicName: text("topic_name").notNull(),
+  masteryStatus: text("mastery_status").notNull().default("not_started"), // not_started, learning, practiced, mastered
+  accuracyRolling: integer("accuracy_rolling").default(0), // Last 10 attempts percentage (0-100)
+  hintsRolling: integer("hints_rolling").default(0), // Average hints used in last 10 attempts
+  attemptsCount: integer("attempts_count").default(0),
+  lastSeenAt: timestamp("last_seen_at"),
+  mistakeTags: text("mistake_tags").array(), // Common mistake patterns
+  confidence: integer("confidence").default(50), // 0-100 confidence score
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Session Attempt - structured session flow data
+export const sessionAttempts = pgTable("session_attempts", {
+  id: serial("id").primaryKey(),
+  studentId: integer("student_id").notNull().references(() => profiles.id, { onDelete: "cascade" }),
+  subject: text("subject").notNull(),
+  topicId: text("topic_id").notNull(),
+  topicName: text("topic_name").notNull(),
+  startedAt: timestamp("started_at").defaultNow().notNull(),
+  endedAt: timestamp("ended_at"),
+  
+  // Step results stored as JSON strings
+  warmupResults: text("warmup_results"), // JSON: {questions, answers, score}
+  lessonCompleted: boolean("lesson_completed").default(false),
+  lessonExplanationStyle: text("lesson_explanation_style"), // step_by_step, visual, analogy, concise
+  practiceResults: text("practice_results"), // JSON: {questions, answers, hintsUsed, difficulty}
+  reflectionText: text("reflection_text"),
+  exitTicketResults: text("exit_ticket_results"), // JSON: {questions, answers, passed}
+  
+  hintsUsed: integer("hints_used").default(0),
+  timeSpentSec: integer("time_spent_sec").default(0),
+  outcomeStatus: text("outcome_status").default("in_progress"), // in_progress, mastered, practicing, needs_help
+  sessionSummary: text("session_summary"), // Generated summary text
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Student Memory - personalization preferences
+export const studentMemory = pgTable("student_memory", {
+  id: serial("id").primaryKey(),
+  studentId: integer("student_id").notNull().unique().references(() => profiles.id, { onDelete: "cascade" }),
+  preferredExplanationStyle: text("preferred_explanation_style").default("step_by_step"), // step_by_step, visual, analogy, concise
+  motivationPreference: text("motivation_preference").default("gentle"), // gentle, energetic
+  lastSubject: text("last_subject"),
+  lastTopicId: text("last_topic_id"),
+  lastTopicName: text("last_topic_name"),
+  lastMistakeTags: text("last_mistake_tags").array(),
+  streakCount: integer("streak_count").default(0),
+  lastActiveDate: timestamp("last_active_date"),
+  dailyGoalMinutes: integer("daily_goal_minutes").default(15),
+  todayMinutesCompleted: integer("today_minutes_completed").default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Zod schemas - Student Learning Loop
+export const insertTopicMasterySchema = createInsertSchema(topicMastery).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertSessionAttemptSchema = createInsertSchema(sessionAttempts).omit({ id: true, startedAt: true, createdAt: true });
+export const insertStudentMemorySchema = createInsertSchema(studentMemory).omit({ id: true, createdAt: true, updatedAt: true });
+
+// Types - Student Learning Loop
+export type TopicMastery = typeof topicMastery.$inferSelect;
+export type InsertTopicMastery = z.infer<typeof insertTopicMasterySchema>;
+export type SessionAttempt = typeof sessionAttempts.$inferSelect;
+export type InsertSessionAttempt = z.infer<typeof insertSessionAttemptSchema>;
+export type StudentMemory = typeof studentMemory.$inferSelect;
+export type InsertStudentMemory = z.infer<typeof insertStudentMemorySchema>;
+
 // Zod schemas - Original
 export const insertProfileSchema = createInsertSchema(profiles).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertTutoringSessionSchema = createInsertSchema(tutoringSessions).omit({ id: true, startedAt: true });
