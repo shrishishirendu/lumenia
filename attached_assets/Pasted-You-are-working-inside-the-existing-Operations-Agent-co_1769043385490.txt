@@ -1,0 +1,91 @@
+You are working inside the existing Operations Agent control room.
+Do NOT add new AI models, chat interfaces, or external integrations.
+
+GOAL
+Refine the Ops Agent so that:
+- Humans instantly understand what the system is protecting
+- Alerts feel calm and prioritized
+- Mitigations are predictable and reversible
+- Human handoffs feel like service cases, not errors
+- Logs are readable in plain English
+
+DO NOT expand scope.
+DO NOT add more metrics.
+Focus on clarity and trust.
+
+TASKS
+
+1) OPS INTENT NARRATIVE (TOP, STICKY)
+Add a fixed, always-visible panel at the top of /ops-agent:
+
+Show:
+- Headline (1 sentence):
+  “Maintain ≥X% successful learning sessions while keeping p95 latency < Y ms and tutor utilization < Z%. Pause new Focus Sessions if breached.”
+- Why now (2 bullets)
+- Stop conditions (2–4 bullets)
+
+This intent must be generated from current thresholds + telemetry snapshot.
+
+2) ALERT PRIORITIZATION & BUCKETING
+Refactor alerts into buckets:
+- Critical (learning blocked)
+- Quality Risk (students frustrated / stuck)
+- Capacity Risk (future impact)
+- Informational
+
+Default view shows only Critical + Quality Risk.
+Others behind toggles.
+
+Each alert card must show:
+- severity + category
+- trigger metric(s)
+- short human-readable summary
+- confidence
+- recommended mitigation(s)
+
+3) MITIGATION TRANSPARENCY
+For every mitigation action, display:
+- Impact scope (system / cohort / session)
+- Expected side-effect
+- Reversible? (yes/no + how)
+- Estimated recovery time (if reversible)
+
+Example:
+“Reduce concurrency by 10%”
+Impact: system-wide
+Side-effect: slower onboarding
+Reversible: yes (auto after 15 mins)
+
+4) HUMAN HANDOFF AS SERVICE CASE
+Refactor the Handoff Queue UI so each item shows:
+- Why human is needed (1 sentence)
+- What AI already tried
+- Suggested human approach (coaching angle, not technical)
+- SLA timer (visible)
+- Assign / Resolve workflow
+
+Rename section to “Student Support Queue” (calmer language).
+
+5) DECISION LOG HUMANIZATION
+Every log entry must render a plain-English sentence:
+“At 18:42, Ops Agent reduced concurrency by 10% because p95 latency exceeded threshold for 4 minutes. Confidence: 82%. Autonomy: Level 2.”
+
+Structured fields remain, but the sentence is primary.
+
+6) AUTONOMY GUARDRAIL CLARITY
+For the current autonomy level, show:
+- WILL actions
+- WILL NOT actions
+
+Add a visible Emergency Stop toggle that:
+- Immediately disables auto-mitigations
+- Shows a clear “Ops Agent paused by human” banner
+
+ACCEPTANCE CRITERIA
+- A new admin can explain Ops Intent in <10 seconds
+- Alerts feel actionable, not overwhelming
+- Mitigations feel safe and reversible
+- Human handoffs feel intentional, not reactive
+- Logs can be read without mental strain
+
+Do NOT proceed to new features until these refinements are complete.

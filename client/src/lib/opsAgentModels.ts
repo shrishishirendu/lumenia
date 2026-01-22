@@ -100,7 +100,14 @@ export interface MitigationCatalogItem {
   type: MitigationType;
   actionKey: string;
   category: AlertCategory[];
+  impactScope: "system" | "cohort" | "session";
+  sideEffect: string;
+  reversible: boolean;
+  reversalMethod?: string;
+  estimatedRecoveryMins?: number;
 }
+
+export type AlertBucket = "critical" | "quality_risk" | "capacity_risk" | "informational";
 
 export type OpsActionType = 
   | "alert_created"
@@ -184,7 +191,12 @@ export const MITIGATION_CATALOG: MitigationCatalogItem[] = [
     description: "Temporarily disable voice interactions to reduce server load",
     type: "safe",
     actionKey: "degrade_voice_mode",
-    category: ["latency", "capacity_overload"]
+    category: ["latency", "capacity_overload"],
+    impactScope: "system",
+    sideEffect: "Students use text-only mode until restored",
+    reversible: true,
+    reversalMethod: "Auto-restores when latency drops below threshold",
+    estimatedRecoveryMins: 15
   },
   {
     id: "reduce_concurrency_10pct",
@@ -192,7 +204,12 @@ export const MITIGATION_CATALOG: MitigationCatalogItem[] = [
     description: "Reduce maximum concurrent sessions by 10% to stabilize performance",
     type: "safe",
     actionKey: "reduce_concurrency_10pct",
-    category: ["latency", "capacity_overload", "errors"]
+    category: ["latency", "capacity_overload", "errors"],
+    impactScope: "system",
+    sideEffect: "New students may wait in queue",
+    reversible: true,
+    reversalMethod: "Auto-restores after 15 minutes if metrics stable",
+    estimatedRecoveryMins: 15
   },
   {
     id: "switch_lightweight_responses",
@@ -200,7 +217,12 @@ export const MITIGATION_CATALOG: MitigationCatalogItem[] = [
     description: "Use shorter, faster AI responses to reduce latency",
     type: "safe",
     actionKey: "switch_lightweight_responses",
-    category: ["latency", "errors"]
+    category: ["latency", "errors"],
+    impactScope: "system",
+    sideEffect: "Explanations become briefer",
+    reversible: true,
+    reversalMethod: "Auto-restores when latency normalizes",
+    estimatedRecoveryMins: 10
   },
   {
     id: "pause_new_focus_sessions",
@@ -208,7 +230,12 @@ export const MITIGATION_CATALOG: MitigationCatalogItem[] = [
     description: "Temporarily stop accepting new focus sessions",
     type: "major",
     actionKey: "pause_new_focus_sessions",
-    category: ["capacity_overload", "errors"]
+    category: ["capacity_overload", "errors"],
+    impactScope: "system",
+    sideEffect: "New students see 'busy' message",
+    reversible: true,
+    reversalMethod: "Manual resume required by admin",
+    estimatedRecoveryMins: undefined
   },
   {
     id: "trigger_human_handoff",
@@ -216,7 +243,10 @@ export const MITIGATION_CATALOG: MitigationCatalogItem[] = [
     description: "Escalate student session to a human tutor",
     type: "safe",
     actionKey: "trigger_human_handoff",
-    category: ["quality_drop", "handoff_needed"]
+    category: ["quality_drop", "handoff_needed"],
+    impactScope: "session",
+    sideEffect: "Student waits for human tutor availability",
+    reversible: false
   },
   {
     id: "increase_hint_threshold",
@@ -224,7 +254,12 @@ export const MITIGATION_CATALOG: MitigationCatalogItem[] = [
     description: "Wait longer before offering hints to encourage independent thinking",
     type: "safe",
     actionKey: "increase_hint_threshold",
-    category: ["quality_drop"]
+    category: ["quality_drop"],
+    impactScope: "cohort",
+    sideEffect: "Students spend more time before receiving guidance",
+    reversible: true,
+    reversalMethod: "Auto-reverts after session ends",
+    estimatedRecoveryMins: 30
   },
   {
     id: "restart_session_state",
@@ -232,7 +267,10 @@ export const MITIGATION_CATALOG: MitigationCatalogItem[] = [
     description: "Clear stuck session state and restart from last checkpoint",
     type: "safe",
     actionKey: "restart_session_state",
-    category: ["session_failures", "quality_drop"]
+    category: ["session_failures", "quality_drop"],
+    impactScope: "session",
+    sideEffect: "Student loses progress since last checkpoint",
+    reversible: false
   },
   {
     id: "notify_on_call_admin",
@@ -240,7 +278,10 @@ export const MITIGATION_CATALOG: MitigationCatalogItem[] = [
     description: "Send urgent notification to on-call administrator",
     type: "major",
     actionKey: "notify_on_call_admin",
-    category: ["errors", "capacity_overload"]
+    category: ["errors", "capacity_overload"],
+    impactScope: "system",
+    sideEffect: "Admin receives alert via email/SMS",
+    reversible: false
   }
 ];
 
@@ -858,4 +899,85 @@ export function getAutonomyDescription(level: AutonomyLevel): { title: string; w
     }
   };
   return descriptions[level];
+}
+
+export function categorizeAlertBucket(alert: OpsAlert): AlertBucket {
+  if (alert.severity === "critical" || alert.category === "errors" || alert.category === "session_failures") {
+    return "critical";
+  }
+  if (alert.category === "quality_drop" || alert.category === "handoff_needed") {
+    return "quality_risk";
+  }
+  if (alert.category === "capacity_overload" || alert.category === "latency") {
+    return "capacity_risk";
+  }
+  return "informational";
+}
+
+export function getBucketLabel(bucket: AlertBucket): { label: string; description: string; priority: number } {
+  const buckets: Record<AlertBucket, { label: string; description: string; priority: number }> = {
+    critical: { label: "Learning Blocked", description: "Students cannot continue - immediate action needed", priority: 1 },
+    quality_risk: { label: "Quality Risk", description: "Students may be frustrated or stuck", priority: 2 },
+    capacity_risk: { label: "Capacity Risk", description: "System strain - may affect future students", priority: 3 },
+    informational: { label: "Informational", description: "Monitoring - no action required yet", priority: 4 }
+  };
+  return buckets[bucket];
+}
+
+export function generateHumanReadableLogSentence(log: OpsActionLog): string {
+  const time = new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const actor = log.actor === "ai" ? "Ops Agent" : "A human operator";
+  const confidence = log.confidence ? ` Confidence: ${log.confidence}%.` : "";
+  const autonomy = ` Autonomy: Level ${log.autonomyLevelAtTime}.`;
+  
+  switch (log.actionType) {
+    case "mitigation_applied":
+      return `At ${time}, ${actor} ${log.what.toLowerCase()}.${confidence}${autonomy}`;
+    case "mitigation_recommended":
+      return `At ${time}, ${actor} recommended: ${log.what.toLowerCase()}.${confidence}${autonomy}`;
+    case "alert_created":
+      return `At ${time}, ${actor} detected an issue: ${log.why.toLowerCase()}.${confidence}${autonomy}`;
+    case "alert_acknowledged":
+      return `At ${time}, ${actor} acknowledged: ${log.what.toLowerCase()}.${autonomy}`;
+    case "alert_resolved":
+      return `At ${time}, ${actor} resolved: ${log.what.toLowerCase()}. Reason: ${log.why}.${autonomy}`;
+    case "handoff_triggered":
+      return `At ${time}, ${actor} escalated a student case: ${log.what.toLowerCase()}.${confidence}${autonomy}`;
+    case "policy_changed":
+      return `At ${time}, ${actor} updated ops policy. ${log.why}.${autonomy}`;
+    case "emergency_stop":
+      return `At ${time}, ${actor} ${log.what.toLowerCase()}. ${log.why}.`;
+    case "incident_opened":
+      return `At ${time}, ${actor} opened an incident: ${log.what.toLowerCase()}.${confidence}${autonomy}`;
+    case "incident_closed":
+      return `At ${time}, ${actor} closed an incident: ${log.what.toLowerCase()}.${autonomy}`;
+    default:
+      return `At ${time}, ${actor}: ${log.what}.${confidence}${autonomy}`;
+  }
+}
+
+export function getHandoffReasonExplanation(reason: HandoffReason): { whyNeeded: string; suggestedApproach: string } {
+  const explanations: Record<HandoffReason, { whyNeeded: string; suggestedApproach: string }> = {
+    stuck_loop: {
+      whyNeeded: "The AI tutor detected the student is going in circles and needs a fresh perspective.",
+      suggestedApproach: "Start with encouragement, then gently redirect the student's approach. Ask what they think is confusing them."
+    },
+    low_confidence: {
+      whyNeeded: "The AI is uncertain how best to help this student and wants human judgment.",
+      suggestedApproach: "Review the session context, then engage with open-ended questions to understand where the student is struggling."
+    },
+    parent_request: {
+      whyNeeded: "A parent has requested direct communication about their child's progress.",
+      suggestedApproach: "Contact the parent first, listen to their concerns, then follow up with the student as appropriate."
+    },
+    complex_topic: {
+      whyNeeded: "The topic requires nuanced explanation that benefits from human expertise.",
+      suggestedApproach: "Take time to understand the student's prior knowledge, then build understanding step by step."
+    },
+    behavioral: {
+      whyNeeded: "The student's engagement patterns suggest they may need motivational support.",
+      suggestedApproach: "Approach with empathy. Focus on building rapport before diving into content. Ask how they're feeling about learning."
+    }
+  };
+  return explanations[reason];
 }

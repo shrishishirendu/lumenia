@@ -35,12 +35,17 @@ import {
   type OpsAlert,
   type OpsActionLog,
   type HumanHandoffCase,
+  type AlertBucket,
   opsStorage,
   generateIntentNarrative,
   detectAnomalies,
   MITIGATION_CATALOG,
   canAutoApplyMitigation,
-  getAutonomyDescription
+  getAutonomyDescription,
+  categorizeAlertBucket,
+  getBucketLabel,
+  generateHumanReadableLogSentence,
+  getHandoffReasonExplanation
 } from "@/lib/opsAgentModels";
 import {
   startSimulator,
@@ -142,30 +147,56 @@ function AlertCard({
         <p className="text-sm">{alert.description}</p>
 
         {alert.recommendedMitigations.length > 0 && (
-          <div className="space-y-2">
-            <p className="text-xs text-muted-foreground">Recommended mitigations:</p>
-            <div className="flex flex-wrap gap-2">
-              {alert.recommendedMitigations.map((mitigationId) => {
-                const mitigation = MITIGATION_CATALOG.find(m => m.id === mitigationId);
-                if (!mitigation) return null;
-                const canAuto = canAutoApplyMitigation(policy, mitigation);
-                
-                return (
-                  <Button
-                    key={mitigationId}
-                    size="sm"
-                    variant={canAuto.allowed ? "default" : "outline"}
-                    onClick={() => onApplyMitigation(alert.id, mitigationId)}
-                    disabled={alert.status === "resolved"}
-                    data-testid={`apply-${mitigationId}`}
-                    title={canAuto.reason}
-                  >
-                    {canAuto.allowed ? <Bot className="h-3 w-3 mr-1" /> : <Hand className="h-3 w-3 mr-1" />}
-                    {mitigation.name}
-                  </Button>
-                );
-              })}
-            </div>
+          <div className="space-y-3">
+            <p className="text-xs text-muted-foreground font-medium">Recommended mitigations:</p>
+            {alert.recommendedMitigations.map((mitigationId) => {
+              const mitigation = MITIGATION_CATALOG.find(m => m.id === mitigationId);
+              if (!mitigation) return null;
+              const canAuto = canAutoApplyMitigation(policy, mitigation);
+              
+              return (
+                <div key={mitigationId} className="bg-slate-50 rounded-lg p-3 border border-slate-100">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="font-medium text-sm">{mitigation.name}</span>
+                    <Button
+                      size="sm"
+                      variant={canAuto.allowed ? "default" : "outline"}
+                      onClick={() => onApplyMitigation(alert.id, mitigationId)}
+                      disabled={alert.status === "resolved"}
+                      data-testid={`apply-${mitigationId}`}
+                      title={canAuto.reason}
+                    >
+                      {canAuto.allowed ? <Bot className="h-3 w-3 mr-1" /> : <Hand className="h-3 w-3 mr-1" />}
+                      Apply
+                    </Button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div>
+                      <span className="text-muted-foreground">Impact:</span>{" "}
+                      <Badge variant="outline" className="text-xs">
+                        {mitigation.impactScope === "system" ? "System-wide" : 
+                         mitigation.impactScope === "cohort" ? "Student group" : "Single session"}
+                      </Badge>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Reversible:</span>{" "}
+                      <Badge variant={mitigation.reversible ? "secondary" : "outline"} className="text-xs">
+                        {mitigation.reversible ? "Yes" : "No"}
+                      </Badge>
+                    </div>
+                    <div className="col-span-2 text-muted-foreground">
+                      Side-effect: {mitigation.sideEffect}
+                    </div>
+                    {mitigation.reversible && mitigation.reversalMethod && (
+                      <div className="col-span-2 text-muted-foreground">
+                        Recovery: {mitigation.reversalMethod}
+                        {mitigation.estimatedRecoveryMins && ` (~${mitigation.estimatedRecoveryMins} min)`}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
 
@@ -216,7 +247,7 @@ function AlertCard({
   );
 }
 
-function HandoffCard({ 
+function StudentSupportCard({ 
   handoff, 
   onAssign, 
   onResolve 
@@ -227,59 +258,62 @@ function HandoffCard({
 }) {
   const [assignee, setAssignee] = useState("");
   const [resolveNotes, setResolveNotes] = useState("");
-
-  const reasonLabels: Record<string, string> = {
-    stuck_loop: "Stuck in Loop",
-    low_confidence: "Low Confidence",
-    parent_request: "Parent Request",
-    complex_topic: "Complex Topic",
-    behavioral: "Behavioral"
-  };
+  const explanation = getHandoffReasonExplanation(handoff.reason);
 
   const elapsedMins = Math.round((Date.now() - new Date(handoff.createdAt).getTime()) / 60000);
   const isOverdue = elapsedMins > handoff.slaTimerMins;
 
   return (
-    <Card className={`mb-2 ${isOverdue ? "border-red-300 bg-red-50" : ""}`} data-testid={`handoff-${handoff.id}`}>
-      <CardContent className="pt-4 space-y-3">
+    <Card className={`mb-3 ${isOverdue ? "border-amber-300 bg-amber-50" : "bg-white"}`} data-testid={`support-${handoff.id}`}>
+      <CardContent className="pt-4 space-y-4">
         <div className="flex items-start justify-between">
-          <div className="flex items-center gap-2">
-            <Badge variant={isOverdue ? "destructive" : "outline"}>
+          <div className="space-y-1">
+            <p className="font-medium text-sm">Student: {handoff.studentId}</p>
+            <Badge variant={isOverdue ? "destructive" : "secondary"} className="text-xs">
               <Clock className="h-3 w-3 mr-1" />
-              {elapsedMins}m / {handoff.slaTimerMins}m SLA
+              {isOverdue ? `${elapsedMins - handoff.slaTimerMins}m overdue` : `${handoff.slaTimerMins - elapsedMins}m remaining`}
             </Badge>
-            <Badge variant="secondary">{reasonLabels[handoff.reason]}</Badge>
-            <Badge variant="outline">Student: {handoff.studentId}</Badge>
           </div>
           <Badge variant={
             handoff.status === "resolved" ? "secondary" :
             handoff.status === "assigned" ? "default" :
             handoff.status === "in_progress" ? "default" : "outline"
           }>
-            {handoff.status}
+            {handoff.status === "new" ? "Needs attention" : handoff.status}
           </Badge>
         </div>
 
-        <div className="text-sm space-y-2">
-          <p><strong>Summary:</strong> {handoff.contextPack.sessionSummary}</p>
-          <div>
-            <p className="text-xs text-muted-foreground">What was tried:</p>
-            <ul className="text-xs list-disc list-inside">
-              {handoff.contextPack.whatWasTried.map((item, i) => (
-                <li key={i}>{item}</li>
-              ))}
-            </ul>
-          </div>
-          <p className="text-xs bg-blue-50 p-2 rounded">
-            <strong>Recommended approach:</strong> {handoff.contextPack.recommendedTutorApproach}
-          </p>
+        <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 space-y-2">
+          <p className="text-sm font-medium text-blue-900">Why human support is needed:</p>
+          <p className="text-sm text-blue-800">{explanation.whyNeeded}</p>
         </div>
 
-        <div className="flex items-center gap-2 pt-2 border-t">
+        <div className="space-y-2">
+          <p className="text-xs text-muted-foreground font-medium">What the AI tutor already tried:</p>
+          <ul className="text-sm space-y-1">
+            {handoff.contextPack.whatWasTried.map((item, i) => (
+              <li key={i} className="flex items-start gap-2">
+                <span className="text-muted-foreground">•</span>
+                <span>{item}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div className="bg-green-50 border border-green-100 rounded-lg p-3 space-y-2">
+          <p className="text-sm font-medium text-green-900">Suggested coaching approach:</p>
+          <p className="text-sm text-green-800">{explanation.suggestedApproach}</p>
+        </div>
+
+        <div className="text-sm text-muted-foreground">
+          <strong>Session context:</strong> {handoff.contextPack.sessionSummary}
+        </div>
+
+        <div className="flex items-center gap-2 pt-3 border-t">
           {handoff.status === "new" && (
             <div className="flex gap-2 flex-1">
               <Input
-                placeholder="Assign to..."
+                placeholder="Your name..."
                 value={assignee}
                 onChange={(e) => setAssignee(e.target.value)}
                 className="flex-1"
@@ -290,15 +324,15 @@ function HandoffCard({
                 setAssignee("");
               }} disabled={!assignee} data-testid={`assign-${handoff.id}`}>
                 <UserCheck className="h-3 w-3 mr-1" />
-                Assign
+                I'll help this student
               </Button>
             </div>
           )}
           {(handoff.status === "assigned" || handoff.status === "in_progress") && (
             <div className="flex gap-2 flex-1">
-              <span className="text-sm">Assigned to: {handoff.assignedTo}</span>
+              <span className="text-sm font-medium">{handoff.assignedTo} is helping</span>
               <Input
-                placeholder="Resolution notes..."
+                placeholder="How did it go?"
                 value={resolveNotes}
                 onChange={(e) => setResolveNotes(e.target.value)}
                 className="flex-1"
@@ -309,14 +343,15 @@ function HandoffCard({
                 setResolveNotes("");
               }} data-testid={`handoff-resolve-${handoff.id}`}>
                 <CheckCircle className="h-3 w-3 mr-1" />
-                Resolve
+                Mark resolved
               </Button>
             </div>
           )}
           {handoff.status === "resolved" && (
-            <span className="text-sm text-muted-foreground">
+            <div className="text-sm text-muted-foreground">
+              <CheckCircle className="h-4 w-4 inline mr-1 text-green-500" />
               Resolved: {handoff.resolutionNotes}
-            </span>
+            </div>
           )}
         </div>
       </CardContent>
@@ -334,6 +369,7 @@ export default function OpsAgent() {
   const [handoffs, setHandoffs] = useState<HumanHandoffCase[]>(opsStorage.loadHandoffs());
   const [simulatorRunning, setSimulatorRunning] = useState(isSimulatorRunning());
   const [activeTab, setActiveTab] = useState("alerts");
+  const [showAllBuckets, setShowAllBuckets] = useState(false);
 
   const userId = "admin";
 
@@ -493,8 +529,30 @@ export default function OpsAgent() {
     return "normal";
   };
 
+  const alertsByBucket = {
+    critical: alerts.filter(a => a.status !== "resolved" && categorizeAlertBucket(a) === "critical"),
+    quality_risk: alerts.filter(a => a.status !== "resolved" && categorizeAlertBucket(a) === "quality_risk"),
+    capacity_risk: alerts.filter(a => a.status !== "resolved" && categorizeAlertBucket(a) === "capacity_risk"),
+    informational: alerts.filter(a => a.status !== "resolved" && categorizeAlertBucket(a) === "informational")
+  };
+  const priorityAlerts = [...alertsByBucket.critical, ...alertsByBucket.quality_risk];
+  const secondaryAlerts = [...alertsByBucket.capacity_risk, ...alertsByBucket.informational];
+
   return (
     <div className="container mx-auto p-6 space-y-6" data-testid="ops-agent-page">
+      {policy.emergencyStop.enabled && (
+        <Alert variant="destructive" className="border-red-500 bg-red-50">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Ops Agent Paused by Human</AlertTitle>
+          <AlertDescription className="flex items-center justify-between">
+            <span>All automatic mitigations are disabled. The agent is in observe-only mode.</span>
+            <Button size="sm" variant="outline" onClick={handleEmergencyStop} data-testid="btn-resume">
+              Resume Agent
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-2">
@@ -502,57 +560,72 @@ export default function OpsAgent() {
             Operations Control Room
           </h1>
           <p className="text-muted-foreground">
-            Monitor system health, triage alerts, and manage learning quality
+            Protecting student learning experiences
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Badge variant={policy.emergencyStop.enabled ? "destructive" : "outline"} className="text-sm py-1 px-3">
-            <Shield className="h-4 w-4 mr-1" />
-            Level {policy.autonomy.level}: {autonomyDesc.title}
-          </Badge>
-          <Button
-            variant={policy.emergencyStop.enabled ? "destructive" : "outline"}
-            onClick={handleEmergencyStop}
-            data-testid="btn-emergency-stop"
-          >
-            <AlertTriangle className="h-4 w-4 mr-1" />
-            {policy.emergencyStop.enabled ? "Deactivate E-Stop" : "Emergency Stop"}
-          </Button>
           <Button variant="outline" onClick={() => setShowSettings(true)} data-testid="btn-settings">
             <Settings className="h-4 w-4 mr-1" />
             Settings
           </Button>
+          {!policy.emergencyStop.enabled && (
+            <Button
+              variant="outline"
+              className="border-red-200 text-red-600 hover:bg-red-50"
+              onClick={handleEmergencyStop}
+              data-testid="btn-emergency-stop"
+            >
+              <Pause className="h-4 w-4 mr-1" />
+              Pause Agent
+            </Button>
+          )}
         </div>
       </div>
 
-      <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200" data-testid="intent-narrative">
-        <CardContent className="pt-4">
-          <div className="flex items-start gap-4">
-            <Activity className="h-6 w-6 text-blue-600 mt-1" />
-            <div className="flex-1">
-              <p className="font-medium text-blue-900">{intentNarrative.headline}</p>
-              <div className="mt-2 grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-xs text-blue-700 font-medium mb-1">Why Now:</p>
-                  <ul className="text-xs text-blue-800">
-                    {intentNarrative.whyNow.map((item, i) => (
-                      <li key={i}>• {item}</li>
-                    ))}
-                  </ul>
-                </div>
-                <div>
-                  <p className="text-xs text-blue-700 font-medium mb-1">Stop Conditions:</p>
-                  <ul className="text-xs text-blue-800">
-                    {intentNarrative.stopConditions.map((item, i) => (
-                      <li key={i}>• {item}</li>
-                    ))}
-                  </ul>
+      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 pb-4 -mt-2 pt-2">
+        <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200" data-testid="intent-narrative">
+          <CardContent className="pt-4 pb-3">
+            <div className="flex items-start gap-4">
+              <Activity className="h-6 w-6 text-blue-600 mt-1 flex-shrink-0" />
+              <div className="flex-1">
+                <p className="font-medium text-blue-900 text-lg">{intentNarrative.headline}</p>
+                <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <p className="text-xs text-blue-700 font-medium mb-1">Why monitoring now:</p>
+                    <ul className="text-xs text-blue-800 space-y-0.5">
+                      {intentNarrative.whyNow.slice(0, 2).map((item, i) => (
+                        <li key={i}>• {item}</li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div>
+                    <p className="text-xs text-blue-700 font-medium mb-1">Auto-stop if:</p>
+                    <ul className="text-xs text-blue-800 space-y-0.5">
+                      {intentNarrative.stopConditions.slice(0, 2).map((item, i) => (
+                        <li key={i}>• {item}</li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div className="bg-white/50 rounded-lg p-2">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Badge variant={policy.emergencyStop.enabled ? "destructive" : "secondary"}>
+                        Level {policy.autonomy.level}
+                      </Badge>
+                      <span className="text-xs font-medium text-blue-900">{autonomyDesc.title}</span>
+                    </div>
+                    <div className="text-xs text-blue-800">
+                      <span className="font-medium text-green-700">WILL:</span> {autonomyDesc.will.slice(0, 2).join(", ")}
+                    </div>
+                    <div className="text-xs text-blue-800">
+                      <span className="font-medium text-red-600">WON'T:</span> {autonomyDesc.willNot.slice(0, 2).join(", ")}
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </div>
 
       <div className="grid grid-cols-6 gap-4">
         <MetricCard
@@ -643,11 +716,11 @@ export default function OpsAgent() {
         <TabsList>
           <TabsTrigger value="alerts" data-testid="tab-alerts">
             <AlertTriangle className="h-4 w-4 mr-1" />
-            Alerts ({openAlerts.length})
+            Alerts ({priorityAlerts.length + (showAllBuckets ? secondaryAlerts.length : 0)})
           </TabsTrigger>
-          <TabsTrigger value="handoffs" data-testid="tab-handoffs">
+          <TabsTrigger value="support" data-testid="tab-support">
             <Users className="h-4 w-4 mr-1" />
-            Handoffs ({pendingHandoffs.length})
+            Student Support ({pendingHandoffs.length})
           </TabsTrigger>
           <TabsTrigger value="log" data-testid="tab-log">
             <Activity className="h-4 w-4 mr-1" />
@@ -656,37 +729,99 @@ export default function OpsAgent() {
         </TabsList>
 
         <TabsContent value="alerts" className="mt-4">
-          <ScrollArea className="h-[400px]">
-            {alerts.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <CheckCircle className="h-12 w-12 mx-auto mb-2 text-green-500" />
-                <p>No alerts - all systems healthy</p>
-              </div>
-            ) : (
-              alerts.map(alert => (
-                <AlertCard
-                  key={alert.id}
-                  alert={alert}
-                  policy={policy}
-                  onAcknowledge={handleAcknowledgeAlert}
-                  onResolve={handleResolveAlert}
-                  onApplyMitigation={handleApplyMitigation}
-                />
-              ))
-            )}
-          </ScrollArea>
+          {priorityAlerts.length === 0 && secondaryAlerts.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <CheckCircle className="h-12 w-12 mx-auto mb-2 text-green-500" />
+              <p>No alerts - all systems healthy</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {alertsByBucket.critical.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <Badge variant="destructive" className="text-xs">
+                      {getBucketLabel("critical").label}
+                    </Badge>
+                    <span className="text-xs text-muted-foreground">{getBucketLabel("critical").description}</span>
+                  </div>
+                  <ScrollArea className="max-h-[250px]">
+                    {alertsByBucket.critical.map(alert => (
+                      <AlertCard key={alert.id} alert={alert} policy={policy} onAcknowledge={handleAcknowledgeAlert} onResolve={handleResolveAlert} onApplyMitigation={handleApplyMitigation} />
+                    ))}
+                  </ScrollArea>
+                </div>
+              )}
+              
+              {alertsByBucket.quality_risk.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <Badge variant="secondary" className="text-xs bg-orange-100 text-orange-800">
+                      {getBucketLabel("quality_risk").label}
+                    </Badge>
+                    <span className="text-xs text-muted-foreground">{getBucketLabel("quality_risk").description}</span>
+                  </div>
+                  <ScrollArea className="max-h-[250px]">
+                    {alertsByBucket.quality_risk.map(alert => (
+                      <AlertCard key={alert.id} alert={alert} policy={policy} onAcknowledge={handleAcknowledgeAlert} onResolve={handleResolveAlert} onApplyMitigation={handleApplyMitigation} />
+                    ))}
+                  </ScrollArea>
+                </div>
+              )}
+
+              {secondaryAlerts.length > 0 && (
+                <div className="pt-2 border-t">
+                  <Button variant="ghost" size="sm" onClick={() => setShowAllBuckets(!showAllBuckets)} className="text-xs text-muted-foreground">
+                    {showAllBuckets ? "Hide" : "Show"} {secondaryAlerts.length} lower-priority alerts
+                  </Button>
+                  
+                  {showAllBuckets && (
+                    <div className="mt-3 space-y-4">
+                      {alertsByBucket.capacity_risk.length > 0 && (
+                        <div>
+                          <div className="flex items-center gap-2 mb-2">
+                            <Badge variant="outline" className="text-xs">
+                              {getBucketLabel("capacity_risk").label}
+                            </Badge>
+                            <span className="text-xs text-muted-foreground">{getBucketLabel("capacity_risk").description}</span>
+                          </div>
+                          {alertsByBucket.capacity_risk.map(alert => (
+                            <AlertCard key={alert.id} alert={alert} policy={policy} onAcknowledge={handleAcknowledgeAlert} onResolve={handleResolveAlert} onApplyMitigation={handleApplyMitigation} />
+                          ))}
+                        </div>
+                      )}
+                      
+                      {alertsByBucket.informational.length > 0 && (
+                        <div>
+                          <div className="flex items-center gap-2 mb-2">
+                            <Badge variant="outline" className="text-xs text-gray-500">
+                              {getBucketLabel("informational").label}
+                            </Badge>
+                            <span className="text-xs text-muted-foreground">{getBucketLabel("informational").description}</span>
+                          </div>
+                          {alertsByBucket.informational.map(alert => (
+                            <AlertCard key={alert.id} alert={alert} policy={policy} onAcknowledge={handleAcknowledgeAlert} onResolve={handleResolveAlert} onApplyMitigation={handleApplyMitigation} />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </TabsContent>
 
-        <TabsContent value="handoffs" className="mt-4">
+        <TabsContent value="support" className="mt-4">
           <ScrollArea className="h-[400px]">
             {handoffs.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 <Users className="h-12 w-12 mx-auto mb-2 text-gray-400" />
-                <p>No handoff cases</p>
+                <p>No students waiting for support</p>
+                <p className="text-xs mt-1">When the AI tutor needs human help, cases will appear here</p>
               </div>
             ) : (
               handoffs.map(handoff => (
-                <HandoffCard
+                <StudentSupportCard
                   key={handoff.id}
                   handoff={handoff}
                   onAssign={handleAssignHandoff}
@@ -709,29 +844,19 @@ export default function OpsAgent() {
                 {actionLog.map(log => (
                   <Card key={log.id} className="text-sm" data-testid={`log-${log.id}`}>
                     <CardContent className="pt-3 pb-2">
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-center gap-2">
-                          <Badge variant={log.actor === "ai" ? "default" : "secondary"}>
-                            {log.actor === "ai" ? <Bot className="h-3 w-3 mr-1" /> : <Hand className="h-3 w-3 mr-1" />}
-                            {log.actor.toUpperCase()}
-                          </Badge>
-                          <Badge variant="outline">{log.actionType.replace("_", " ")}</Badge>
-                          <Badge variant="outline">L{log.autonomyLevelAtTime}</Badge>
-                          {log.confidence && (
-                            <Badge variant="secondary">{log.confidence}% conf</Badge>
-                          )}
-                        </div>
-                        <span className="text-xs text-muted-foreground">
-                          {new Date(log.timestamp).toLocaleTimeString()}
-                        </span>
+                      <p className="text-sm mb-2">{generateHumanReadableLogSentence(log)}</p>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <Badge variant={log.actor === "ai" ? "default" : "secondary"} className="text-xs">
+                          {log.actor === "ai" ? <Bot className="h-3 w-3 mr-1" /> : <Hand className="h-3 w-3 mr-1" />}
+                          {log.actor.toUpperCase()}
+                        </Badge>
+                        <span>{log.actionType.replace(/_/g, " ")}</span>
+                        {log.alternatives.length > 0 && (
+                          <span className="text-muted-foreground">
+                            (Also considered: {log.alternatives.map(a => a.option).join(", ")})
+                          </span>
+                        )}
                       </div>
-                      <p className="mt-2 font-medium">{log.what}</p>
-                      <p className="text-muted-foreground text-xs">{log.why}</p>
-                      {log.alternatives.length > 0 && (
-                        <div className="mt-1 text-xs text-muted-foreground">
-                          Alternatives: {log.alternatives.map(a => a.option).join(", ")}
-                        </div>
-                      )}
                     </CardContent>
                   </Card>
                 ))}
