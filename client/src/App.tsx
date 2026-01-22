@@ -21,6 +21,7 @@ import Classroom from "@/pages/Classroom";
 import StudentDashboard from "@/pages/StudentDashboard";
 import StudentToday from "@/pages/student/StudentToday";
 import SessionFlow from "@/pages/student/SessionFlow";
+import Practice from "@/pages/student/Practice";
 import ParentPortal from "@/pages/ParentPortal";
 import TutorDashboard from "@/pages/TutorDashboard";
 
@@ -68,6 +69,16 @@ function StudentSessionPage() {
     <ProtectedRoute allowedRoles={["student"]}>
       <StudentLayout>
         <SessionFlow />
+      </StudentLayout>
+    </ProtectedRoute>
+  );
+}
+
+function StudentPracticePage() {
+  return (
+    <ProtectedRoute allowedRoles={["student"]}>
+      <StudentLayout>
+        <Practice />
       </StudentLayout>
     </ProtectedRoute>
   );
@@ -175,6 +186,7 @@ function Router() {
       <Route path="/student" component={StudentHomePage} />
       <Route path="/student/today" component={StudentHomePage} />
       <Route path="/student/classroom" component={StudentClassroomPage} />
+      <Route path="/student/practice" component={StudentPracticePage} />
       <Route path="/student/session/:subject/:topic" component={StudentSessionPage} />
       
       <Route path="/parent" component={ParentHomePage} />
