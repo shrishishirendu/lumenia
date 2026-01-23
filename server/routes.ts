@@ -28,27 +28,204 @@ export async function registerRoutes(
   // Marketing Agent API routes
   app.use("/api/marketing", marketingAgentRoutes);
 
-  // Lead capture (public - no auth required)
+  // Lead capture (public - no auth required) - Goes into Growth Engine
   app.post("/api/leads", async (req: any, res) => {
     try {
-      const { parentName, email, childYearLevel, message } = req.body;
+      const { 
+        parentName, 
+        email, 
+        childYearLevel, 
+        message,
+        // Attribution fields
+        utmSource,
+        utmMedium,
+        utmCampaign,
+        utmContent,
+        utmTerm,
+        referrerUrl
+      } = req.body;
       
-      if (!parentName || !email || !childYearLevel) {
-        return res.status(400).json({ error: "Missing required fields" });
+      if (!email) {
+        return res.status(400).json({ error: "Email is required" });
+      }
+      
+      // Basic email validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        return res.status(400).json({ error: "Invalid email format" });
       }
       
       const lead = await tutoringStorage.createLead({
-        parentName,
+        parentName: parentName || null,
         email,
-        childYearLevel,
-        message: message || null
+        childYearLevel: childYearLevel || null,
+        message: message || null,
+        status: "NEW",
+        sourceType: "landing_form",
+        sourceName: "lumenia.au landing",
+        utmSource: utmSource || null,
+        utmMedium: utmMedium || null,
+        utmCampaign: utmCampaign || null,
+        utmContent: utmContent || null,
+        utmTerm: utmTerm || null,
+        referrerUrl: referrerUrl || null,
+        leadScore: 10 // Default score for landing form leads
       });
       
-      console.log(`New lead captured: ${email} for Year ${childYearLevel}`);
+      console.log(`[Growth Engine] New lead captured: ${email} for Year ${childYearLevel || 'N/A'}`);
       res.status(201).json({ success: true, id: lead.id });
     } catch (error) {
-      console.error("Error capturing lead:", error);
+      console.error("[Growth Engine] Error capturing lead:", error);
       res.status(500).json({ error: "Failed to submit request" });
+    }
+  });
+
+  // ════════════════════════════════════════════════════════════════
+  // GROWTH ENGINE API ROUTES (Admin-only)
+  // ════════════════════════════════════════════════════════════════
+  
+  // Admin auth middleware
+  const requireAdminRole = async (req: any, res: any, next: any) => {
+    const userId = req.user?.claims?.sub;
+    if (!userId) return res.status(401).json({ error: "Unauthorized" });
+    
+    const profile = await tutoringStorage.getProfileByUserId(userId);
+    if (!profile || (profile.role !== 'owner' && profile.role !== 'admin')) {
+      return res.status(403).json({ error: "Admin access required" });
+    }
+    req.profile = profile;
+    next();
+  };
+  
+  // Growth Metrics Dashboard
+  app.get("/api/growth/metrics", requireAdminRole, async (req: any, res) => {
+    try {
+      const metrics = await tutoringStorage.getGrowthMetrics();
+      res.json(metrics);
+    } catch (error) {
+      console.error("[Growth Engine] Error fetching metrics:", error);
+      res.status(500).json({ error: "Failed to fetch metrics" });
+    }
+  });
+  
+  // Get all leads with filtering
+  app.get("/api/growth/leads", requireAdminRole, async (req: any, res) => {
+    try {
+      const { status, sourceType, yearLevel, assignedTo, search, limit, offset } = req.query;
+      const result = await tutoringStorage.getLeadsByFilter({
+        status: status as any,
+        sourceType: sourceType as string,
+        yearLevel: yearLevel ? parseInt(yearLevel as string) : undefined,
+        assignedTo: assignedTo as string,
+        search: search as string,
+        limit: limit ? parseInt(limit as string) : 50,
+        offset: offset ? parseInt(offset as string) : 0
+      });
+      res.json(result);
+    } catch (error) {
+      console.error("[Growth Engine] Error fetching leads:", error);
+      res.status(500).json({ error: "Failed to fetch leads" });
+    }
+  });
+  
+  // Get single lead by ID
+  app.get("/api/growth/leads/:id", requireAdminRole, async (req: any, res) => {
+    try {
+      const leadId = parseInt(req.params.id);
+      const lead = await tutoringStorage.getLead(leadId);
+      if (!lead) return res.status(404).json({ error: "Lead not found" });
+      
+      const events = await tutoringStorage.getLeadEvents(leadId);
+      res.json({ lead, events });
+    } catch (error) {
+      console.error("[Growth Engine] Error fetching lead:", error);
+      res.status(500).json({ error: "Failed to fetch lead" });
+    }
+  });
+  
+  // Update lead
+  app.patch("/api/growth/leads/:id", requireAdminRole, async (req: any, res) => {
+    try {
+      const leadId = parseInt(req.params.id);
+      const existing = await tutoringStorage.getLead(leadId);
+      if (!existing) return res.status(404).json({ error: "Lead not found" });
+      
+      const updates = req.body;
+      const lead = await tutoringStorage.updateLead(leadId, updates);
+      
+      // Record status change event
+      if (updates.status && updates.status !== existing.status) {
+        await tutoringStorage.addLeadEvent({
+          leadId,
+          type: "STATUS_CHANGED",
+          actor: "human",
+          actorUserId: req.user?.claims?.sub,
+          description: `Status changed from ${existing.status} to ${updates.status}`,
+          metadata: JSON.stringify({ from: existing.status, to: updates.status })
+        });
+      }
+      
+      res.json(lead);
+    } catch (error) {
+      console.error("[Growth Engine] Error updating lead:", error);
+      res.status(500).json({ error: "Failed to update lead" });
+    }
+  });
+  
+  // Add lead event (note, contact attempt, etc.)
+  app.post("/api/growth/leads/:id/events", requireAdminRole, async (req: any, res) => {
+    try {
+      const leadId = parseInt(req.params.id);
+      const lead = await tutoringStorage.getLead(leadId);
+      if (!lead) return res.status(404).json({ error: "Lead not found" });
+      
+      const { type, description, metadata } = req.body;
+      const event = await tutoringStorage.addLeadEvent({
+        leadId,
+        type: type || "NOTE_ADDED",
+        actor: "human",
+        actorUserId: req.user?.claims?.sub,
+        description,
+        metadata: metadata ? JSON.stringify(metadata) : null
+      });
+      
+      res.status(201).json(event);
+    } catch (error) {
+      console.error("[Growth Engine] Error adding lead event:", error);
+      res.status(500).json({ error: "Failed to add event" });
+    }
+  });
+  
+  // Get campaigns
+  app.get("/api/growth/campaigns", requireAdminRole, async (req: any, res) => {
+    try {
+      const campaigns = await tutoringStorage.getAllGrowthCampaigns();
+      res.json(campaigns);
+    } catch (error) {
+      console.error("[Growth Engine] Error fetching campaigns:", error);
+      res.status(500).json({ error: "Failed to fetch campaigns" });
+    }
+  });
+  
+  // Create campaign
+  app.post("/api/growth/campaigns", requireAdminRole, async (req: any, res) => {
+    try {
+      const campaign = await tutoringStorage.createGrowthCampaign(req.body);
+      res.status(201).json(campaign);
+    } catch (error) {
+      console.error("[Growth Engine] Error creating campaign:", error);
+      res.status(500).json({ error: "Failed to create campaign" });
+    }
+  });
+  
+  // Get integration configs
+  app.get("/api/growth/integrations", requireAdminRole, async (req: any, res) => {
+    try {
+      const configs = await tutoringStorage.getIntegrationConfigs();
+      res.json(configs);
+    } catch (error) {
+      console.error("[Growth Engine] Error fetching integrations:", error);
+      res.status(500).json({ error: "Failed to fetch integrations" });
     }
   });
 
