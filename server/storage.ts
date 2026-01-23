@@ -24,6 +24,10 @@ import {
   sessionAttempts,
   studentMemory,
   leads,
+  leadEvents,
+  growthCampaigns,
+  integrationConfigs,
+  growthMetricSnapshots,
   type Profile,
   type InsertProfile,
   type TutoringSession,
@@ -73,7 +77,16 @@ import {
   type StudentMemory,
   type InsertStudentMemory,
   type Lead,
-  type InsertLead
+  type InsertLead,
+  type LeadEvent,
+  type InsertLeadEvent,
+  type GrowthCampaign,
+  type InsertGrowthCampaign,
+  type IntegrationConfig,
+  type InsertIntegrationConfig,
+  type GrowthMetricSnapshot,
+  type InsertGrowthMetricSnapshot,
+  type LeadStatus
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, sql } from "drizzle-orm";
@@ -214,9 +227,49 @@ export interface ITutoringStorage {
   getStudentMemory(studentId: number): Promise<StudentMemory | undefined>;
   upsertStudentMemory(memory: InsertStudentMemory): Promise<StudentMemory>;
   
-  // Leads (Public)
+  // ════════════════════════════════════════════════════════════════
+  // GROWTH ENGINE - Single Source of Truth
+  // ════════════════════════════════════════════════════════════════
+  
+  // Leads
   createLead(lead: InsertLead): Promise<Lead>;
+  updateLead(id: number, updates: Partial<Lead>): Promise<Lead>;
+  getLead(id: number): Promise<Lead | undefined>;
   getAllLeads(): Promise<Lead[]>;
+  getLeadsByStatus(status: LeadStatus): Promise<Lead[]>;
+  getLeadsByFilter(filters: {
+    status?: LeadStatus;
+    sourceType?: string;
+    yearLevel?: number;
+    assignedTo?: string;
+    search?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<{ leads: Lead[]; total: number }>;
+  
+  // Lead Events (Activity Timeline)
+  addLeadEvent(event: InsertLeadEvent): Promise<LeadEvent>;
+  getLeadEvents(leadId: number): Promise<LeadEvent[]>;
+  
+  // Growth Campaigns (Attribution)
+  createGrowthCampaign(campaign: InsertGrowthCampaign): Promise<GrowthCampaign>;
+  updateGrowthCampaign(id: number, updates: Partial<GrowthCampaign>): Promise<GrowthCampaign>;
+  getGrowthCampaign(id: number): Promise<GrowthCampaign | undefined>;
+  getAllGrowthCampaigns(): Promise<GrowthCampaign[]>;
+  
+  // Integration Configs
+  getIntegrationConfigs(): Promise<IntegrationConfig[]>;
+  updateIntegrationConfig(id: number, updates: Partial<IntegrationConfig>): Promise<IntegrationConfig>;
+  
+  // Growth Metrics
+  getGrowthMetrics(): Promise<{
+    totalLeads: number;
+    leadsByStatus: Record<string, number>;
+    newLeads7d: number;
+    newLeads30d: number;
+    conversionRate: number;
+    acquisitionByChannel: Record<string, number>;
+  }>;
 }
 
 class TutoringStorage implements ITutoringStorage {
@@ -718,14 +771,201 @@ class TutoringStorage implements ITutoringStorage {
     return created;
   }
 
-  // Leads (Public)
+  // ════════════════════════════════════════════════════════════════
+  // GROWTH ENGINE - Single Source of Truth
+  // ════════════════════════════════════════════════════════════════
+  
   async createLead(leadData: InsertLead): Promise<Lead> {
-    const [lead] = await db.insert(leads).values(leadData).returning();
+    const [lead] = await db.insert(leads).values({
+      ...leadData,
+      status: leadData.status || "NEW",
+      sourceType: leadData.sourceType || "landing_form",
+      leadScore: leadData.leadScore || 0,
+      updatedAt: new Date()
+    }).returning();
+    
+    // Auto-create CREATED event
+    await this.addLeadEvent({
+      leadId: lead.id,
+      type: "CREATED",
+      actor: "system",
+      description: `Lead created from ${lead.sourceType}`
+    });
+    
+    return lead;
+  }
+
+  async updateLead(id: number, updates: Partial<Lead>): Promise<Lead> {
+    const [lead] = await db.update(leads)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(leads.id, id))
+      .returning();
+    return lead;
+  }
+
+  async getLead(id: number): Promise<Lead | undefined> {
+    const [lead] = await db.select().from(leads).where(eq(leads.id, id));
     return lead;
   }
 
   async getAllLeads(): Promise<Lead[]> {
     return db.select().from(leads).orderBy(desc(leads.createdAt));
+  }
+
+  async getLeadsByStatus(status: LeadStatus): Promise<Lead[]> {
+    return db.select().from(leads).where(eq(leads.status, status)).orderBy(desc(leads.createdAt));
+  }
+
+  async getLeadsByFilter(filters: {
+    status?: LeadStatus;
+    sourceType?: string;
+    yearLevel?: number;
+    assignedTo?: string;
+    search?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<{ leads: Lead[]; total: number }> {
+    let query = db.select().from(leads);
+    const conditions = [];
+    
+    if (filters.status) {
+      conditions.push(eq(leads.status, filters.status));
+    }
+    if (filters.sourceType) {
+      conditions.push(eq(leads.sourceType, filters.sourceType));
+    }
+    if (filters.yearLevel) {
+      conditions.push(eq(leads.childYearLevel, filters.yearLevel));
+    }
+    if (filters.assignedTo) {
+      conditions.push(eq(leads.assignedToUserId, filters.assignedTo));
+    }
+    if (filters.search) {
+      conditions.push(
+        sql`(${leads.email} ILIKE ${'%' + filters.search + '%'} OR ${leads.parentName} ILIKE ${'%' + filters.search + '%'})`
+      );
+    }
+    
+    // Get total count
+    const countResult = await db.select({ count: sql<number>`count(*)::int` })
+      .from(leads)
+      .where(conditions.length > 0 ? and(...conditions) : undefined);
+    const total = countResult[0]?.count || 0;
+    
+    // Get paginated results
+    let resultsQuery = db.select().from(leads)
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .orderBy(desc(leads.createdAt));
+    
+    if (filters.limit) {
+      resultsQuery = resultsQuery.limit(filters.limit) as typeof resultsQuery;
+    }
+    if (filters.offset) {
+      resultsQuery = resultsQuery.offset(filters.offset) as typeof resultsQuery;
+    }
+    
+    const results = await resultsQuery;
+    return { leads: results, total };
+  }
+
+  async addLeadEvent(eventData: InsertLeadEvent): Promise<LeadEvent> {
+    const [event] = await db.insert(leadEvents).values(eventData).returning();
+    return event;
+  }
+
+  async getLeadEvents(leadId: number): Promise<LeadEvent[]> {
+    return db.select().from(leadEvents)
+      .where(eq(leadEvents.leadId, leadId))
+      .orderBy(desc(leadEvents.timestamp));
+  }
+
+  async createGrowthCampaign(campaignData: InsertGrowthCampaign): Promise<GrowthCampaign> {
+    const [campaign] = await db.insert(growthCampaigns).values(campaignData).returning();
+    return campaign;
+  }
+
+  async updateGrowthCampaign(id: number, updates: Partial<GrowthCampaign>): Promise<GrowthCampaign> {
+    const [campaign] = await db.update(growthCampaigns)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(growthCampaigns.id, id))
+      .returning();
+    return campaign;
+  }
+
+  async getGrowthCampaign(id: number): Promise<GrowthCampaign | undefined> {
+    const [campaign] = await db.select().from(growthCampaigns).where(eq(growthCampaigns.id, id));
+    return campaign;
+  }
+
+  async getAllGrowthCampaigns(): Promise<GrowthCampaign[]> {
+    return db.select().from(growthCampaigns).orderBy(desc(growthCampaigns.createdAt));
+  }
+
+  async getIntegrationConfigs(): Promise<IntegrationConfig[]> {
+    return db.select().from(integrationConfigs).orderBy(integrationConfigs.type);
+  }
+
+  async updateIntegrationConfig(id: number, updates: Partial<IntegrationConfig>): Promise<IntegrationConfig> {
+    const [config] = await db.update(integrationConfigs)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(integrationConfigs.id, id))
+      .returning();
+    return config;
+  }
+
+  async getGrowthMetrics(): Promise<{
+    totalLeads: number;
+    leadsByStatus: Record<string, number>;
+    newLeads7d: number;
+    newLeads30d: number;
+    conversionRate: number;
+    acquisitionByChannel: Record<string, number>;
+  }> {
+    const allLeads = await this.getAllLeads();
+    const now = new Date();
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    
+    const leadsByStatus: Record<string, number> = {};
+    const acquisitionByChannel: Record<string, number> = {};
+    let newLeads7d = 0;
+    let newLeads30d = 0;
+    let converted = 0;
+    
+    for (const lead of allLeads) {
+      // Count by status
+      leadsByStatus[lead.status] = (leadsByStatus[lead.status] || 0) + 1;
+      
+      // Count by channel
+      const channel = lead.sourceType || "unknown";
+      acquisitionByChannel[channel] = (acquisitionByChannel[channel] || 0) + 1;
+      
+      // Count recent leads
+      if (lead.createdAt >= sevenDaysAgo) {
+        newLeads7d++;
+      }
+      if (lead.createdAt >= thirtyDaysAgo) {
+        newLeads30d++;
+      }
+      
+      // Count conversions
+      if (lead.status === "CONVERTED") {
+        converted++;
+      }
+    }
+    
+    const conversionRate = allLeads.length > 0 
+      ? Math.round((converted / allLeads.length) * 100) 
+      : 0;
+    
+    return {
+      totalLeads: allLeads.length,
+      leadsByStatus,
+      newLeads7d,
+      newLeads30d,
+      conversionRate,
+      acquisitionByChannel
+    };
   }
 }
 

@@ -1,0 +1,231 @@
+You are Replit Agent working inside the EXISTING Lumenia codebase (RBAC + separate layouts for Student/Parent/Tutor/Admin already implemented). We already have a Marketing Agent UI and an Ops Agent UI.
+
+Now implement a usable, scalable, and robust GROWTH ENGINE as a separate Admin-facing module.
+
+IMPORTANT PRODUCT DECISION (DO NOT IGNORE)
+- Growth Engine ≠ Marketing Agent.
+- Growth Engine is the “system of record + executive overview + governance”.
+- Marketing Agent is “execution / proposals / campaigns”.
+- Growth Engine must be the SINGLE SOURCE OF TRUTH for Leads and Growth Metrics.
+
+DO NOT merge Growth Engine into Marketing Agent tabs.
+Create it as a distinct Admin module that other agents read/write through.
+
+────────────────────────────────────────
+GOAL
+────────────────────────────────────────
+Build Growth Engine v0.1 with:
+1) Lead Registry (single source of truth)
+2) Lead Lifecycle pipeline + activity timeline
+3) Attribution tracking (source/campaign/channel)
+4) Growth Dashboard (executive view)
+5) Integrations framework (stubs) for CRM + ad platforms (no real API wiring yet)
+6) Shared “Agent Framework” primitives (logging, approvals, autonomy settings) WITHOUT adding autonomy to Growth Engine itself
+
+Growth Engine must be:
+- Admin-only (RBAC)
+- Readable, calm, and decision-oriented
+- Backed by a clean data model that scales (DB-first if available)
+
+NO chat.
+NO ad platform integrations in this phase.
+NO “autonomous growth” actions.
+
+────────────────────────────────────────
+ROUTES / PAGES (ADMIN ONLY)
+────────────────────────────────────────
+Create:
+- /admin/growth           (Growth Dashboard)
+- /admin/growth/leads      (Lead Registry + pipeline)
+- /admin/growth/leads/:id  (Lead 360 + activity timeline)
+- /admin/growth/sources    (Sources/Campaigns/Attribution catalog)
+- /admin/growth/settings   (Pipeline + scoring rules + integrations toggles)
+
+Add “Growth Engine” item to Admin navigation only.
+
+────────────────────────────────────────
+DATA MODEL (SINGLE SOURCE OF TRUTH)
+────────────────────────────────────────
+Implement in DB if the project has a DB; otherwise implement a server-side persistence layer
+(JSON file or SQLite) with identical interfaces so we can swap later.
+
+Core tables/collections:
+
+1) Lead
+- id (uuid)
+- createdAt, updatedAt
+- person:
+   - name (optional)
+   - email (required)
+   - phone (optional)
+- studentContext:
+   - yearLevel (6–12)
+   - subjectsInterested: ["Math","English",...]
+- status (LeadStatus enum):
+   - NEW
+   - CONTACTED
+   - ENGAGED
+   - CONVERTED
+   - DORMANT
+   - LOST
+- owner:
+   - assignedToUserId (optional)
+   - assignedAt (optional)
+- attribution:
+   - sourceType: "landing_form"|"referral"|"social"|"paid"|"organic"|"partner"|"manual"
+   - sourceName (e.g., "lumenia.au form", "Instagram", "Meta Ads")
+   - campaignId (optional)
+   - medium (optional)
+   - content (optional)
+   - referrerUrl (optional)
+   - utm: { source, medium, campaign, content, term } (optional)
+- score:
+   - leadScore (0–100)
+   - scoreReason (string)
+- notes (string optional)
+- lastContactedAt (optional)
+- nextActionAt (optional)
+
+2) LeadEvent (activity timeline)
+- id, leadId
+- timestamp
+- type:
+   - CREATED
+   - UPDATED
+   - STATUS_CHANGED
+   - NOTE_ADDED
+   - CONTACT_ATTEMPT
+   - MESSAGE_SENT
+   - MEETING_BOOKED
+   - TRIAL_STARTED
+   - CONVERTED
+   - MARKED_DORMANT
+   - MARKED_LOST
+- actor: "human"|"system"|"agent"
+- metadata (json)
+
+3) Campaign (Attribution catalog)
+- id, name
+- channel: "email"|"social"|"paid_search"|"paid_social"|"referral"|"partner"|"content"
+- startDate, endDate
+- budgetPlanned (optional)
+- status: "draft"|"active"|"paused"|"ended"
+- tags[]
+- linkedMarketingAgentProposals[] (optional)
+
+4) IntegrationConfig (stubs only)
+- id
+- type: "crm"|"meta_ads"|"google_ads"|"email_provider"
+- enabled: boolean
+- status: "not_configured"|"configured"|"error"
+- config (json, encrypted if secrets exist)
+
+5) GrowthMetricSnapshot (optional for v0.1)
+- date (daily)
+- leadsNew
+- leadsByStatus counts
+- conversionRate (calc)
+- engagedRate
+- dormantRate
+- acquisitionByChannel breakdown
+(You can compute on the fly in v0.1 and add snapshots later.)
+
+Enums and validation required (TypeScript + zod or similar).
+
+────────────────────────────────────────
+FEATURES (WHAT IT MUST DO)
+────────────────────────────────────────
+
+A) Lead Registry (single source of truth)
+- Table view + pipeline (kanban) view
+- Filters: status, sourceType, yearLevel, date range, assignedTo
+- Search: email/name
+- Bulk actions: assign owner, change status, mark dormant/lost
+
+B) Lead Lifecycle
+- Changing status must:
+  - create LeadEvent
+  - update timestamps (updatedAt, lastContactedAt where applicable)
+  - preserve history (never overwrite without events)
+
+C) Lead 360 view
+For a single lead:
+- Details + attribution
+- Current status + score + next action
+- Activity timeline (LeadEvents)
+- Notes area
+- Manual “Contact attempt” button that creates LeadEvent
+- “Assign owner” control
+
+D) Growth Dashboard (executive view)
+Must answer in <30 seconds:
+- New leads (7d / 30d)
+- Pipeline counts by status
+- Conversion rate (NEW→CONVERTED)
+- Acquisition mix by channel/sourceType
+- “Bottleneck insight” (simple heuristic):
+   e.g., “High NEW, low CONTACTED → follow-up delay”
+- Capacity warning hook (read only):
+   If Ops Agent signals “capacity risk”, show banner: “Caution: capacity tight; slow campaigns.”
+(Stub this with a boolean for now; wire later.)
+
+E) Ingestion from Landing Page
+Landing page lead form submissions MUST create Lead records in this registry (not duplicated elsewhere).
+- Ensure existing landing form (or planned) writes to Growth Engine /leads endpoint.
+
+F) Interface for other agents (IMPORTANT)
+Create a small internal API/service layer:
+- createLead()
+- updateLead()
+- addLeadEvent()
+- listLeads()
+- getLeadById()
+Marketing Agent and any future Admissions agent must use these functions/endpoints.
+Remove any duplicate “leads” stores in Marketing Agent and point it to Growth Engine.
+
+G) Governance (lightweight)
+- No autonomy controls needed for Growth Engine.
+- But it should use the shared logging style (human-readable logs).
+- Add audit log entries for admin actions (status changes, assignment).
+
+────────────────────────────────────────
+SECURITY & RBAC
+────────────────────────────────────────
+- All /admin/growth* routes are admin-only.
+- Public landing page can POST to /api/leads only (createLead) with strict validation and rate limiting.
+- Never expose full lead lists publicly.
+- Sanitize inputs, validate email, prevent injection.
+
+────────────────────────────────────────
+NON-FUNCTIONAL REQUIREMENTS
+────────────────────────────────────────
+- Clean UI (calm, premium, low clutter)
+- Fast loading with pagination for lead lists
+- Scalable: avoid client-side loading of all leads
+- Robust: errors handled gracefully with toasts + logs
+- Maintainable: modular services + typed models
+
+────────────────────────────────────────
+IMPLEMENTATION ORDER (DO IN SMALL COMMITS)
+────────────────────────────────────────
+1) Data models + DB tables/migrations (or persistence layer) + service layer APIs
+2) Lead ingestion endpoint (/api/leads POST) + validation + rate limit
+3) Lead Registry page (table + filters + pagination)
+4) Lead 360 page + timeline + status changes write events
+5) Pipeline view (kanban)
+6) Growth Dashboard (metrics computed from DB)
+7) Update Marketing Agent to read/write leads from Growth Engine (remove duplicates)
+8) Add settings page (pipeline statuses config, integrations stubs)
+
+────────────────────────────────────────
+ACCEPTANCE TESTS
+────────────────────────────────────────
+- Submitting landing page form creates exactly one Lead in Growth Engine.
+- Changing lead status creates a LeadEvent.
+- Marketing Agent no longer has its own lead store; it reads Growth Engine leads.
+- Admin can view pipeline, filter, assign, and move leads without errors.
+- Growth dashboard shows consistent counts matching Lead Registry.
+- RBAC blocks non-admin access.
+- Public endpoints are locked to create-only with validation and rate limiting.
+
+Now implement Growth Engine v0.1 accordingly.

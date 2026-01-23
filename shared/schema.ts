@@ -425,19 +425,177 @@ export type InsertQuizAnswer = z.infer<typeof insertQuizAnswerSchema>;
 export type LessonProgress = typeof lessonProgress.$inferSelect;
 export type InsertLessonProgress = z.infer<typeof insertLessonProgressSchema>;
 
-// Early access leads
+// ════════════════════════════════════════════════════════════════
+// GROWTH ENGINE - Single Source of Truth for Leads & Attribution
+// ════════════════════════════════════════════════════════════════
+
+// Lead Status Enum
+export const leadStatusEnum = z.enum([
+  "NEW",
+  "CONTACTED",
+  "ENGAGED",
+  "CONVERTED",
+  "DORMANT",
+  "LOST"
+]);
+export type LeadStatus = z.infer<typeof leadStatusEnum>;
+
+// Lead Source Type Enum
+export const leadSourceTypeEnum = z.enum([
+  "landing_form",
+  "referral",
+  "social",
+  "paid",
+  "organic",
+  "partner",
+  "manual"
+]);
+export type LeadSourceType = z.infer<typeof leadSourceTypeEnum>;
+
+// Lead Event Type Enum
+export const leadEventTypeEnum = z.enum([
+  "CREATED",
+  "UPDATED",
+  "STATUS_CHANGED",
+  "NOTE_ADDED",
+  "CONTACT_ATTEMPT",
+  "MESSAGE_SENT",
+  "MEETING_BOOKED",
+  "TRIAL_STARTED",
+  "CONVERTED",
+  "MARKED_DORMANT",
+  "MARKED_LOST",
+  "ASSIGNED"
+]);
+export type LeadEventType = z.infer<typeof leadEventTypeEnum>;
+
+// Lead Actor Type
+export const leadActorTypeEnum = z.enum(["human", "system", "agent"]);
+export type LeadActorType = z.infer<typeof leadActorTypeEnum>;
+
+// Leads table - Single Source of Truth
 export const leads = pgTable("leads", {
   id: serial("id").primaryKey(),
-  parentName: text("parent_name").notNull(),
+  
+  // Person info
+  parentName: text("parent_name"),
   email: text("email").notNull(),
-  childYearLevel: integer("child_year_level").notNull(),
-  message: text("message"),
+  phone: text("phone"),
+  
+  // Student context
+  childYearLevel: integer("child_year_level"),
+  subjectsInterested: text("subjects_interested"), // JSON array as string: ["Math","English"]
+  
+  // Status & lifecycle
+  status: text("status").notNull().default("NEW"), // LeadStatus
+  
+  // Owner/assignment
+  assignedToUserId: text("assigned_to_user_id"),
+  assignedAt: timestamp("assigned_at"),
+  
+  // Attribution
+  sourceType: text("source_type").notNull().default("landing_form"), // LeadSourceType
+  sourceName: text("source_name"), // e.g., "lumenia.au form", "Instagram"
+  campaignId: integer("campaign_id"),
+  medium: text("medium"),
+  content: text("content"),
+  referrerUrl: text("referrer_url"),
+  utmSource: text("utm_source"),
+  utmMedium: text("utm_medium"),
+  utmCampaign: text("utm_campaign"),
+  utmContent: text("utm_content"),
+  utmTerm: text("utm_term"),
+  
+  // Scoring
+  leadScore: integer("lead_score").default(0),
+  scoreReason: text("score_reason"),
+  
+  // Notes & timeline
+  notes: text("notes"),
+  message: text("message"), // Original message from form (backward compat)
+  
+  // Timestamps
+  lastContactedAt: timestamp("last_contacted_at"),
+  nextActionAt: timestamp("next_action_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Lead Events - Activity Timeline
+export const leadEvents = pgTable("lead_events", {
+  id: serial("id").primaryKey(),
+  leadId: integer("lead_id").notNull().references(() => leads.id, { onDelete: "cascade" }),
+  timestamp: timestamp("timestamp").defaultNow().notNull(),
+  type: text("type").notNull(), // LeadEventType
+  actor: text("actor").notNull().default("system"), // LeadActorType
+  actorUserId: text("actor_user_id"), // If human, which user
+  metadata: text("metadata"), // JSON string for additional data
+  description: text("description"), // Human-readable description
+});
+
+// Campaigns - Attribution Catalog
+export const growthCampaigns = pgTable("growth_campaigns", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  channel: text("channel").notNull(), // "email"|"social"|"paid_search"|"paid_social"|"referral"|"partner"|"content"
+  startDate: timestamp("start_date"),
+  endDate: timestamp("end_date"),
+  budgetPlanned: integer("budget_planned"),
+  status: text("status").notNull().default("draft"), // "draft"|"active"|"paused"|"ended"
+  tags: text("tags"), // JSON array as string
+  linkedMarketingAgentProposals: text("linked_proposals"), // JSON array of proposal IDs
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Integration Configs - Stubs for CRM/Ad platforms
+export const integrationConfigs = pgTable("integration_configs", {
+  id: serial("id").primaryKey(),
+  type: text("type").notNull(), // "crm"|"meta_ads"|"google_ads"|"email_provider"
+  name: text("name").notNull(), // Display name
+  enabled: boolean("enabled").notNull().default(false),
+  status: text("status").notNull().default("not_configured"), // "not_configured"|"configured"|"error"
+  config: text("config"), // JSON (encrypted if secrets)
+  lastSyncAt: timestamp("last_sync_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Growth Metric Snapshots - Daily aggregates (optional for v0.1)
+export const growthMetricSnapshots = pgTable("growth_metric_snapshots", {
+  id: serial("id").primaryKey(),
+  date: timestamp("date").notNull(),
+  leadsNew: integer("leads_new").default(0),
+  leadsContacted: integer("leads_contacted").default(0),
+  leadsEngaged: integer("leads_engaged").default(0),
+  leadsConverted: integer("leads_converted").default(0),
+  leadsDormant: integer("leads_dormant").default(0),
+  leadsLost: integer("leads_lost").default(0),
+  conversionRate: integer("conversion_rate"), // Percentage * 100
+  acquisitionByChannel: text("acquisition_by_channel"), // JSON breakdown
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-export const insertLeadSchema = createInsertSchema(leads).omit({ id: true, createdAt: true });
+// Schemas and Types
+export const insertLeadSchema = createInsertSchema(leads).omit({ id: true, createdAt: true, updatedAt: true });
 export type Lead = typeof leads.$inferSelect;
 export type InsertLead = z.infer<typeof insertLeadSchema>;
+
+export const insertLeadEventSchema = createInsertSchema(leadEvents).omit({ id: true, timestamp: true });
+export type LeadEvent = typeof leadEvents.$inferSelect;
+export type InsertLeadEvent = z.infer<typeof insertLeadEventSchema>;
+
+export const insertGrowthCampaignSchema = createInsertSchema(growthCampaigns).omit({ id: true, createdAt: true, updatedAt: true });
+export type GrowthCampaign = typeof growthCampaigns.$inferSelect;
+export type InsertGrowthCampaign = z.infer<typeof insertGrowthCampaignSchema>;
+
+export const insertIntegrationConfigSchema = createInsertSchema(integrationConfigs).omit({ id: true, createdAt: true, updatedAt: true });
+export type IntegrationConfig = typeof integrationConfigs.$inferSelect;
+export type InsertIntegrationConfig = z.infer<typeof insertIntegrationConfigSchema>;
+
+export const insertGrowthMetricSnapshotSchema = createInsertSchema(growthMetricSnapshots).omit({ id: true, createdAt: true });
+export type GrowthMetricSnapshot = typeof growthMetricSnapshots.$inferSelect;
+export type InsertGrowthMetricSnapshot = z.infer<typeof insertGrowthMetricSnapshotSchema>;
 
 // Re-export from auth
 import { users } from "./models/auth";
