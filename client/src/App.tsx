@@ -35,6 +35,7 @@ import Growth from "@/pages/Growth";
 import Orchestration from "@/pages/Orchestration";
 import MarketingAgent from "@/pages/MarketingAgent";
 import OpsAgent from "@/pages/OpsAgent";
+import { BiDashboard } from "@/features/bi";
 
 function StudentClassroomPage() {
   return (
@@ -146,6 +147,16 @@ function AdminGrowthPage() {
   );
 }
 
+function AdminBiPage() {
+  return (
+    <ProtectedRoute allowedRoles={["admin", "owner", "teacher"]}>
+      <AdminLayout>
+        <BiDashboard />
+      </AdminLayout>
+    </ProtectedRoute>
+  );
+}
+
 function AdminOrchestrationPage() {
   return (
     <ProtectedRoute allowedRoles={["admin", "owner", "teacher"]}>
@@ -202,6 +213,7 @@ function Router() {
       <Route path="/admin/students/:id" component={AdminStudent360Page} />
       <Route path="/admin/students" component={AdminStudentsPage} />
       <Route path="/admin/growth" component={AdminGrowthPage} />
+      <Route path="/admin/bi" component={AdminBiPage} />
       <Route path="/admin/orchestration" component={AdminOrchestrationPage} />
       <Route path="/admin/marketing" component={AdminMarketingPage} />
       <Route path="/admin/ops" component={AdminOpsPage} />

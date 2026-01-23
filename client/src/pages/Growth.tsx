@@ -15,7 +15,7 @@ import {
   TrendingUp, Users, UserPlus, Target, Eye, MoreVertical, Search,
   Mail, Phone, Calendar, Clock, ChevronRight, Plus, Filter, Download,
   Settings, Link2, RefreshCw, Activity, ArrowUpRight, ArrowDownRight,
-  CheckCircle2, XCircle, Pause, AlertCircle, MessageSquare, Edit3
+  CheckCircle2, XCircle, Pause, AlertCircle, MessageSquare, Edit3, BarChart3
 } from "lucide-react";
 
 type LeadStatus = "NEW" | "CONTACTED" | "ENGAGED" | "CONVERTED" | "DORMANT" | "LOST";
@@ -194,15 +194,26 @@ export default function Growth() {
             <h1 className="text-2xl font-bold text-gray-900">Growth Engine</h1>
             <p className="text-gray-600">Single source of truth for leads & attribution</p>
           </div>
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={() => queryClient.invalidateQueries({ queryKey: ["/api/growth"] })}
-            data-testid="btn-refresh-growth"
-          >
-            <RefreshCw className="w-4 h-4 mr-2" />
-            Refresh
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              variant="default"
+              size="sm"
+              onClick={() => setLocation("/admin/bi")}
+              data-testid="btn-bi-dashboard"
+            >
+              <BarChart3 className="w-4 h-4 mr-2" />
+              BI Dashboard (Preview)
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => queryClient.invalidateQueries({ queryKey: ["/api/growth"] })}
+              data-testid="btn-refresh-growth"
+            >
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Refresh
+            </Button>
+          </div>
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
