@@ -41,8 +41,24 @@ Preferred communication style: Simple, everyday language.
 - **Audio Processing**: WebM to WAV conversion (ffmpeg), AudioWorklet.
 - **AI Agents**:
     - **Learning Orchestration System**: Manages learning plans, session limits, and monitors student engagement.
-    - **Marketing Agent**: AI-powered proposal generation for marketing campaigns.
+    - **Marketing Agent**: AI-powered proposal generation for marketing campaigns; reads from Growth Engine.
     - **Operations Agent**: AI-powered monitoring, anomaly detection, and alerting for platform health.
+
+### Growth Engine (v0.1)
+- **Purpose**: Single source of truth for lead management, attribution tracking, and conversion funnel analytics.
+- **Data Models**: Lead, LeadEvent, GrowthCampaign, IntegrationConfig, GrowthMetricSnapshot (in `shared/schema.ts`).
+- **Lead Lifecycle**: NEW → CONTACTED → ENGAGED → CONVERTED (or DORMANT/LOST).
+- **Lead Scoring**: 0-100 points, default 10 for landing form leads.
+- **Attribution**: UTM params (source, medium, campaign), referrer tracking.
+- **API Routes** (admin-only `/api/growth/*`):
+    - `GET /api/growth/leads` - List leads with filters, pagination
+    - `GET /api/growth/leads/:id` - Lead detail with events
+    - `PATCH /api/growth/leads/:id` - Update lead (Zod validated)
+    - `POST /api/growth/leads/:id/events` - Add lead event
+    - `GET /api/growth/metrics` - Dashboard metrics
+    - `GET /api/growth/campaigns` - Campaign list
+- **UI**: Tabbed interface at `/admin/growth` with Dashboard, Leads, Pipeline (kanban), Sources, Settings.
+- **RBAC**: Accessible by owner, admin, teacher roles.
 
 ### Key Design Patterns
 - **Shared Types**: Common schemas and types in `shared/` for client and server.
