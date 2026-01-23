@@ -57,8 +57,39 @@ export default function PublicLanding() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white" data-testid="public-landing">
+      {/* Header Navigation */}
+      <header className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-100">
+        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
+              <GraduationCap className="h-5 w-5 text-white" />
+            </div>
+            <span className="text-xl font-serif font-bold text-foreground">Lumenia</span>
+          </div>
+          <nav className="flex items-center gap-6">
+            <button 
+              onClick={() => scrollToSection("how-it-works")}
+              className="text-sm text-muted-foreground hover:text-foreground transition-colors hidden sm:block"
+            >
+              How it works
+            </button>
+            <button 
+              onClick={() => scrollToSection("mentora")}
+              className="text-sm text-muted-foreground hover:text-foreground transition-colors hidden sm:block"
+            >
+              Meet Mentora
+            </button>
+            <Link href="/login">
+              <Button variant="outline" size="sm" data-testid="header-login-btn">
+                Log in
+              </Button>
+            </Link>
+          </nav>
+        </div>
+      </header>
+
       {/* Hero Section */}
-      <section className="relative min-h-[90vh] flex flex-col items-center justify-center px-6 py-20">
+      <section className="relative min-h-[90vh] flex flex-col items-center justify-center px-6 py-20 pt-32">
         <div className="absolute inset-0 bg-gradient-to-br from-blue-50/50 via-white to-purple-50/30" />
         
         <div className="relative z-10 max-w-4xl mx-auto text-center">
