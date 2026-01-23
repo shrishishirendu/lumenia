@@ -45,8 +45,23 @@
   --color-chart-4: hsl(280 60% 60%);
   --color-chart-5: hsl(340 70% 60%);
   
-  --font-sans: 'JetBrains Mono', monospace;
+  --font-sans: 'IBM Plex Sans', 'Inter', system-ui, sans-serif;
   --font-serif: 'Open Sans', sans-serif;
+  
+  /* Semantic Status Colors */
+  --color-status-approved: hsl(142 45% 42%);
+  --color-status-approved-bg: hsl(142 45% 95%);
+  --color-status-pending: hsl(38 75% 50%);
+  --color-status-pending-bg: hsl(38 75% 95%);
+  --color-status-rejected: hsl(0 0% 45%);
+  --color-status-rejected-bg: hsl(0 0% 95%);
+  --color-status-nurture: hsl(270 50% 55%);
+  --color-status-nurture-bg: hsl(270 50% 95%);
+  
+  /* Confidence Colors */
+  --color-confidence-high: hsl(142 45% 42%);
+  --color-confidence-medium: hsl(38 75% 50%);
+  --color-confidence-low: hsl(0 45% 55%);
 }
 
 @layer base {

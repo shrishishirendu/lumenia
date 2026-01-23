@@ -1,0 +1,106 @@
+You are a senior UI/UX-focused full-stack engineer working inside my existing web app (Growth Engine + Admissions Agent + BI).
+
+Goal:
+Polish the Admissions Agent UI so it looks professionally robust yet simple. No redesign, just refinement: typography, spacing, hierarchy, colors, buttons, and trust cues. Keep changes consistent across the app.
+
+Constraints:
+- Do NOT break existing logic, routes, or data models.
+- Prefer small, incremental UI changes (CSS/theme + component tweaks).
+- Keep dependencies minimal (do not add a heavy design system).
+- Ensure accessibility: good contrast, visible focus states, keyboard navigation.
+
+What to improve (implement all):
+
+1) Typography (professional + warm)
+- Use a modern, readable font with a slightly “human” tone:
+  Prefer: "IBM Plex Sans" or "Source Sans 3" (fallback to Inter/system fonts if not available).
+- Apply consistent type scale:
+  - Page title: 24–28px, semibold
+  - Section title: 16–18px, semibold
+  - Body: 14–16px, regular
+  - Helper/meta text: 12–13px, regular
+- Increase line-height for longer text (reasoning panels): 1.5–1.65.
+- Ensure reasoning narrative is visually distinct (see section 5).
+
+2) Layout, spacing, and hierarchy
+- Increase vertical spacing between major blocks (Assessment Summary, Reasoning, Next Steps, Actions).
+- Add a clear “Decision Outcome” card at the top of the assessment result:
+  - Slightly stronger border, subtle shadow, rounded corners
+  - Contains: Status badge, Confidence, Recommended action, Key reasons (top 2–3)
+- Reduce visual “flatness” by:
+  - Using consistent card padding (16–20px)
+  - Aligning labels and values in a neat grid
+  - Keeping max width for long text areas (avoid full-width paragraphs on large screens)
+- Make the page responsive (stack columns on mobile).
+
+3) Color system (semantic + consistent)
+Implement a small semantic palette (no loud colors):
+- Primary accent color used consistently for primary actions, active states, key numbers.
+- Status colors:
+  - Approved: calm green (muted)
+  - Needs review / Pending: amber (muted)
+  - Rejected / Not a fit: muted red OR neutral gray (avoid harsh red)
+- Confidence indicator:
+  - Use subtle saturation/opacity differences (High/Medium/Low) + text label.
+- Ensure consistent use across badges, charts, and tables where applicable.
+
+4) Buttons and CTAs (clear primary vs secondary)
+- Ensure clear hierarchy:
+  - Primary: “Approve” / “Request Info” / “Create Follow-up Task”
+  - Secondary: “View Audit Log”, “View Details”, “Export”
+  - Destructive: “Reject / Not a fit” should never appear as a strong primary button.
+- Add hover + active states and visible focus rings.
+- Prevent dead clicks: all buttons must either perform an action or show a toast “Coming soon”.
+
+5) AI trust cues (subtle, not hype)
+- Add a small label near the assessment:
+  - “Admissions Agent Assessment” and “AI-assisted recommendation”
+- Display:
+  - Confidence (High/Medium/Low)
+  - Agent version (e.g., “v1.0 rules-based”) in small muted text
+- Reasoning block styling:
+  - Put reasoning narrative in a “callout” style:
+    - left border accent or light background tint
+    - slightly muted text color
+  - Keep it readable and not overwhelming.
+
+6) Microcopy improvements (humble + clear)
+- Replace absolute wording with cautious, professional phrasing:
+  - “Based on available information…”
+  - “Recommended next step…”
+  - “May require human discussion…”
+- Ensure the status labels are consistent:
+  - APPROVED / NEEDS INFO / NEEDS REVIEW / NOT A FIT
+  (Use whichever terms are already used, but make them consistent across UI.)
+
+7) “Why this decision?” disclosure
+- Add an expandable accordion/collapsible section titled:
+  - “Why did the agent recommend this?”
+- Inside, show:
+  - Structured reason codes (if available) OR bullet reasons
+  - Signals/fields used (small, muted)
+  - Timestamp and agent version
+
+8) Table polish (Applicants list / queue)
+- Improve table readability:
+  - zebra striping or subtle row separators
+  - consistent alignment
+  - status badge in table
+  - search input styled consistently with the rest of the app
+- Add empty states:
+  - “No applicants yet. Create your first assessment.”
+
+Implementation guidance:
+- If the app has a global theme file, define tokens:
+  --color-primary, --color-success, --color-warning, --color-danger, --radius, --shadow, spacing scale, font scale.
+- Apply tokens to existing components rather than rewriting.
+- Keep changes limited to style/theme + small component layout adjustments.
+
+Deliverables:
+- Show the list of modified files.
+- Summarize changes in 8–12 bullet points.
+- Provide quick manual test steps:
+  - check responsiveness
+  - verify focus states
+  - verify status colors + badges
+  - verify accordion works
