@@ -2,7 +2,12 @@ import OpenAI from "openai";
 import type { Lead, AdmissionsSettings } from "@shared/schema";
 import { tutoringStorage } from "../storage";
 
-const openai = new OpenAI();
+const hasOpenAICredentials = !!process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
+
+const openai = hasOpenAICredentials ? new OpenAI({
+  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
+  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+}) : null;
 
 export interface AssessmentResult {
   qualificationScore: number;
@@ -145,6 +150,35 @@ Focus on:
 1. Whether parent/student expectations align with our Socratic learning method
 2. Any red flags in the message (unrealistic timelines, misunderstanding of tutoring)
 3. Likelihood of successful learning outcomes`;
+
+  if (!openai) {
+    const expectationAlignment = criteria.hasUnrealisticExpectations 
+      ? "misaligned" as const 
+      : (criteria.yearLevelValid && criteria.subjectValid ? "aligned" as const : "needs_discussion" as const);
+    
+    const recommendedAction = basicScores.qualificationScore >= settings.autoQualifyThreshold 
+      ? "auto_enroll" as const
+      : basicScores.fitScore < settings.autoRejectThreshold 
+        ? "reject" as const
+        : "human_review" as const;
+    
+    let status: "pending_review" | "auto_qualified" | "auto_rejected" = "pending_review";
+    if (settings.autonomyLevel >= 2 && basicScores.qualificationScore >= settings.autoQualifyThreshold) {
+      status = "auto_qualified";
+    } else if (settings.autonomyLevel >= 3 && basicScores.fitScore < settings.autoRejectThreshold) {
+      status = "auto_rejected";
+    }
+    
+    return {
+      qualificationScore: basicScores.qualificationScore,
+      fitScore: basicScores.fitScore,
+      expectationAlignment,
+      recommendedAction,
+      reasoning: "AI analysis unavailable - using heuristic analysis based on criteria matching.",
+      aiConfidence: Math.round((basicScores.qualificationScore + basicScores.fitScore) / 2),
+      status
+    };
+  }
 
   try {
     const response = await openai.chat.completions.create({

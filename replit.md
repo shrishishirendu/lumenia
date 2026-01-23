@@ -71,6 +71,34 @@ Preferred communication style: Simple, everyday language.
 - **Growth Engine Integration**: Updates lead status and adds events on assessment decisions
 - **RBAC**: Accessible by owner, admin, teacher roles.
 
+### Academic Quality Agent (v0.1)
+- **Purpose**: Monitor student progress, identify at-risk students, and ensure learning outcomes are being met.
+- **Location**: `/admin/academic-quality` (accessible via GraduationCap icon in admin sidebar)
+- **Data Models**: AcademicAlert, AcademicQualitySettings (in `shared/schema.ts`)
+- **AI Service**: `server/services/academicQualityAgent.ts` - OpenAI-powered student analysis with intervention recommendations
+- **Alert Types**:
+    - low_mastery: Student mastery below threshold
+    - declining_progress: Performance declining over time
+    - low_engagement: Low activity or engagement score
+    - struggling_topic: Difficulty with specific subject/topic
+    - at_risk: Multiple critical indicators requiring intervention
+    - improvement_opportunity: Positive trend that could be accelerated
+- **Autonomy Levels**:
+    - Level 1: Monitor only - generates alerts for human review
+    - Level 2: Alert + Recommend - notifies tutors automatically
+    - Level 3: Full autonomy - auto-escalates critical issues
+- **API Routes** (admin-only `/api/academic-quality/*`):
+    - `GET /api/academic-quality/stats` - Dashboard statistics
+    - `GET /api/academic-quality/alerts` - All alerts with optional status filter
+    - `GET /api/academic-quality/student/:studentId/alerts` - Student-specific alerts
+    - `POST /api/academic-quality/analyze/:studentId` - Run AI analysis on student
+    - `POST /api/academic-quality/scan` - Scan all students for issues
+    - `PATCH /api/academic-quality/alerts/:id` - Update alert status
+    - `GET/PUT /api/academic-quality/settings` - Settings management
+- **UI Tabs**: Dashboard (stats, critical alerts), Alerts (all alerts list), Students (at-risk students), Settings (thresholds)
+- **Settings**: Mastery threshold, engagement threshold, inactivity days, auto-notify options, scan frequency
+- **RBAC**: Accessible by owner, admin, teacher roles.
+
 ### Growth Engine (v0.1)
 - **Purpose**: Single source of truth for lead management, attribution tracking, and conversion funnel analytics.
 - **Data Models**: Lead, LeadEvent, GrowthCampaign, IntegrationConfig, GrowthMetricSnapshot (in `shared/schema.ts`).

@@ -2,7 +2,12 @@ import OpenAI from "openai";
 import type { AcademicQualitySettings, Profile } from "@shared/schema";
 import { tutoringStorage } from "../storage";
 
-const openai = new OpenAI();
+const hasOpenAICredentials = !!process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
+
+const openai = hasOpenAICredentials ? new OpenAI({
+  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
+  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+}) : null;
 
 export interface StudentAnalysisResult {
   status: "healthy" | "needs_attention" | "at_risk" | "critical";
@@ -112,6 +117,16 @@ async function getAIEnhancedAnalysis(
   basicAlerts: AlertRecommendation[],
   settings: AcademicQualitySettings
 ): Promise<{ insights: string[]; recommendations: string[]; confidence: number }> {
+  if (!openai) {
+    return {
+      insights: ["AI analysis unavailable - using heuristic analysis."],
+      recommendations: basicAlerts.length > 0 
+        ? ["Review the alerts and take appropriate action based on thresholds."]
+        : ["Student performance appears within acceptable parameters."],
+      confidence: 60
+    };
+  }
+
   try {
     const prompt = `You are an educational AI assistant analyzing student performance data. Provide insights and recommendations.
 
