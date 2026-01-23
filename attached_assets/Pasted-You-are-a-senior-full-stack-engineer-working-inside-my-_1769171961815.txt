@@ -1,0 +1,69 @@
+You are a senior full-stack engineer working inside my existing “GROWTH ENGINE” web app.
+
+Goal:
+Add a BI Dashboard placeholder section/page that supports exploratory data analysis style charts (growth comparison line chart, bar chart, pie chart, etc.). For now, use mock/sample data generated in-app. Later we will wire it to real data sources.
+
+Constraints:
+- Do NOT break existing flows/pages/components.
+- Keep the new feature modular and easy to replace later.
+- If any existing UI has “Export data” and “Adjust strategy” buttons that currently do nothing, make them respond with placeholder behavior (no silent clicks).
+- Use clean UI and consistent styling with the app.
+
+What to build:
+1) Navigation / Entry
+- Add a new nav item or a clear CTA: “BI Dashboard (Preview)”
+- Route: /bi (or similar, consistent with the project routing)
+
+2) BI Dashboard Page (Placeholder but functional)
+- Title: “BI Dashboard (Preview)”
+- Subtitle: “Exploratory analytics from Growth Engine signals (mock data for now).”
+- Top filters (non-breaking):
+  - Date range: Last 7 / 30 / 90 days (default 30)
+  - Segment dropdown: All / Segment A / Segment B
+  - Metric dropdown: Revenue / Leads / Conversion / Retention (default Revenue)
+  These filters should re-render charts using the mock dataset.
+
+3) Charts (use a standard chart library)
+Implement at least:
+- Growth comparison line chart: metric over time (two series if possible: “Current” vs “Previous period” OR Segment A vs Segment B)
+- Bar chart: metric by channel (e.g., Organic, Paid, Referral, Direct)
+- Pie chart: share by segment or channel
+- A small KPI row at the top: Total, % change vs previous, best channel, best segment
+
+4) Data Table (EDA feel)
+- Below charts, show a sortable table of the underlying mock rows (date, channel, segment, metric values)
+- Add a simple search box for the table
+
+5) Placeholder integration with existing buttons
+- Export Data:
+  - If clicked anywhere in app, show a dropdown: Export CSV / Export JSON
+  - Export current filtered BI dataset (from mock data) and download it
+- Adjust Strategy:
+  - Open a modal with placeholder controls (no real logic yet):
+    - Growth goal slider (Conservative / Balanced / Aggressive)
+    - Budget cap input
+    - Risk tolerance dropdown
+  - “Save” should store values locally (localStorage) and show a toast: “Strategy saved (preview).”
+
+Tech notes:
+- Pick a chart library that works well in Replit quickly (e.g., Chart.js, Recharts, ECharts). Use what matches the existing stack:
+  - If React: prefer Recharts or Chart.js wrapper.
+  - If plain HTML/JS: Chart.js is fine.
+- Create a dedicated module/folder:
+  - /src/features/bi/...
+  - include mockData generator and typed interfaces (if TS)
+- Provide clean, commented code and minimal dependencies.
+- Add basic empty-state handling (no data for filters).
+- Ensure responsive layout (desktop first, but mobile shouldn’t break).
+
+Deliverables:
+- New BI dashboard route/page implemented and accessible
+- Charts render from mock data and respond to filters
+- Export Data and Adjust Strategy buttons no longer “do nothing”
+- Brief README section explaining:
+  - where to plug real data later
+  - which components to replace
+
+After implementation:
+- Print the file tree of new/modified files
+- Summarize what you changed and how to test it locally in Replit
