@@ -45,8 +45,8 @@
   --color-chart-4: hsl(280 60% 60%);
   --color-chart-5: hsl(340 70% 60%);
   
-  --font-sans: 'Plus Jakarta Sans', sans-serif;
-  --font-serif: 'Fraunces', serif;
+  --font-sans: 'JetBrains Mono', monospace;
+  --font-serif: 'Open Sans', sans-serif;
 }
 
 @layer base {
