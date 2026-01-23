@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useLocation } from "wouter";
+import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth";
 import { useMarketingAgent, AUTONOMY_LEVELS, type AutonomyLevel, type Campaign, type Lead, type MarketingStrategy } from "@/lib/marketingAgent";
 import { useToast } from "@/hooks/use-toast";
@@ -51,7 +52,8 @@ import {
   Phone,
   BookOpen,
   Sparkles,
-  Loader2
+  Loader2,
+  ExternalLink
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { IntentNarrativePanel } from "@/components/IntentNarrativePanel";
@@ -112,6 +114,30 @@ export default function MarketingAgent() {
     simulateSpend,
     resetAgent
   } = useMarketingAgent();
+
+  // Growth Engine integration - fetch leads from single source of truth
+  interface GrowthEngineLead {
+    id: number;
+    parentName: string | null;
+    email: string;
+    phone: string | null;
+    childYearLevel: number | null;
+    status: string;
+    sourceType: string;
+    leadScore: number;
+    message: string | null;
+    createdAt: string;
+  }
+
+  const { data: growthEngineLeads, refetch: refetchGrowthLeads } = useQuery<{ leads: GrowthEngineLead[]; total: number }>({
+    queryKey: ["/api/growth/leads"],
+    queryFn: async () => {
+      const res = await fetch("/api/growth/leads?limit=20");
+      if (!res.ok) return { leads: [], total: 0 };
+      return res.json();
+    },
+    refetchInterval: 30000
+  });
 
   const [newStrategy, setNewStrategy] = useState({
     targetDescription: "",
@@ -1100,8 +1126,77 @@ export default function MarketingAgent() {
           <TabsContent value="leads" className="space-y-6">
             <div className="flex justify-between items-center">
               <div>
-                <h2 className="text-lg font-semibold">Live Leads Feed</h2>
-                <p className="text-sm text-muted-foreground">Real-time lead notifications and management</p>
+                <h2 className="text-lg font-semibold">Lead Management</h2>
+                <p className="text-sm text-muted-foreground">Growth Engine integration for real lead data</p>
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => refetchGrowthLeads()} data-testid="button-refresh-leads">
+                  <RefreshCw className="h-4 w-4 mr-2" /> Refresh
+                </Button>
+                <Button onClick={() => setLocation("/admin/growth")} data-testid="button-open-growth-engine">
+                  <ExternalLink className="h-4 w-4 mr-2" /> Full Growth Engine
+                </Button>
+              </div>
+            </div>
+
+            <Card className="border-primary/20 bg-primary/5">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Users className="h-5 w-5 text-primary" />
+                    <CardTitle className="text-base">Growth Engine Leads</CardTitle>
+                  </div>
+                  <Badge variant="secondary">{growthEngineLeads?.total || 0} total</Badge>
+                </div>
+                <CardDescription>Real leads from your landing page and marketing campaigns</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {(!growthEngineLeads?.leads || growthEngineLeads.leads.length === 0) ? (
+                  <div className="text-center py-6 text-muted-foreground">
+                    <UserPlus className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                    <p>No leads captured yet. Leads will appear when visitors submit your landing page form.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {growthEngineLeads.leads.slice(0, 5).map((lead) => (
+                      <div key={lead.id} className="flex items-center justify-between p-3 bg-background rounded-lg border" data-testid={`growth-lead-${lead.id}`}>
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-medium text-sm">
+                            {(lead.parentName || lead.email)[0].toUpperCase()}
+                          </div>
+                          <div>
+                            <p className="font-medium text-sm">{lead.parentName || "—"}</p>
+                            <p className="text-xs text-muted-foreground">{lead.email}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="text-xs text-muted-foreground">Year {lead.childYearLevel || "N/A"}</span>
+                          <Badge variant={
+                            lead.status === "NEW" ? "default" :
+                            lead.status === "CONVERTED" ? "secondary" : "outline"
+                          } className="text-xs">
+                            {lead.status}
+                          </Badge>
+                        </div>
+                      </div>
+                    ))}
+                    {growthEngineLeads.leads.length > 5 && (
+                      <Button variant="ghost" className="w-full" onClick={() => setLocation("/admin/growth")}>
+                        View all {growthEngineLeads.total} leads in Growth Engine
+                        <ChevronRight className="h-4 w-4 ml-2" />
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Separator />
+
+            <div className="flex justify-between items-center">
+              <div>
+                <h3 className="font-semibold">Demo Leads (Simulated)</h3>
+                <p className="text-sm text-muted-foreground">Test leads for agent demonstration</p>
               </div>
               <Button variant="outline" onClick={simulateNewLead} data-testid="button-simulate-lead">
                 <UserPlus className="h-4 w-4 mr-2" /> Simulate New Lead
@@ -1111,9 +1206,9 @@ export default function MarketingAgent() {
             {newLeads.length > 0 && (
               <Alert className="border-primary">
                 <AlertCircle className="h-4 w-4" />
-                <AlertTitle>New Leads Require Attention</AlertTitle>
+                <AlertTitle>New Demo Leads</AlertTitle>
                 <AlertDescription>
-                  You have {newLeads.length} new lead{newLeads.length > 1 ? "s" : ""} that need to be reviewed
+                  You have {newLeads.length} new simulated lead{newLeads.length > 1 ? "s" : ""} for testing
                 </AlertDescription>
               </Alert>
             )}
