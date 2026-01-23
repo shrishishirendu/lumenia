@@ -34,6 +34,7 @@ export default function AdminLogin() {
       const expectedCode = "TUTOR2024";
       if (adminCode.toUpperCase() === expectedCode) {
         localStorage.setItem("admin_verified", "true");
+        sessionStorage.setItem("intended_role", "admin");
         login();
       } else {
         setError("Invalid admin access code");

@@ -2,12 +2,14 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import path from "path";
 import express from "express";
+import { z } from "zod";
 import { setupAuth, registerAuthRoutes } from "./replit_integrations/auth";
 import { registerChatRoutes } from "./replit_integrations/chat";
 import { registerAudioRoutes } from "./replit_integrations/audio";
 import { registerImageRoutes } from "./replit_integrations/image";
 import { tutoringStorage } from "./storage";
 import marketingAgentRoutes from "./routes/marketingAgent";
+import { leadStatusEnum, leadEventTypeEnum } from "@shared/schema";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -84,13 +86,13 @@ export async function registerRoutes(
   // GROWTH ENGINE API ROUTES (Admin-only)
   // ════════════════════════════════════════════════════════════════
   
-  // Admin auth middleware
+  // Admin auth middleware - allows owner, admin, and teacher roles (matches AdminLayout)
   const requireAdminRole = async (req: any, res: any, next: any) => {
     const userId = req.user?.claims?.sub;
     if (!userId) return res.status(401).json({ error: "Unauthorized" });
     
     const profile = await tutoringStorage.getProfileByUserId(userId);
-    if (!profile || (profile.role !== 'owner' && profile.role !== 'admin')) {
+    if (!profile || !['owner', 'admin', 'teacher'].includes(profile.role)) {
       return res.status(403).json({ error: "Admin access required" });
     }
     req.profile = profile;
@@ -143,6 +145,25 @@ export async function registerRoutes(
     }
   });
   
+  // Zod schemas for Growth Engine validation
+  const leadUpdateSchema = z.object({
+    status: leadStatusEnum.optional(),
+    parentName: z.string().nullable().optional(),
+    phone: z.string().nullable().optional(),
+    childYearLevel: z.number().int().min(1).max(12).nullable().optional(),
+    subjectsInterested: z.string().nullable().optional(),
+    notes: z.string().nullable().optional(),
+    leadScore: z.number().int().min(0).max(100).optional(),
+    assignedToUserId: z.string().nullable().optional(),
+    nextActionAt: z.string().datetime().nullable().optional().transform(v => v ? new Date(v) : null)
+  }).strict();
+
+  const leadEventSchema = z.object({
+    type: leadEventTypeEnum.optional().default("NOTE_ADDED"),
+    description: z.string().min(1).max(2000),
+    metadata: z.record(z.any()).optional()
+  }).strict();
+
   // Update lead
   app.patch("/api/growth/leads/:id", requireAdminRole, async (req: any, res) => {
     try {
@@ -150,7 +171,15 @@ export async function registerRoutes(
       const existing = await tutoringStorage.getLead(leadId);
       if (!existing) return res.status(404).json({ error: "Lead not found" });
       
-      const updates = req.body;
+      const parseResult = leadUpdateSchema.safeParse(req.body);
+      if (!parseResult.success) {
+        return res.status(400).json({ 
+          error: "Invalid update data", 
+          details: parseResult.error.issues.map(i => i.message) 
+        });
+      }
+      
+      const updates = parseResult.data;
       const lead = await tutoringStorage.updateLead(leadId, updates);
       
       // Record status change event
@@ -179,7 +208,15 @@ export async function registerRoutes(
       const lead = await tutoringStorage.getLead(leadId);
       if (!lead) return res.status(404).json({ error: "Lead not found" });
       
-      const { type, description, metadata } = req.body;
+      const parseResult = leadEventSchema.safeParse(req.body);
+      if (!parseResult.success) {
+        return res.status(400).json({ 
+          error: "Invalid event data", 
+          details: parseResult.error.issues.map(i => i.message) 
+        });
+      }
+      
+      const { type, description, metadata } = parseResult.data;
       const event = await tutoringStorage.addLeadEvent({
         leadId,
         type: type || "NOTE_ADDED",
