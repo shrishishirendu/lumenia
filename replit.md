@@ -60,6 +60,21 @@ Preferred communication style: Simple, everyday language.
 - **UI**: Tabbed interface at `/admin/growth` with Dashboard, Leads, Pipeline (kanban), Sources, Settings.
 - **RBAC**: Accessible by owner, admin, teacher roles.
 
+### BI Dashboard (Preview)
+- **Location**: `/admin/bi` (accessible via "BI Dashboard (Preview)" button in Growth Engine)
+- **Purpose**: Exploratory data analysis with mock data (to be wired to real data later)
+- **Features**:
+    - **Filters**: Date Range (7/30/90 days), Segment (All/A/B), Metric (Revenue/Leads/Conversion/Retention)
+    - **KPI Row**: Total metric, % change vs previous period, best channel, best segment
+    - **Charts**: Line (growth comparison), Bar (by channel), Pie (by segment) - using Recharts
+    - **Data Table**: Sortable columns, search filter, first 50 rows
+    - **Export Data**: CSV/JSON download of filtered data
+    - **Adjust Strategy**: Modal with goal slider, budget cap, risk tolerance (saves to localStorage)
+- **Modularity**: Located in `client/src/features/bi/` for easy future integration with real data sources
+    - `mockData.ts` - Mock data generator, filtering, aggregation, export functions
+    - `BiDashboard.tsx` - Main dashboard component
+    - Replace `generateMockData()` with API calls to wire to real data
+
 ### Key Design Patterns
 - **Shared Types**: Common schemas and types in `shared/` for client and server.
 - **Integration Modules**: Reusable AI features in `server/replit_integrations/`.
