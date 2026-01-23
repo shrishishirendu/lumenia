@@ -266,6 +266,273 @@ export async function registerRoutes(
     }
   });
 
+  // ════════════════════════════════════════════════════════════════
+  // ADMISSIONS AGENT API ROUTES
+  // ════════════════════════════════════════════════════════════════
+
+  // Get admissions stats
+  app.get("/api/admissions/stats", requireAdminRole, async (req: any, res) => {
+    try {
+      const stats = await tutoringStorage.getAdmissionsStats();
+      res.json(stats);
+    } catch (error) {
+      console.error("[Admissions Agent] Error fetching stats:", error);
+      res.status(500).json({ error: "Failed to fetch admissions stats" });
+    }
+  });
+
+  // Get admissions queue (pending review)
+  app.get("/api/admissions/queue", requireAdminRole, async (req: any, res) => {
+    try {
+      const status = req.query.status as string | undefined;
+      const queue = await tutoringStorage.getAdmissionsQueue(status as any);
+      res.json(queue);
+    } catch (error) {
+      console.error("[Admissions Agent] Error fetching queue:", error);
+      res.status(500).json({ error: "Failed to fetch admissions queue" });
+    }
+  });
+
+  // Get all admissions assessments
+  app.get("/api/admissions/assessments", requireAdminRole, async (req: any, res) => {
+    try {
+      const assessments = await tutoringStorage.getAllAdmissionsAssessments();
+      res.json(assessments);
+    } catch (error) {
+      console.error("[Admissions Agent] Error fetching assessments:", error);
+      res.status(500).json({ error: "Failed to fetch assessments" });
+    }
+  });
+
+  // Get assessment by lead ID
+  app.get("/api/admissions/lead/:leadId", requireAdminRole, async (req: any, res) => {
+    try {
+      const leadId = parseInt(req.params.leadId);
+      if (isNaN(leadId)) {
+        return res.status(400).json({ error: "Invalid lead ID" });
+      }
+      const assessment = await tutoringStorage.getAdmissionsAssessmentByLead(leadId);
+      if (!assessment) {
+        return res.status(404).json({ error: "Assessment not found for this lead" });
+      }
+      res.json(assessment);
+    } catch (error) {
+      console.error("[Admissions Agent] Error fetching assessment by lead:", error);
+      res.status(500).json({ error: "Failed to fetch assessment" });
+    }
+  });
+
+  // Get single assessment
+  app.get("/api/admissions/assessments/:id", requireAdminRole, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid assessment ID" });
+      }
+      const assessment = await tutoringStorage.getAdmissionsAssessment(id);
+      if (!assessment) {
+        return res.status(404).json({ error: "Assessment not found" });
+      }
+      res.json(assessment);
+    } catch (error) {
+      console.error("[Admissions Agent] Error fetching assessment:", error);
+      res.status(500).json({ error: "Failed to fetch assessment" });
+    }
+  });
+
+  // Assess a lead (AI qualification)
+  app.post("/api/admissions/assess/:leadId", requireAdminRole, async (req: any, res) => {
+    try {
+      const leadId = parseInt(req.params.leadId);
+      if (isNaN(leadId)) {
+        return res.status(400).json({ error: "Invalid lead ID" });
+      }
+      
+      const lead = await tutoringStorage.getLead(leadId);
+      if (!lead) {
+        return res.status(404).json({ error: "Lead not found" });
+      }
+
+      // Check if already assessed
+      const existing = await tutoringStorage.getAdmissionsAssessmentByLead(leadId);
+      if (existing) {
+        return res.status(400).json({ error: "Lead already assessed", assessment: existing });
+      }
+
+      // Import and run AI assessment
+      const { assessLead } = await import("./services/admissionsAgent");
+      const assessment = await assessLead(lead);
+      
+      // Create the assessment record
+      const saved = await tutoringStorage.createAdmissionsAssessment({
+        leadId,
+        qualificationScore: assessment.qualificationScore,
+        fitScore: assessment.fitScore,
+        expectationAlignment: assessment.expectationAlignment,
+        recommendedAction: assessment.recommendedAction,
+        reasoning: assessment.reasoning,
+        aiConfidence: assessment.aiConfidence,
+        status: assessment.status
+      });
+
+      // Add lead event for assessment
+      await tutoringStorage.addLeadEvent({
+        leadId,
+        type: "ai_assessment",
+        actor: "ai",
+        description: `AI assessed lead: ${assessment.recommendedAction} (confidence: ${assessment.aiConfidence}%)`,
+        metadata: JSON.stringify({ assessmentId: saved.id, ...assessment })
+      });
+
+      // Apply auto decisions to Growth Engine based on autonomy level
+      if (assessment.status === "auto_qualified") {
+        // Auto-qualified: Update lead to CONTACTED status
+        await tutoringStorage.updateLead(leadId, { 
+          status: "CONTACTED",
+          leadScore: Math.max(lead.leadScore || 0, assessment.qualificationScore)
+        });
+        await tutoringStorage.addLeadEvent({
+          leadId,
+          type: "status_change",
+          actor: "ai",
+          description: `Auto-qualified by AI (confidence: ${assessment.aiConfidence}%)`,
+          metadata: JSON.stringify({ assessmentId: saved.id, newStatus: "CONTACTED" })
+        });
+      } else if (assessment.status === "auto_rejected") {
+        // Auto-rejected: Update lead to LOST status
+        await tutoringStorage.updateLead(leadId, { 
+          status: "LOST",
+          leadScore: Math.min(lead.leadScore || 0, assessment.fitScore)
+        });
+        await tutoringStorage.addLeadEvent({
+          leadId,
+          type: "status_change",
+          actor: "ai",
+          description: `Auto-rejected by AI (fit score: ${assessment.fitScore}%)`,
+          metadata: JSON.stringify({ assessmentId: saved.id, newStatus: "LOST" })
+        });
+      }
+
+      res.json(saved);
+    } catch (error) {
+      console.error("[Admissions Agent] Error assessing lead:", error);
+      res.status(500).json({ error: "Failed to assess lead" });
+    }
+  });
+
+  // Human decision on assessment
+  app.post("/api/admissions/decision/:id", requireAdminRole, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid assessment ID" });
+      }
+
+      const decisionSchema = z.object({
+        status: z.enum(["human_approved", "human_rejected", "nurturing"]),
+        reviewerNotes: z.string().optional()
+      });
+
+      const parsed = decisionSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid decision data", details: parsed.error.errors });
+      }
+
+      const assessment = await tutoringStorage.getAdmissionsAssessment(id);
+      if (!assessment) {
+        return res.status(404).json({ error: "Assessment not found" });
+      }
+
+      const userId = req.user?.claims?.sub;
+      const updated = await tutoringStorage.updateAdmissionsAssessment(id, {
+        status: parsed.data.status,
+        reviewerNotes: parsed.data.reviewerNotes,
+        reviewedBy: userId,
+        reviewedAt: new Date()
+      });
+
+      // Update lead status based on decision
+      let newLeadStatus: string | undefined;
+      if (parsed.data.status === "human_approved") {
+        newLeadStatus = "CONTACTED";
+      } else if (parsed.data.status === "human_rejected") {
+        newLeadStatus = "LOST";
+      } else if (parsed.data.status === "nurturing") {
+        newLeadStatus = "ENGAGED";
+      }
+
+      if (newLeadStatus) {
+        await tutoringStorage.updateLead(assessment.leadId, { status: newLeadStatus });
+        await tutoringStorage.addLeadEvent({
+          leadId: assessment.leadId,
+          type: "status_change",
+          actor: "user",
+          actorUserId: userId,
+          description: `Human decision: ${parsed.data.status}`,
+          metadata: JSON.stringify({ assessmentId: id, previousStatus: assessment.status })
+        });
+      }
+
+      res.json(updated);
+    } catch (error) {
+      console.error("[Admissions Agent] Error recording decision:", error);
+      res.status(500).json({ error: "Failed to record decision" });
+    }
+  });
+
+  // Get admissions settings
+  app.get("/api/admissions/settings", requireAdminRole, async (req: any, res) => {
+    try {
+      let settings = await tutoringStorage.getAdmissionsSettings();
+      if (!settings) {
+        // Return defaults
+        settings = {
+          id: 0,
+          autonomyLevel: 1,
+          autoQualifyThreshold: 90,
+          autoRejectThreshold: 20,
+          minYearLevel: 6,
+          maxYearLevel: 12,
+          acceptedSubjects: "Mathematics,English",
+          flagKeywords: "urgent,immediate,quick fix,2 weeks",
+          isActive: true,
+          updatedAt: new Date()
+        };
+      }
+      res.json(settings);
+    } catch (error) {
+      console.error("[Admissions Agent] Error fetching settings:", error);
+      res.status(500).json({ error: "Failed to fetch settings" });
+    }
+  });
+
+  // Update admissions settings
+  app.put("/api/admissions/settings", requireAdminRole, async (req: any, res) => {
+    try {
+      const settingsSchema = z.object({
+        autonomyLevel: z.number().min(1).max(3).optional(),
+        autoQualifyThreshold: z.number().min(0).max(100).optional(),
+        autoRejectThreshold: z.number().min(0).max(100).optional(),
+        minYearLevel: z.number().min(1).max(12).optional(),
+        maxYearLevel: z.number().min(1).max(12).optional(),
+        acceptedSubjects: z.string().optional(),
+        flagKeywords: z.string().optional(),
+        isActive: z.boolean().optional()
+      });
+
+      const parsed = settingsSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid settings data", details: parsed.error.errors });
+      }
+
+      const settings = await tutoringStorage.upsertAdmissionsSettings(parsed.data);
+      res.json(settings);
+    } catch (error) {
+      console.error("[Admissions Agent] Error updating settings:", error);
+      res.status(500).json({ error: "Failed to update settings" });
+    }
+  });
+
   // Tutoring-specific routes
   // Get student profile
   app.get("/api/profile", async (req: any, res) => {

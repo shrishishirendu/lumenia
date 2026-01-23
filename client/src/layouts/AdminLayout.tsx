@@ -3,7 +3,7 @@ import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { 
   LayoutDashboard, Users, TrendingUp, Brain, Megaphone, Server, 
-  Settings, LogOut, Search, Shield, BarChart3 
+  Settings, LogOut, Search, Shield, BarChart3, UserCheck 
 } from "lucide-react";
 
 interface AdminLayoutProps {
@@ -60,6 +60,18 @@ export function AdminLayout({ children }: AdminLayoutProps) {
               title="Growth Engine"
             >
               <TrendingUp className="w-5 h-5" />
+            </Button>
+          </Link>
+          
+          <Link href="/admin/admissions">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className={`w-full h-12 rounded-xl transition-all ${isActive('/admin/admissions') ? 'bg-red-100 text-red-600' : 'text-muted-foreground hover:bg-muted'}`}
+              data-testid="nav-admin-admissions"
+              title="Admissions Agent"
+            >
+              <UserCheck className="w-5 h-5" />
             </Button>
           </Link>
           

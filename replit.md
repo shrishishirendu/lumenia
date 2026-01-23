@@ -43,6 +43,33 @@ Preferred communication style: Simple, everyday language.
     - **Learning Orchestration System**: Manages learning plans, session limits, and monitors student engagement.
     - **Marketing Agent**: AI-powered proposal generation for marketing campaigns; reads from Growth Engine.
     - **Operations Agent**: AI-powered monitoring, anomaly detection, and alerting for platform health.
+    - **Admissions Agent**: AI-powered lead qualification, expectation alignment analysis, and enrollment decisions.
+
+### Admissions Agent (v0.1)
+- **Purpose**: Automate lead qualification, set clear expectations, and ensure student-platform fit before enrollment.
+- **Location**: `/admin/admissions` (accessible via UserCheck icon in admin sidebar)
+- **Data Models**: AdmissionsAssessment, AdmissionsSettings (in `shared/schema.ts`)
+- **AI Service**: `server/services/admissionsAgent.ts` - OpenAI-powered assessment with qualification scoring
+- **Assessment Criteria**:
+    - Year Level: 6-12 validation
+    - Subject: Mathematics/English alignment
+    - Expectation Keywords: Detects unrealistic expectations (urgent, immediate, quick fix)
+    - Fit Score: 0-100 based on lead data quality and alignment
+- **Autonomy Levels**:
+    - Level 1: Recommend only - human approves all decisions
+    - Level 2: Auto-qualify high-confidence (>90%), flag rest for review
+    - Level 3: Full autonomy - auto-qualify and auto-reject
+- **API Routes** (admin-only `/api/admissions/*`):
+    - `GET /api/admissions/stats` - Dashboard statistics
+    - `GET /api/admissions/queue` - Pending review assessments
+    - `GET /api/admissions/assessments` - All assessments
+    - `GET /api/admissions/lead/:leadId` - Assessment by lead
+    - `POST /api/admissions/assess/:leadId` - Run AI assessment
+    - `POST /api/admissions/decision/:id` - Record human decision
+    - `GET/PUT /api/admissions/settings` - Settings management
+- **UI Tabs**: Dashboard (stats), Queue (pending reviews), Leads (unassessed), Settings (configuration)
+- **Growth Engine Integration**: Updates lead status and adds events on assessment decisions
+- **RBAC**: Accessible by owner, admin, teacher roles.
 
 ### Growth Engine (v0.1)
 - **Purpose**: Single source of truth for lead management, attribution tracking, and conversion funnel analytics.

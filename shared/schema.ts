@@ -597,5 +597,75 @@ export const insertGrowthMetricSnapshotSchema = createInsertSchema(growthMetricS
 export type GrowthMetricSnapshot = typeof growthMetricSnapshots.$inferSelect;
 export type InsertGrowthMetricSnapshot = z.infer<typeof insertGrowthMetricSnapshotSchema>;
 
+// =========================================
+// ADMISSIONS AGENT
+// =========================================
+
+// Admissions Assessment Status
+export const admissionsStatusEnum = z.enum([
+  "pending_review",
+  "auto_qualified",
+  "auto_rejected",
+  "human_approved",
+  "human_rejected",
+  "nurturing"
+]);
+export type AdmissionsStatus = z.infer<typeof admissionsStatusEnum>;
+
+// Expectation Alignment
+export const expectationAlignmentEnum = z.enum(["aligned", "needs_discussion", "misaligned"]);
+export type ExpectationAlignment = z.infer<typeof expectationAlignmentEnum>;
+
+// Recommended Action
+export const recommendedActionEnum = z.enum(["auto_enroll", "human_review", "nurture", "reject"]);
+export type RecommendedAction = z.infer<typeof recommendedActionEnum>;
+
+// Admissions Assessments table
+export const admissionsAssessments = pgTable("admissions_assessments", {
+  id: serial("id").primaryKey(),
+  leadId: integer("lead_id").notNull().references(() => leads.id, { onDelete: "cascade" }),
+  qualificationScore: integer("qualification_score").notNull().default(0), // 0-100
+  fitScore: integer("fit_score").notNull().default(0), // 0-100
+  expectationAlignment: text("expectation_alignment").notNull().default("needs_discussion"),
+  recommendedAction: text("recommended_action").notNull().default("human_review"),
+  reasoning: text("reasoning").notNull(),
+  aiConfidence: integer("ai_confidence").notNull().default(50), // 0-100
+  status: text("status").notNull().default("pending_review"),
+  reviewerNotes: text("reviewer_notes"),
+  reviewedBy: varchar("reviewed_by").references(() => users.id),
+  assessedAt: timestamp("assessed_at").defaultNow().notNull(),
+  reviewedAt: timestamp("reviewed_at"),
+});
+
+// Admissions Settings table
+export const admissionsSettings = pgTable("admissions_settings", {
+  id: serial("id").primaryKey(),
+  autonomyLevel: integer("autonomy_level").notNull().default(1), // 1-3
+  autoQualifyThreshold: integer("auto_qualify_threshold").notNull().default(90), // confidence %
+  autoRejectThreshold: integer("auto_reject_threshold").notNull().default(20), // fit score %
+  minYearLevel: integer("min_year_level").notNull().default(6),
+  maxYearLevel: integer("max_year_level").notNull().default(12),
+  acceptedSubjects: text("accepted_subjects").notNull().default("Mathematics,English"),
+  flagKeywords: text("flag_keywords").notNull().default("urgent,immediate,quick fix,2 weeks"),
+  isActive: boolean("is_active").notNull().default(true),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Admissions Schemas and Types
+export const insertAdmissionsAssessmentSchema = createInsertSchema(admissionsAssessments).omit({ 
+  id: true, 
+  assessedAt: true, 
+  reviewedAt: true 
+});
+export type AdmissionsAssessment = typeof admissionsAssessments.$inferSelect;
+export type InsertAdmissionsAssessment = z.infer<typeof insertAdmissionsAssessmentSchema>;
+
+export const insertAdmissionsSettingsSchema = createInsertSchema(admissionsSettings).omit({ 
+  id: true, 
+  updatedAt: true 
+});
+export type AdmissionsSettings = typeof admissionsSettings.$inferSelect;
+export type InsertAdmissionsSettings = z.infer<typeof insertAdmissionsSettingsSchema>;
+
 // Re-export from auth
 import { users } from "./models/auth";

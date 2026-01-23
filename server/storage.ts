@@ -28,6 +28,8 @@ import {
   growthCampaigns,
   integrationConfigs,
   growthMetricSnapshots,
+  admissionsAssessments,
+  admissionsSettings,
   type Profile,
   type InsertProfile,
   type TutoringSession,
@@ -86,7 +88,12 @@ import {
   type InsertIntegrationConfig,
   type GrowthMetricSnapshot,
   type InsertGrowthMetricSnapshot,
-  type LeadStatus
+  type LeadStatus,
+  type AdmissionsAssessment,
+  type InsertAdmissionsAssessment,
+  type AdmissionsSettings,
+  type InsertAdmissionsSettings,
+  type AdmissionsStatus
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, sql } from "drizzle-orm";
@@ -269,6 +276,35 @@ export interface ITutoringStorage {
     newLeads30d: number;
     conversionRate: number;
     acquisitionByChannel: Record<string, number>;
+  }>;
+
+  // ════════════════════════════════════════════════════════════════
+  // ADMISSIONS AGENT
+  // ════════════════════════════════════════════════════════════════
+  
+  // Assessments
+  createAdmissionsAssessment(assessment: InsertAdmissionsAssessment): Promise<AdmissionsAssessment>;
+  updateAdmissionsAssessment(id: number, updates: Partial<AdmissionsAssessment>): Promise<AdmissionsAssessment>;
+  getAdmissionsAssessment(id: number): Promise<AdmissionsAssessment | undefined>;
+  getAdmissionsAssessmentByLead(leadId: number): Promise<AdmissionsAssessment | undefined>;
+  getAdmissionsQueue(status?: AdmissionsStatus): Promise<AdmissionsAssessment[]>;
+  getAllAdmissionsAssessments(): Promise<AdmissionsAssessment[]>;
+  
+  // Settings
+  getAdmissionsSettings(): Promise<AdmissionsSettings | undefined>;
+  upsertAdmissionsSettings(settings: InsertAdmissionsSettings): Promise<AdmissionsSettings>;
+  
+  // Stats
+  getAdmissionsStats(): Promise<{
+    totalAssessments: number;
+    pendingReview: number;
+    autoQualified: number;
+    autoRejected: number;
+    humanApproved: number;
+    humanRejected: number;
+    nurturing: number;
+    todayAssessments: number;
+    avgConfidence: number;
   }>;
 }
 
@@ -966,6 +1002,125 @@ class TutoringStorage implements ITutoringStorage {
       conversionRate,
       acquisitionByChannel
     };
+  }
+
+  // ════════════════════════════════════════════════════════════════
+  // ADMISSIONS AGENT
+  // ════════════════════════════════════════════════════════════════
+
+  async createAdmissionsAssessment(assessment: InsertAdmissionsAssessment): Promise<AdmissionsAssessment> {
+    const [result] = await db.insert(admissionsAssessments).values(assessment).returning();
+    return result;
+  }
+
+  async updateAdmissionsAssessment(id: number, updates: Partial<AdmissionsAssessment>): Promise<AdmissionsAssessment> {
+    const [result] = await db.update(admissionsAssessments)
+      .set(updates)
+      .where(eq(admissionsAssessments.id, id))
+      .returning();
+    return result;
+  }
+
+  async getAdmissionsAssessment(id: number): Promise<AdmissionsAssessment | undefined> {
+    const [result] = await db.select().from(admissionsAssessments).where(eq(admissionsAssessments.id, id));
+    return result;
+  }
+
+  async getAdmissionsAssessmentByLead(leadId: number): Promise<AdmissionsAssessment | undefined> {
+    const [result] = await db.select()
+      .from(admissionsAssessments)
+      .where(eq(admissionsAssessments.leadId, leadId))
+      .orderBy(desc(admissionsAssessments.assessedAt))
+      .limit(1);
+    return result;
+  }
+
+  async getAdmissionsQueue(status?: AdmissionsStatus): Promise<AdmissionsAssessment[]> {
+    if (status) {
+      return db.select()
+        .from(admissionsAssessments)
+        .where(eq(admissionsAssessments.status, status))
+        .orderBy(desc(admissionsAssessments.assessedAt));
+    }
+    return db.select()
+      .from(admissionsAssessments)
+      .where(eq(admissionsAssessments.status, "pending_review"))
+      .orderBy(desc(admissionsAssessments.assessedAt));
+  }
+
+  async getAllAdmissionsAssessments(): Promise<AdmissionsAssessment[]> {
+    return db.select().from(admissionsAssessments).orderBy(desc(admissionsAssessments.assessedAt));
+  }
+
+  async getAdmissionsSettings(): Promise<AdmissionsSettings | undefined> {
+    const [result] = await db.select().from(admissionsSettings).limit(1);
+    return result;
+  }
+
+  async upsertAdmissionsSettings(settings: InsertAdmissionsSettings): Promise<AdmissionsSettings> {
+    const existing = await this.getAdmissionsSettings();
+    if (existing) {
+      const [result] = await db.update(admissionsSettings)
+        .set({ ...settings, updatedAt: new Date() })
+        .where(eq(admissionsSettings.id, existing.id))
+        .returning();
+      return result;
+    }
+    const [result] = await db.insert(admissionsSettings).values(settings).returning();
+    return result;
+  }
+
+  async getAdmissionsStats(): Promise<{
+    totalAssessments: number;
+    pendingReview: number;
+    autoQualified: number;
+    autoRejected: number;
+    humanApproved: number;
+    humanRejected: number;
+    nurturing: number;
+    todayAssessments: number;
+    avgConfidence: number;
+  }> {
+    const allAssessments = await this.getAllAdmissionsAssessments();
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const stats = {
+      totalAssessments: allAssessments.length,
+      pendingReview: 0,
+      autoQualified: 0,
+      autoRejected: 0,
+      humanApproved: 0,
+      humanRejected: 0,
+      nurturing: 0,
+      todayAssessments: 0,
+      avgConfidence: 0
+    };
+    
+    let totalConfidence = 0;
+    
+    for (const assessment of allAssessments) {
+      switch (assessment.status) {
+        case "pending_review": stats.pendingReview++; break;
+        case "auto_qualified": stats.autoQualified++; break;
+        case "auto_rejected": stats.autoRejected++; break;
+        case "human_approved": stats.humanApproved++; break;
+        case "human_rejected": stats.humanRejected++; break;
+        case "nurturing": stats.nurturing++; break;
+      }
+      
+      if (assessment.assessedAt >= today) {
+        stats.todayAssessments++;
+      }
+      
+      totalConfidence += assessment.aiConfidence;
+    }
+    
+    stats.avgConfidence = allAssessments.length > 0 
+      ? Math.round(totalConfidence / allAssessments.length) 
+      : 0;
+    
+    return stats;
   }
 }
 
