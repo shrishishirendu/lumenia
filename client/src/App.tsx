@@ -209,7 +209,6 @@ function Router() {
       <Route path="/tutor" component={TutorHomePage} />
       
       <Route path="/admin/login" component={AdminLogin} />
-      <Route path="/admin" component={AdminHomePage} />
       <Route path="/admin/students/:id" component={AdminStudent360Page} />
       <Route path="/admin/students" component={AdminStudentsPage} />
       <Route path="/admin/growth" component={AdminGrowthPage} />
@@ -217,6 +216,7 @@ function Router() {
       <Route path="/admin/orchestration" component={AdminOrchestrationPage} />
       <Route path="/admin/marketing" component={AdminMarketingPage} />
       <Route path="/admin/ops" component={AdminOpsPage} />
+      <Route path="/admin" component={AdminHomePage} />
       
       <Route path="/classroom">
         {() => <Redirect to="/student/classroom" />}
