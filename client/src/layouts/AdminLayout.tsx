@@ -3,7 +3,7 @@ import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { 
   LayoutDashboard, Users, TrendingUp, Brain, Megaphone, Server, 
-  Settings, LogOut, Search, Shield, BarChart3, UserCheck 
+  Settings, LogOut, Search, Shield, BarChart3, UserCheck, GraduationCap 
 } from "lucide-react";
 
 interface AdminLayoutProps {
@@ -72,6 +72,18 @@ export function AdminLayout({ children }: AdminLayoutProps) {
               title="Admissions Agent"
             >
               <UserCheck className="w-5 h-5" />
+            </Button>
+          </Link>
+          
+          <Link href="/admin/academic-quality">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className={`w-full h-12 rounded-xl transition-all ${isActive('/admin/academic-quality') ? 'bg-red-100 text-red-600' : 'text-muted-foreground hover:bg-muted'}`}
+              data-testid="nav-admin-academic-quality"
+              title="Academic Quality Agent"
+            >
+              <GraduationCap className="w-5 h-5" />
             </Button>
           </Link>
           

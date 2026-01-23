@@ -36,6 +36,7 @@ import Orchestration from "@/pages/Orchestration";
 import MarketingAgent from "@/pages/MarketingAgent";
 import OpsAgent from "@/pages/OpsAgent";
 import AdmissionsAgent from "@/pages/AdmissionsAgent";
+import AcademicQualityAgent from "@/pages/AcademicQualityAgent";
 import { BiDashboard } from "@/features/bi";
 
 function StudentClassroomPage() {
@@ -198,6 +199,16 @@ function AdminAdmissionsPage() {
   );
 }
 
+function AdminAcademicQualityPage() {
+  return (
+    <ProtectedRoute allowedRoles={["admin", "owner", "teacher"]}>
+      <AdminLayout>
+        <AcademicQualityAgent />
+      </AdminLayout>
+    </ProtectedRoute>
+  );
+}
+
 function Router() {
   return (
     <Switch>
@@ -228,6 +239,7 @@ function Router() {
       <Route path="/admin/marketing" component={AdminMarketingPage} />
       <Route path="/admin/ops" component={AdminOpsPage} />
       <Route path="/admin/admissions" component={AdminAdmissionsPage} />
+      <Route path="/admin/academic-quality" component={AdminAcademicQualityPage} />
       <Route path="/admin" component={AdminHomePage} />
       
       <Route path="/classroom">
