@@ -93,7 +93,14 @@ import {
   type InsertAdmissionsAssessment,
   type AdmissionsSettings,
   type InsertAdmissionsSettings,
-  type AdmissionsStatus
+  type AdmissionsStatus,
+  type AcademicAlert,
+  type InsertAcademicAlert,
+  type AcademicQualitySettings,
+  type InsertAcademicQualitySettings,
+  type AcademicAlertStatus,
+  academicAlerts,
+  academicQualitySettings
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, sql } from "drizzle-orm";
@@ -305,6 +312,44 @@ export interface ITutoringStorage {
     nurturing: number;
     todayAssessments: number;
     avgConfidence: number;
+  }>;
+
+  // ════════════════════════════════════════════════════════════════
+  // ACADEMIC QUALITY AGENT
+  // ════════════════════════════════════════════════════════════════
+  
+  // Alerts
+  createAcademicAlert(alert: InsertAcademicAlert): Promise<AcademicAlert>;
+  updateAcademicAlert(id: number, updates: Partial<AcademicAlert>): Promise<AcademicAlert>;
+  getAcademicAlert(id: number): Promise<AcademicAlert | undefined>;
+  getAcademicAlertsByStudent(studentId: number): Promise<AcademicAlert[]>;
+  getAcademicAlertsByStatus(status: AcademicAlertStatus): Promise<AcademicAlert[]>;
+  getAllAcademicAlerts(): Promise<AcademicAlert[]>;
+  getActiveAcademicAlerts(): Promise<AcademicAlert[]>;
+  
+  // Settings
+  getAcademicQualitySettings(): Promise<AcademicQualitySettings | undefined>;
+  upsertAcademicQualitySettings(settings: InsertAcademicQualitySettings): Promise<AcademicQualitySettings>;
+  
+  // Stats
+  getAcademicQualityStats(): Promise<{
+    totalAlerts: number;
+    activeAlerts: number;
+    criticalAlerts: number;
+    highAlerts: number;
+    acknowledgedToday: number;
+    resolvedToday: number;
+    atRiskStudents: number;
+    avgResolutionTime: number;
+  }>;
+
+  // Student analysis
+  getStudentPerformanceMetrics(studentId: number): Promise<{
+    avgMasteryLevel: number;
+    completionRate: number;
+    engagementScore: number;
+    lastActivityDate: Date | null;
+    subjectBreakdown: { subject: string; mastery: number; sessions: number }[];
   }>;
 }
 
@@ -1121,6 +1166,218 @@ class TutoringStorage implements ITutoringStorage {
       : 0;
     
     return stats;
+  }
+
+  // ════════════════════════════════════════════════════════════════
+  // ACADEMIC QUALITY AGENT IMPLEMENTATION
+  // ════════════════════════════════════════════════════════════════
+
+  async createAcademicAlert(alert: InsertAcademicAlert): Promise<AcademicAlert> {
+    const [created] = await db.insert(academicAlerts).values(alert).returning();
+    return created;
+  }
+
+  async updateAcademicAlert(id: number, updates: Partial<AcademicAlert>): Promise<AcademicAlert> {
+    const [updated] = await db
+      .update(academicAlerts)
+      .set(updates)
+      .where(eq(academicAlerts.id, id))
+      .returning();
+    return updated;
+  }
+
+  async getAcademicAlert(id: number): Promise<AcademicAlert | undefined> {
+    const [alert] = await db.select().from(academicAlerts).where(eq(academicAlerts.id, id));
+    return alert;
+  }
+
+  async getAcademicAlertsByStudent(studentId: number): Promise<AcademicAlert[]> {
+    return db
+      .select()
+      .from(academicAlerts)
+      .where(eq(academicAlerts.studentId, studentId))
+      .orderBy(desc(academicAlerts.createdAt));
+  }
+
+  async getAcademicAlertsByStatus(status: AcademicAlertStatus): Promise<AcademicAlert[]> {
+    return db
+      .select()
+      .from(academicAlerts)
+      .where(eq(academicAlerts.status, status))
+      .orderBy(desc(academicAlerts.createdAt));
+  }
+
+  async getAllAcademicAlerts(): Promise<AcademicAlert[]> {
+    return db.select().from(academicAlerts).orderBy(desc(academicAlerts.createdAt));
+  }
+
+  async getActiveAcademicAlerts(): Promise<AcademicAlert[]> {
+    return db
+      .select()
+      .from(academicAlerts)
+      .where(eq(academicAlerts.status, "active"))
+      .orderBy(desc(academicAlerts.createdAt));
+  }
+
+  async getAcademicQualitySettings(): Promise<AcademicQualitySettings | undefined> {
+    const [settings] = await db.select().from(academicQualitySettings);
+    return settings;
+  }
+
+  async upsertAcademicQualitySettings(settings: InsertAcademicQualitySettings): Promise<AcademicQualitySettings> {
+    const existing = await this.getAcademicQualitySettings();
+    if (existing) {
+      const [updated] = await db
+        .update(academicQualitySettings)
+        .set({ ...settings, updatedAt: new Date() })
+        .where(eq(academicQualitySettings.id, existing.id))
+        .returning();
+      return updated;
+    }
+    const [created] = await db.insert(academicQualitySettings).values(settings).returning();
+    return created;
+  }
+
+  async getAcademicQualityStats(): Promise<{
+    totalAlerts: number;
+    activeAlerts: number;
+    criticalAlerts: number;
+    highAlerts: number;
+    acknowledgedToday: number;
+    resolvedToday: number;
+    atRiskStudents: number;
+    avgResolutionTime: number;
+  }> {
+    const allAlerts = await this.getAllAcademicAlerts();
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const stats = {
+      totalAlerts: allAlerts.length,
+      activeAlerts: 0,
+      criticalAlerts: 0,
+      highAlerts: 0,
+      acknowledgedToday: 0,
+      resolvedToday: 0,
+      atRiskStudents: 0,
+      avgResolutionTime: 0
+    };
+
+    const atRiskStudentIds = new Set<number>();
+    let totalResolutionTime = 0;
+    let resolvedCount = 0;
+
+    for (const alert of allAlerts) {
+      if (alert.status === "active") stats.activeAlerts++;
+      if (alert.severity === "critical") stats.criticalAlerts++;
+      if (alert.severity === "high") stats.highAlerts++;
+      
+      if (alert.acknowledgedAt && alert.acknowledgedAt >= today) {
+        stats.acknowledgedToday++;
+      }
+      if (alert.resolvedAt && alert.resolvedAt >= today) {
+        stats.resolvedToday++;
+      }
+      
+      if (alert.alertType === "at_risk" && alert.status === "active") {
+        atRiskStudentIds.add(alert.studentId);
+      }
+      
+      if (alert.resolvedAt && alert.createdAt) {
+        totalResolutionTime += alert.resolvedAt.getTime() - alert.createdAt.getTime();
+        resolvedCount++;
+      }
+    }
+
+    stats.atRiskStudents = atRiskStudentIds.size;
+    stats.avgResolutionTime = resolvedCount > 0 
+      ? Math.round(totalResolutionTime / resolvedCount / (1000 * 60 * 60)) // hours
+      : 0;
+
+    return stats;
+  }
+
+  async getStudentPerformanceMetrics(studentId: number): Promise<{
+    avgMasteryLevel: number;
+    completionRate: number;
+    engagementScore: number;
+    lastActivityDate: Date | null;
+    subjectBreakdown: { subject: string; mastery: number; sessions: number }[];
+  }> {
+    const studentProgress = await db
+      .select()
+      .from(progress)
+      .where(eq(progress.studentId, studentId));
+
+    const studentSessions = await db
+      .select()
+      .from(tutoringSessions)
+      .where(eq(tutoringSessions.studentId, studentId));
+
+    // Calculate averages
+    let totalMastery = 0;
+    let totalAttempted = 0;
+    let totalCorrect = 0;
+    let lastActivity: Date | null = null;
+    const subjectMap = new Map<string, { mastery: number; sessions: number; count: number }>();
+
+    for (const p of studentProgress) {
+      totalMastery += p.masteryLevel;
+      totalAttempted += p.problemsAttempted || 0;
+      totalCorrect += p.problemsCorrect || 0;
+      
+      if (p.lastPracticed && (!lastActivity || p.lastPracticed > lastActivity)) {
+        lastActivity = p.lastPracticed;
+      }
+
+      const existing = subjectMap.get(p.subject) || { mastery: 0, sessions: 0, count: 0 };
+      existing.mastery += p.masteryLevel;
+      existing.count++;
+      subjectMap.set(p.subject, existing);
+    }
+
+    for (const session of studentSessions) {
+      if (session.startedAt && (!lastActivity || session.startedAt > lastActivity)) {
+        lastActivity = session.startedAt;
+      }
+      
+      const existing = subjectMap.get(session.subject) || { mastery: 0, sessions: 0, count: 0 };
+      existing.sessions++;
+      subjectMap.set(session.subject, existing);
+    }
+
+    const avgMasteryLevel = studentProgress.length > 0 
+      ? Math.round(totalMastery / studentProgress.length) 
+      : 0;
+    
+    const completionRate = totalAttempted > 0 
+      ? Math.round((totalCorrect / totalAttempted) * 100) 
+      : 0;
+
+    // Engagement score based on recency and frequency
+    const daysSinceLastActivity = lastActivity 
+      ? Math.floor((Date.now() - lastActivity.getTime()) / (1000 * 60 * 60 * 24))
+      : 999;
+    
+    let engagementScore = 100;
+    if (daysSinceLastActivity > 7) engagementScore -= 30;
+    if (daysSinceLastActivity > 14) engagementScore -= 30;
+    if (daysSinceLastActivity > 30) engagementScore -= 40;
+    engagementScore = Math.max(0, engagementScore);
+
+    const subjectBreakdown = Array.from(subjectMap.entries()).map(([subject, data]) => ({
+      subject,
+      mastery: data.count > 0 ? Math.round(data.mastery / data.count) : 0,
+      sessions: data.sessions
+    }));
+
+    return {
+      avgMasteryLevel,
+      completionRate,
+      engagementScore,
+      lastActivityDate: lastActivity,
+      subjectBreakdown
+    };
   }
 }
 

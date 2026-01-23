@@ -667,5 +667,90 @@ export const insertAdmissionsSettingsSchema = createInsertSchema(admissionsSetti
 export type AdmissionsSettings = typeof admissionsSettings.$inferSelect;
 export type InsertAdmissionsSettings = z.infer<typeof insertAdmissionsSettingsSchema>;
 
+// ============================================
+// Academic Quality Agent
+// ============================================
+
+// Alert Types
+export const academicAlertTypeEnum = z.enum([
+  "low_mastery",
+  "declining_progress",
+  "low_engagement",
+  "struggling_topic",
+  "at_risk",
+  "improvement_opportunity"
+]);
+export type AcademicAlertType = z.infer<typeof academicAlertTypeEnum>;
+
+// Alert Severity
+export const alertSeverityEnum = z.enum(["low", "medium", "high", "critical"]);
+export type AlertSeverity = z.infer<typeof alertSeverityEnum>;
+
+// Alert Status
+export const academicAlertStatusEnum = z.enum([
+  "active",
+  "acknowledged",
+  "in_progress",
+  "resolved",
+  "dismissed"
+]);
+export type AcademicAlertStatus = z.infer<typeof academicAlertStatusEnum>;
+
+// Academic Alerts table
+export const academicAlerts = pgTable("academic_alerts", {
+  id: serial("id").primaryKey(),
+  studentId: integer("student_id").notNull().references(() => profiles.id, { onDelete: "cascade" }),
+  alertType: text("alert_type").notNull(), // low_mastery, declining_progress, etc.
+  severity: text("severity").notNull().default("medium"), // low, medium, high, critical
+  subject: text("subject"), // Mathematics, English
+  topic: text("topic"), // Specific topic if applicable
+  metric: text("metric").notNull(), // mastery_level, completion_rate, engagement_score
+  currentValue: integer("current_value").notNull(), // Current metric value
+  threshold: integer("threshold").notNull(), // Threshold that triggered alert
+  trend: text("trend"), // declining, stagnant, improving
+  recommendation: text("recommendation").notNull(), // AI-generated intervention recommendation
+  reasoning: text("reasoning").notNull(), // AI explanation
+  aiConfidence: integer("ai_confidence").notNull().default(50), // 0-100
+  status: text("status").notNull().default("active"),
+  acknowledgedBy: varchar("acknowledged_by").references(() => users.id),
+  resolvedBy: varchar("resolved_by").references(() => users.id),
+  resolutionNotes: text("resolution_notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  acknowledgedAt: timestamp("acknowledged_at"),
+  resolvedAt: timestamp("resolved_at"),
+});
+
+// Academic Quality Settings table
+export const academicQualitySettings = pgTable("academic_quality_settings", {
+  id: serial("id").primaryKey(),
+  autonomyLevel: integer("autonomy_level").notNull().default(1), // 1: monitor only, 2: alert + recommend, 3: auto-intervene
+  masteryThreshold: integer("mastery_threshold").notNull().default(60), // Alert if below this
+  engagementThreshold: integer("engagement_threshold").notNull().default(40), // Alert if below this
+  progressDeclineThreshold: integer("progress_decline_threshold").notNull().default(15), // % decline to trigger alert
+  inactivityDays: integer("inactivity_days").notNull().default(7), // Days without activity to flag
+  autoNotifyParent: boolean("auto_notify_parent").notNull().default(false),
+  autoNotifyTutor: boolean("auto_notify_tutor").notNull().default(true),
+  scanFrequency: text("scan_frequency").notNull().default("daily"), // daily, weekly
+  isActive: boolean("is_active").notNull().default(true),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Academic Quality Schemas and Types
+export const insertAcademicAlertSchema = createInsertSchema(academicAlerts).omit({ 
+  id: true, 
+  createdAt: true, 
+  acknowledgedAt: true,
+  resolvedAt: true 
+});
+export type AcademicAlert = typeof academicAlerts.$inferSelect;
+export type InsertAcademicAlert = z.infer<typeof insertAcademicAlertSchema>;
+
+export const insertAcademicQualitySettingsSchema = createInsertSchema(academicQualitySettings).omit({ 
+  id: true, 
+  updatedAt: true 
+});
+export type AcademicQualitySettings = typeof academicQualitySettings.$inferSelect;
+export type InsertAcademicQualitySettings = z.infer<typeof insertAcademicQualitySettingsSchema>;
+
 // Re-export from auth
 import { users } from "./models/auth";
