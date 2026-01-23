@@ -533,6 +533,206 @@ export async function registerRoutes(
     }
   });
 
+  // ════════════════════════════════════════════════════════════════
+  // ACADEMIC QUALITY AGENT API ROUTES
+  // ════════════════════════════════════════════════════════════════
+
+  // Get dashboard stats
+  app.get("/api/academic-quality/stats", requireAdminRole, async (req: any, res) => {
+    try {
+      const stats = await tutoringStorage.getAcademicQualityStats();
+      res.json(stats);
+    } catch (error) {
+      console.error("[Academic Quality Agent] Error fetching stats:", error);
+      res.status(500).json({ error: "Failed to fetch stats" });
+    }
+  });
+
+  // Get all alerts
+  app.get("/api/academic-quality/alerts", requireAdminRole, async (req: any, res) => {
+    try {
+      const status = req.query.status as string | undefined;
+      let alerts;
+      
+      if (status === "active") {
+        alerts = await tutoringStorage.getActiveAcademicAlerts();
+      } else if (status) {
+        alerts = await tutoringStorage.getAcademicAlertsByStatus(status as any);
+      } else {
+        alerts = await tutoringStorage.getAllAcademicAlerts();
+      }
+      
+      res.json(alerts);
+    } catch (error) {
+      console.error("[Academic Quality Agent] Error fetching alerts:", error);
+      res.status(500).json({ error: "Failed to fetch alerts" });
+    }
+  });
+
+  // Get alerts for a specific student
+  app.get("/api/academic-quality/student/:studentId/alerts", requireAdminRole, async (req: any, res) => {
+    try {
+      const studentId = parseInt(req.params.studentId);
+      if (isNaN(studentId)) {
+        return res.status(400).json({ error: "Invalid student ID" });
+      }
+      
+      const alerts = await tutoringStorage.getAcademicAlertsByStudent(studentId);
+      res.json(alerts);
+    } catch (error) {
+      console.error("[Academic Quality Agent] Error fetching student alerts:", error);
+      res.status(500).json({ error: "Failed to fetch student alerts" });
+    }
+  });
+
+  // Analyze a specific student
+  app.post("/api/academic-quality/analyze/:studentId", requireAdminRole, async (req: any, res) => {
+    try {
+      const studentId = parseInt(req.params.studentId);
+      if (isNaN(studentId)) {
+        return res.status(400).json({ error: "Invalid student ID" });
+      }
+
+      const profile = await tutoringStorage.getProfileById(studentId);
+      if (!profile) {
+        return res.status(404).json({ error: "Student not found" });
+      }
+
+      const { analyzeStudent } = await import("./services/academicQualityAgent");
+      const analysis = await analyzeStudent(studentId);
+      
+      res.json(analysis);
+    } catch (error) {
+      console.error("[Academic Quality Agent] Error analyzing student:", error);
+      res.status(500).json({ error: "Failed to analyze student" });
+    }
+  });
+
+  // Scan all students for issues
+  app.post("/api/academic-quality/scan", requireAdminRole, async (req: any, res) => {
+    try {
+      const { scanAllStudents } = await import("./services/academicQualityAgent");
+      const result = await scanAllStudents();
+      res.json(result);
+    } catch (error) {
+      console.error("[Academic Quality Agent] Error scanning students:", error);
+      res.status(500).json({ error: "Failed to scan students" });
+    }
+  });
+
+  // Get student performance metrics
+  app.get("/api/academic-quality/student/:studentId/metrics", requireAdminRole, async (req: any, res) => {
+    try {
+      const studentId = parseInt(req.params.studentId);
+      if (isNaN(studentId)) {
+        return res.status(400).json({ error: "Invalid student ID" });
+      }
+
+      const metrics = await tutoringStorage.getStudentPerformanceMetrics(studentId);
+      res.json(metrics);
+    } catch (error) {
+      console.error("[Academic Quality Agent] Error fetching metrics:", error);
+      res.status(500).json({ error: "Failed to fetch metrics" });
+    }
+  });
+
+  // Update alert status (acknowledge, resolve, dismiss)
+  app.patch("/api/academic-quality/alerts/:id", requireAdminRole, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid alert ID" });
+      }
+
+      const alertSchema = z.object({
+        status: z.enum(["active", "acknowledged", "in_progress", "resolved", "dismissed"]).optional(),
+        resolutionNotes: z.string().optional()
+      });
+
+      const parsed = alertSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid alert data", details: parsed.error.errors });
+      }
+
+      const alert = await tutoringStorage.getAcademicAlert(id);
+      if (!alert) {
+        return res.status(404).json({ error: "Alert not found" });
+      }
+
+      const userId = req.user?.claims?.sub;
+      const updates: any = { ...parsed.data };
+      
+      if (parsed.data.status === "acknowledged" && alert.status !== "acknowledged") {
+        updates.acknowledgedBy = userId;
+        updates.acknowledgedAt = new Date();
+      }
+      if (parsed.data.status === "resolved" && alert.status !== "resolved") {
+        updates.resolvedBy = userId;
+        updates.resolvedAt = new Date();
+      }
+
+      const updated = await tutoringStorage.updateAcademicAlert(id, updates);
+      res.json(updated);
+    } catch (error) {
+      console.error("[Academic Quality Agent] Error updating alert:", error);
+      res.status(500).json({ error: "Failed to update alert" });
+    }
+  });
+
+  // Get academic quality settings
+  app.get("/api/academic-quality/settings", requireAdminRole, async (req: any, res) => {
+    try {
+      let settings = await tutoringStorage.getAcademicQualitySettings();
+      if (!settings) {
+        settings = {
+          id: 0,
+          autonomyLevel: 1,
+          masteryThreshold: 60,
+          engagementThreshold: 40,
+          progressDeclineThreshold: 15,
+          inactivityDays: 7,
+          autoNotifyParent: false,
+          autoNotifyTutor: true,
+          scanFrequency: "daily",
+          isActive: true,
+          updatedAt: new Date()
+        };
+      }
+      res.json(settings);
+    } catch (error) {
+      console.error("[Academic Quality Agent] Error fetching settings:", error);
+      res.status(500).json({ error: "Failed to fetch settings" });
+    }
+  });
+
+  // Update academic quality settings
+  app.put("/api/academic-quality/settings", requireAdminRole, async (req: any, res) => {
+    try {
+      const settingsSchema = z.object({
+        autonomyLevel: z.number().min(1).max(3).optional(),
+        masteryThreshold: z.number().min(0).max(100).optional(),
+        engagementThreshold: z.number().min(0).max(100).optional(),
+        progressDeclineThreshold: z.number().min(0).max(100).optional(),
+        inactivityDays: z.number().min(1).max(90).optional(),
+        autoNotifyParent: z.boolean().optional(),
+        autoNotifyTutor: z.boolean().optional(),
+        scanFrequency: z.enum(["daily", "weekly"]).optional(),
+        isActive: z.boolean().optional()
+      });
+
+      const parsed = settingsSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid settings data", details: parsed.error.errors });
+      }
+
+      const settings = await tutoringStorage.upsertAcademicQualitySettings(parsed.data);
+      res.json(settings);
+    } catch (error) {
+      console.error("[Academic Quality Agent] Error updating settings:", error);
+      res.status(500).json({ error: "Failed to update settings" });
+    }
+  });
+
   // Tutoring-specific routes
   // Get student profile
   app.get("/api/profile", async (req: any, res) => {
