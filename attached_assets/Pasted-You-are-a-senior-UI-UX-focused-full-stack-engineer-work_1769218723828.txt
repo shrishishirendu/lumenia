@@ -1,0 +1,80 @@
+You are a senior UI/UX-focused full-stack engineer working inside my existing learning platform. I have a Student Page (home/dashboard) that is currently calm, clean, and information-rich, but it lacks a strong “Today anchor” and feels guidance-light. Your job is to improve engagement with minimal, MVP-safe UI changes. Do NOT redesign the whole page.
+
+GOAL (MVP):
+Make the student page feel like a mentor: “Here is what you should do now,” while keeping the existing calm, professional look.
+
+CONSTRAINTS:
+- Do NOT break existing routes, logic, components, or data models.
+- Keep changes incremental and reversible.
+- No heavy new dependencies; reuse current UI system/components.
+- No gamification features in this change (no jungle/garden yet).
+- All buttons must have working behavior or show a clear toast/modal (no silent clicks).
+- Keep accessibility: good contrast, visible focus rings, keyboard navigation.
+
+WHAT TO BUILD / CHANGE:
+
+1) Add a “Today’s Focus” primary strip (highest priority)
+- At the very top of the Student Page, above everything else, add a prominent but calm card/strip labeled:
+  “Today’s Focus”
+- The strip should contain:
+  - One concept/topic (pulled from existing “next lesson” / “recommended” / “current module” data; if not available, use a safe placeholder like “Continue: Current Topic”).
+  - One expected outcome line (e.g., “Goal: Solve 5 problems without hints” or “Goal: Understand ___ in 20 minutes”).
+  - One primary CTA button: “Start today’s session”
+- Clicking the CTA should route to the existing next activity/lesson. If that destination is not wired yet, show a toast:
+  “Today’s session flow is coming next — for now, continue with your last activity.”
+  and route to the last activity if available.
+
+2) Add a “Last Improvement Noticed” micro-summary (human sentence)
+- Near the Today’s Focus strip (below or inside it), add a single sentence:
+  “Last improvement noticed: ____”
+- Generate this from existing progress data if available. If data is limited, use a rules-based fallback:
+  - If accuracy improved: “You’re getting more accurate on ____.”
+  - If consistency improved: “Great consistency this week — keep the rhythm.”
+  - Else: “You’re building momentum — let’s take the next step.”
+- This must be a sentence, not a chart or raw percentage.
+
+3) De-emphasize secondary sections visually (without removing them)
+- Keep all existing sections/cards, but reduce their visual dominance so “Today’s Focus” clearly leads.
+- Apply:
+  - Slightly lighter borders/backgrounds for secondary cards
+  - Smaller headings for secondary areas
+  - More spacing between major blocks, less between items within a block
+- The page should read in order:
+  Today’s Focus → Improvement sentence → Next best actions → Everything else
+
+4) Add “Session Closure” feedback (small but powerful)
+- After completing a session (or when the student returns from an activity), show a small “Well done” closure card/toast:
+  - “You handled ____ better today.”
+  - “That was challenging — and you stayed with it.”
+- If you don’t have a completion event yet, implement a simple MVP mechanism:
+  - When “Start today’s session” is clicked, store a flag in localStorage.
+  - On return to Student Page, show the closure card once, then clear the flag.
+- Keep tone calm and earned (no overhype).
+
+5) Copy & tone adjustments (subtle)
+- Avoid harsh/urgent language.
+- Replace “missed” or “failed” words with:
+  “paused”, “continue”, “restart gently”.
+- Ensure headings are short and friendly.
+
+6) Optional small improvements (only if quick)
+- Add a compact “What’s next” list (2 items max) below Today’s Focus:
+  - Next session suggestion
+  - Review suggestion
+- Do not add more than 2 items to avoid overwhelm.
+
+IMPLEMENTATION NOTES:
+- Prefer using existing layout components (Card, Badge, Button) and existing CSS/tokens.
+- If the Student Page has a grid, place Today’s Focus full-width on top.
+- Ensure responsive behavior: on mobile, Today’s Focus remains first and full-width.
+- Add basic unit tests only if the repo already has a test setup; otherwise skip tests for MVP.
+
+DELIVERABLES:
+- Provide the file tree of modified/new files.
+- Summarize the changes in 8–10 bullets.
+- Provide quick manual test steps in Replit:
+  1) open Student Page
+  2) click Start today’s session
+  3) verify navigation or toast fallback
+  4) return to Student Page and see closure message once
+  5) verify secondary sections are visually quieter

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -8,6 +8,7 @@ import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { useToast } from "@/hooks/use-toast";
 import { 
   Zap, 
   Play, 
@@ -22,7 +23,11 @@ import {
   Calculator,
   PenTool,
   Settings,
-  GraduationCap
+  GraduationCap,
+  Sparkles,
+  TrendingUp,
+  CheckCircle,
+  ChevronRight
 } from "lucide-react";
 import {
   Select,
@@ -33,6 +38,7 @@ import {
 } from "@/components/ui/select";
 import { type YearLevel } from "@shared/curriculum";
 import { apiRequest } from "@/lib/queryClient";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface StudentMemoryData {
   lastSubject: string | null;
@@ -42,6 +48,9 @@ interface StudentMemoryData {
   dailyGoalMinutes: number;
   todayMinutesCompleted: number;
   yearLevel: YearLevel;
+  lastAccuracy?: number;
+  previousAccuracy?: number;
+  problemsCorrectToday?: number;
 }
 
 interface DashboardData {
@@ -50,14 +59,60 @@ interface DashboardData {
   nextSession: { subject: string; topic: string; scheduledAt: string } | null;
 }
 
+const SESSION_FLAG_KEY = "lumenia_session_started";
+const CLOSURE_SHOWN_KEY = "lumenia_closure_shown";
+
+function getImprovementSentence(memory: StudentMemoryData | null): string {
+  if (!memory) {
+    return "You're building momentum — let's take the next step.";
+  }
+
+  const { lastAccuracy, previousAccuracy, streakCount, problemsCorrectToday } = memory;
+
+  if (lastAccuracy && previousAccuracy && lastAccuracy > previousAccuracy) {
+    const topic = memory.lastTopicName || "recent topics";
+    return `You're getting more accurate on ${topic}.`;
+  }
+
+  if (streakCount >= 3) {
+    return "Great consistency this week — keep the rhythm going.";
+  }
+
+  if (problemsCorrectToday && problemsCorrectToday > 5) {
+    return `Nice work today — you've solved ${problemsCorrectToday} problems correctly.`;
+  }
+
+  if (streakCount > 0) {
+    return `You're on day ${streakCount} of your learning streak — keep going!`;
+  }
+
+  return "You're building momentum — let's take the next step.";
+}
+
+function getClosureMessage(memory: StudentMemoryData | null): string {
+  const topic = memory?.lastTopicName || "that topic";
+  
+  const messages = [
+    `You handled ${topic} better today.`,
+    "That was challenging — and you stayed with it.",
+    "Good effort today. Every session counts.",
+    "You showed up and did the work. That's what matters."
+  ];
+  
+  return messages[Math.floor(Math.random() * messages.length)];
+}
+
 export default function StudentToday() {
   const [, setLocation] = useLocation();
+  const { toast } = useToast();
   const queryClient = useQueryClient();
   const [quickHelpInput, setQuickHelpInput] = useState("");
   const [quickHelpSubject, setQuickHelpSubject] = useState<"math" | "english">("math");
   const [showGoalDialog, setShowGoalDialog] = useState(false);
   const [newGoalMinutes, setNewGoalMinutes] = useState("15");
   const [selectedYear, setSelectedYear] = useState<YearLevel>(7);
+  const [showClosure, setShowClosure] = useState(false);
+  const [closureMessage, setClosureMessage] = useState("");
   const yearLevels: YearLevel[] = [6, 7, 8, 9, 10, 11, 12];
 
   const { data: dashboardData, isLoading } = useQuery<DashboardData>({
@@ -76,12 +131,51 @@ export default function StudentToday() {
   const progressPercent = Math.min((todayMinutesCompleted / dailyGoalMinutes) * 100, 100);
   const minutesRemaining = Math.max(dailyGoalMinutes - todayMinutesCompleted, 0);
 
+  useEffect(() => {
+    const sessionStarted = localStorage.getItem(SESSION_FLAG_KEY);
+    const closureShown = localStorage.getItem(CLOSURE_SHOWN_KEY);
+    
+    if (sessionStarted && !closureShown) {
+      setClosureMessage(getClosureMessage(memory ?? null));
+      setShowClosure(true);
+      localStorage.removeItem(SESSION_FLAG_KEY);
+      localStorage.setItem(CLOSURE_SHOWN_KEY, "true");
+      
+      setTimeout(() => {
+        setShowClosure(false);
+        localStorage.removeItem(CLOSURE_SHOWN_KEY);
+      }, 5000);
+    }
+  }, [memory]);
+
+  const handleStartTodaysSession = () => {
+    localStorage.setItem(SESSION_FLAG_KEY, "true");
+    localStorage.removeItem(CLOSURE_SHOWN_KEY);
+    
+    const subject = memory?.lastSubject || "math";
+    const topic = memory?.lastTopicId;
+    
+    if (topic) {
+      setLocation(`/student/session/${subject}/${topic}?year=${selectedYear}`);
+    } else {
+      toast({
+        title: "Session flow coming soon",
+        description: "For now, continue with your last activity or try a warm-up.",
+      });
+      setLocation(`/student/session/${subject}/warmup?year=${selectedYear}`);
+    }
+  };
+
   const handleStartWarmup = () => {
+    localStorage.setItem(SESSION_FLAG_KEY, "true");
+    localStorage.removeItem(CLOSURE_SHOWN_KEY);
     const subject = memory?.lastSubject || "math";
     setLocation(`/student/session/${subject}/warmup?year=${selectedYear}`);
   };
 
   const handleContinueLearning = () => {
+    localStorage.setItem(SESSION_FLAG_KEY, "true");
+    localStorage.removeItem(CLOSURE_SHOWN_KEY);
     const subject = memory?.lastSubject || "math";
     const topic = memory?.lastTopicId || "linear_equations";
     setLocation(`/student/session/${subject}/${topic}?year=${selectedYear}`);
@@ -124,98 +218,131 @@ export default function StudentToday() {
     );
   }
 
+  const currentTopic = memory?.lastTopicName || "Continue your learning";
+  const currentSubject = memory?.lastSubject || "math";
+  const improvementSentence = getImprovementSentence(memory ?? null);
+
   return (
-    <div className="max-w-4xl mx-auto p-6 space-y-6" data-testid="student-today-page">
-      <div className="text-center mb-8">
-        <div className="flex justify-center items-center gap-3 mb-4">
-          <h1 className="text-3xl font-bold text-foreground">Welcome back!</h1>
-          <div className="flex items-center gap-2 bg-muted rounded-lg px-3 py-1">
-            <GraduationCap className="h-4 w-4 text-muted-foreground" />
-            <Select 
-              value={selectedYear.toString()} 
-              onValueChange={(val) => setSelectedYear(parseInt(val) as YearLevel)}
-            >
-              <SelectTrigger className="w-24 h-8 border-0 bg-transparent" data-testid="year-selector">
-                <SelectValue placeholder="Year" />
-              </SelectTrigger>
-              <SelectContent>
-                {yearLevels.map((year) => (
-                  <SelectItem key={year} value={year.toString()}>
-                    Year {year}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+    <div className="max-w-4xl mx-auto p-4 sm:p-6 space-y-6" data-testid="student-today-page">
+      <AnimatePresence>
+        {showClosure && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-emerald-50 border border-emerald-200 rounded-xl px-6 py-4 shadow-lg flex items-center gap-3"
+            data-testid="closure-message"
+          >
+            <CheckCircle className="w-5 h-5 text-emerald-600" />
+            <span className="text-emerald-800 font-medium">{closureMessage}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <motion.div 
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border-2 border-primary/20 rounded-2xl p-6 shadow-sm"
+        data-testid="todays-focus-card"
+      >
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-primary" />
+              <h2 className="text-lg font-semibold text-foreground">Today's Focus</h2>
+              <div className="flex items-center gap-2 ml-2 bg-muted rounded-lg px-2 py-0.5">
+                <GraduationCap className="h-3 w-3 text-muted-foreground" />
+                <Select 
+                  value={selectedYear.toString()} 
+                  onValueChange={(val) => setSelectedYear(parseInt(val) as YearLevel)}
+                >
+                  <SelectTrigger className="w-20 h-7 border-0 bg-transparent text-xs" data-testid="year-selector">
+                    <SelectValue placeholder="Year" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {yearLevels.map((year) => (
+                      <SelectItem key={year} value={year.toString()}>
+                        Year {year}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            
+            <div className="space-y-1">
+              <p className="text-xl font-medium text-foreground capitalize">
+                {currentSubject}: {currentTopic}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Goal: Complete a focused session and build understanding
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2 text-sm">
+              <TrendingUp className="w-4 h-4 text-emerald-600" />
+              <span className="text-muted-foreground">{improvementSentence}</span>
+            </div>
           </div>
+
+          <Button 
+            size="lg"
+            onClick={handleStartTodaysSession}
+            className="sm:self-center gap-2 shadow-md"
+            data-testid="start-today-session-btn"
+          >
+            <Play className="w-4 h-4" />
+            Start today's session
+          </Button>
         </div>
-        <p className="text-muted-foreground">
-          {streakCount > 0 
-            ? `You're on a ${streakCount}-day streak! Keep it going.`
-            : "Ready to learn something new today?"}
-        </p>
+      </motion.div>
+
+      <div className="bg-muted/30 rounded-xl p-4 border border-muted">
+        <h3 className="text-sm font-medium text-muted-foreground mb-3 flex items-center gap-2">
+          <ChevronRight className="w-4 h-4" />
+          What's next
+        </h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <button 
+            onClick={handleStartWarmup}
+            className="flex items-center gap-3 p-3 rounded-lg bg-white border border-muted hover:border-primary/30 transition-colors text-left group"
+            data-testid="whats-next-warmup"
+          >
+            <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center group-hover:bg-amber-200 transition-colors">
+              <Zap className="h-4 w-4 text-amber-600" />
+            </div>
+            <div>
+              <p className="text-sm font-medium">Quick warm-up</p>
+              <p className="text-xs text-muted-foreground">2-3 min review</p>
+            </div>
+          </button>
+          
+          <button 
+            onClick={handleContinueLearning}
+            className="flex items-center gap-3 p-3 rounded-lg bg-white border border-muted hover:border-primary/30 transition-colors text-left group"
+            data-testid="whats-next-continue"
+          >
+            <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center group-hover:bg-blue-200 transition-colors">
+              <BookOpen className="h-4 w-4 text-blue-600" />
+            </div>
+            <div>
+              <p className="text-sm font-medium">Resume learning</p>
+              <p className="text-xs text-muted-foreground capitalize">{currentSubject}</p>
+            </div>
+          </button>
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        <Card className="border-2 border-amber-200 bg-amber-50/50 hover:shadow-lg transition-shadow cursor-pointer" onClick={handleStartWarmup} data-testid="warmup-card">
+        <Card className="border border-purple-100 bg-purple-50/30 hover:shadow-sm transition-shadow" data-testid="quick-help-card">
           <CardHeader className="pb-2">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-amber-500 flex items-center justify-center">
-                <Zap className="h-5 w-5 text-white" />
+              <div className="w-9 h-9 rounded-lg bg-purple-500 flex items-center justify-center">
+                <HelpCircle className="h-4 w-4 text-white" />
               </div>
               <div>
-                <CardTitle className="text-lg">Warm-up Quiz</CardTitle>
-                <CardDescription>2-3 min</CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground mb-3">
-              Quick review of concepts from your last session
-            </p>
-            <Button className="w-full bg-amber-500 hover:bg-amber-600" data-testid="start-warmup-btn">
-              <Zap className="mr-2 h-4 w-4" />
-              Start Warm-up
-            </Button>
-          </CardContent>
-        </Card>
-
-        <Card className="border-2 border-blue-200 bg-blue-50/50 hover:shadow-lg transition-shadow cursor-pointer" onClick={handleContinueLearning} data-testid="continue-card">
-          <CardHeader className="pb-2">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-blue-500 flex items-center justify-center">
-                <Play className="h-5 w-5 text-white" />
-              </div>
-              <div>
-                <CardTitle className="text-lg">Continue Learning</CardTitle>
-                <CardDescription>
-                  {memory?.lastTopicName || "Start a new topic"}
-                </CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-2 mb-3">
-              <BookOpen className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm text-muted-foreground capitalize">
-                {memory?.lastSubject || "Mathematics"}
-              </span>
-            </div>
-            <Button className="w-full bg-blue-500 hover:bg-blue-600" data-testid="continue-btn">
-              <ArrowRight className="mr-2 h-4 w-4" />
-              Resume Session
-            </Button>
-          </CardContent>
-        </Card>
-
-        <Card className="border-2 border-purple-200 bg-purple-50/50" data-testid="quick-help-card">
-          <CardHeader className="pb-2">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-purple-500 flex items-center justify-center">
-                <HelpCircle className="h-5 w-5 text-white" />
-              </div>
-              <div>
-                <CardTitle className="text-lg">Ask Mentora</CardTitle>
-                <CardDescription>Get help anytime you need it</CardDescription>
+                <CardTitle className="text-base">Ask Mentora</CardTitle>
+                <CardDescription className="text-xs">Get help anytime</CardDescription>
               </div>
             </div>
           </CardHeader>
@@ -225,20 +352,20 @@ export default function StudentToday() {
                 variant={quickHelpSubject === "math" ? "default" : "outline"}
                 size="sm"
                 onClick={() => setQuickHelpSubject("math")}
-                className={quickHelpSubject === "math" ? "bg-purple-500 hover:bg-purple-600" : ""}
+                className={`text-xs ${quickHelpSubject === "math" ? "bg-purple-500 hover:bg-purple-600" : ""}`}
                 data-testid="quick-help-math-btn"
               >
-                <Calculator className="h-4 w-4 mr-1" />
+                <Calculator className="h-3 w-3 mr-1" />
                 Maths
               </Button>
               <Button
                 variant={quickHelpSubject === "english" ? "default" : "outline"}
                 size="sm"
                 onClick={() => setQuickHelpSubject("english")}
-                className={quickHelpSubject === "english" ? "bg-purple-500 hover:bg-purple-600" : ""}
+                className={`text-xs ${quickHelpSubject === "english" ? "bg-purple-500 hover:bg-purple-600" : ""}`}
                 data-testid="quick-help-english-btn"
               >
-                <PenTool className="h-4 w-4 mr-1" />
+                <PenTool className="h-3 w-3 mr-1" />
                 English
               </Button>
             </div>
@@ -248,33 +375,33 @@ export default function StudentToday() {
                 value={quickHelpInput}
                 onChange={(e) => setQuickHelpInput(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleQuickHelp()}
-                className="flex-1"
+                className="flex-1 text-sm"
                 data-testid="quick-help-input"
               />
-              <Button onClick={handleQuickHelp} className="bg-purple-500 hover:bg-purple-600" data-testid="quick-help-btn">
+              <Button onClick={handleQuickHelp} size="sm" className="bg-purple-500 hover:bg-purple-600" data-testid="quick-help-btn">
                 <Send className="h-4 w-4" />
               </Button>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-2 border-green-200 bg-green-50/50" data-testid="daily-goal-card">
+        <Card className="border border-green-100 bg-green-50/30" data-testid="daily-goal-card">
           <CardHeader className="pb-2">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-green-500 flex items-center justify-center">
-                <Target className="h-5 w-5 text-white" />
+              <div className="w-9 h-9 rounded-lg bg-green-500 flex items-center justify-center">
+                <Target className="h-4 w-4 text-white" />
               </div>
               <div className="flex-1">
-                <CardTitle className="text-lg">Daily Goal</CardTitle>
-                <CardDescription className="flex items-center gap-2">
-                  <Flame className={`h-4 w-4 ${streakCount > 0 ? "text-orange-500" : "text-muted-foreground"}`} />
+                <CardTitle className="text-base">Daily Goal</CardTitle>
+                <CardDescription className="flex items-center gap-2 text-xs">
+                  <Flame className={`h-3 w-3 ${streakCount > 0 ? "text-orange-500" : "text-muted-foreground"}`} />
                   {streakCount > 0 ? `${streakCount} day streak` : "Start your streak!"}
                 </CardDescription>
               </div>
               <Button 
                 variant="ghost" 
                 size="icon" 
-                className="h-8 w-8"
+                className="h-7 w-7"
                 onClick={() => {
                   setNewGoalMinutes(dailyGoalMinutes.toString());
                   setShowGoalDialog(true);
@@ -288,14 +415,14 @@ export default function StudentToday() {
           <CardContent>
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">{todayMinutesCompleted} / {dailyGoalMinutes} minutes</span>
+                <span className="text-muted-foreground">{todayMinutesCompleted} / {dailyGoalMinutes} min</span>
                 <span className="font-medium">{Math.round(progressPercent)}%</span>
               </div>
               <Progress value={progressPercent} className="h-2" />
               {minutesRemaining > 0 ? (
                 <p className="text-xs text-muted-foreground flex items-center gap-1">
                   <Clock className="h-3 w-3" />
-                  {minutesRemaining} minutes away from today's goal
+                  {minutesRemaining} minutes to reach today's goal
                 </p>
               ) : (
                 <p className="text-xs text-green-600 font-medium">
@@ -307,18 +434,18 @@ export default function StudentToday() {
         </Card>
       </div>
 
-      <Card className="border border-slate-200" data-testid="next-session-card">
+      <Card className="border border-slate-100 bg-slate-50/30" data-testid="next-session-card">
         <CardHeader className="pb-2">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-slate-500 flex items-center justify-center">
-              <Calendar className="h-5 w-5 text-white" />
+            <div className="w-9 h-9 rounded-lg bg-slate-400 flex items-center justify-center">
+              <Calendar className="h-4 w-4 text-white" />
             </div>
             <div>
-              <CardTitle className="text-lg">Next Scheduled Session</CardTitle>
-              <CardDescription>
+              <CardTitle className="text-base">Upcoming Session</CardTitle>
+              <CardDescription className="text-xs">
                 {dashboardData?.nextSession 
                   ? `${dashboardData.nextSession.subject} - ${dashboardData.nextSession.topic}`
-                  : "No session booked"}
+                  : "No session scheduled"}
               </CardDescription>
             </div>
           </div>
@@ -329,7 +456,7 @@ export default function StudentToday() {
               Scheduled for {new Date(dashboardData.nextSession.scheduledAt).toLocaleDateString()}
             </p>
           ) : (
-            <Button variant="outline" onClick={handleBookSession} className="w-full" data-testid="book-session-btn">
+            <Button variant="outline" size="sm" onClick={handleBookSession} className="w-full" data-testid="book-session-btn">
               <Calendar className="mr-2 h-4 w-4" />
               Book a Session
             </Button>
