@@ -33,22 +33,22 @@ const roleContent: Record<AudienceRole, { subheading: string; ctaText: string; c
   parent: {
     subheading: "Guided learning with Mentora—built for Australian students, with parents in control.",
     ctaText: "Start as a Parent",
-    ctaRoute: "/signup?role=parent"
+    ctaRoute: "/login?role=parent"
   },
   student: {
     subheading: "Learn with Mentora—step-by-step help, practice, and confidence building.",
     ctaText: "Start as a Student",
-    ctaRoute: "/signup?role=student"
+    ctaRoute: "/login?role=student"
   },
   tutor: {
     subheading: "Support learners with structured pathways, notes, and progress visibility.",
     ctaText: "Join as a Tutor",
-    ctaRoute: "/signup?role=tutor"
+    ctaRoute: "/login?role=tutor"
   },
   school: {
     subheading: "A guided learning platform designed for safe, scalable student support.",
     ctaText: "Register School Interest",
-    ctaRoute: "/early-access?role=school"
+    ctaRoute: "/login?role=school"
   }
 };
 
