@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link } from "wouter";
+import { useState, useEffect } from "react";
+import { Link, useLocation, useSearch } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -25,7 +25,38 @@ import {
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 
+type AudienceRole = "parent" | "student" | "tutor" | "school";
+
+const ROLE_STORAGE_KEY = "lumenia_role";
+
+const roleContent: Record<AudienceRole, { subheading: string; ctaText: string; ctaRoute: string }> = {
+  parent: {
+    subheading: "Guided learning with Mentora—built for Australian students, with parents in control.",
+    ctaText: "Start as a Parent",
+    ctaRoute: "/signup?role=parent"
+  },
+  student: {
+    subheading: "Learn with Mentora—step-by-step help, practice, and confidence building.",
+    ctaText: "Start as a Student",
+    ctaRoute: "/signup?role=student"
+  },
+  tutor: {
+    subheading: "Support learners with structured pathways, notes, and progress visibility.",
+    ctaText: "Join as a Tutor",
+    ctaRoute: "/signup?role=tutor"
+  },
+  school: {
+    subheading: "A guided learning platform designed for safe, scalable student support.",
+    ctaText: "Register School Interest",
+    ctaRoute: "/early-access?role=school"
+  }
+};
+
 export default function PublicLanding() {
+  const [, setLocation] = useLocation();
+  const searchString = useSearch();
+  const [selectedRole, setSelectedRole] = useState<AudienceRole>("parent");
+  
   const [formData, setFormData] = useState({
     parentName: "",
     email: "",
@@ -33,6 +64,32 @@ export default function PublicLanding() {
     message: ""
   });
   const [submitted, setSubmitted] = useState(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(searchString);
+    const urlRole = params.get("role") as AudienceRole | null;
+    
+    if (urlRole && ["parent", "student", "tutor", "school"].includes(urlRole)) {
+      setSelectedRole(urlRole);
+      localStorage.setItem(ROLE_STORAGE_KEY, urlRole);
+    } else {
+      const storedRole = localStorage.getItem(ROLE_STORAGE_KEY) as AudienceRole | null;
+      if (storedRole && ["parent", "student", "tutor", "school"].includes(storedRole)) {
+        setSelectedRole(storedRole);
+      }
+    }
+  }, [searchString]);
+
+  const handleRoleChange = (role: AudienceRole) => {
+    setSelectedRole(role);
+    localStorage.setItem(ROLE_STORAGE_KEY, role);
+    
+    const url = new URL(window.location.href);
+    url.searchParams.set("role", role);
+    window.history.replaceState({}, "", url.toString());
+  };
+
+  const currentContent = roleContent[selectedRole];
 
   const leadMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
@@ -107,19 +164,40 @@ export default function PublicLanding() {
             Lumenia
           </h1>
           
-          <p className="text-xl md:text-2xl text-muted-foreground max-w-2xl mx-auto mb-10 leading-relaxed">
-            Guided learning for Years 6–12 — calm, personal, effective.
+          <div className="flex items-center justify-center gap-3 mb-6" data-testid="role-selector">
+            <span className="text-sm text-muted-foreground">I'm a:</span>
+            <div className="flex gap-2">
+              {(["parent", "student", "tutor", "school"] as const).map((role) => (
+                <button
+                  key={role}
+                  onClick={() => handleRoleChange(role)}
+                  className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${
+                    selectedRole === role
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "bg-slate-100 text-muted-foreground hover:bg-slate-200"
+                  }`}
+                  data-testid={`role-btn-${role}`}
+                >
+                  {role.charAt(0).toUpperCase() + role.slice(1)}
+                </button>
+              ))}
+            </div>
+          </div>
+          
+          <p className="text-xl md:text-2xl text-muted-foreground max-w-2xl mx-auto mb-10 leading-relaxed" data-testid="hero-subheading">
+            {currentContent.subheading}
           </p>
           
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button 
-              size="lg" 
-              className="text-lg px-8 h-14 rounded-full shadow-lg"
-              onClick={() => scrollToSection("early-access")}
-              data-testid="cta-early-access"
-            >
-              Request early access
-            </Button>
+            <Link href={currentContent.ctaRoute}>
+              <Button 
+                size="lg" 
+                className="text-lg px-8 h-14 rounded-full shadow-lg"
+                data-testid="cta-primary"
+              >
+                {currentContent.ctaText}
+              </Button>
+            </Link>
             <Button 
               size="lg" 
               variant="outline" 
