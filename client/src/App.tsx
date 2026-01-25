@@ -21,6 +21,7 @@ import Onboarding from "@/pages/Onboarding";
 import PathwayNaplan from "@/pages/pathways/PathwayNaplan";
 import PathwaySelective from "@/pages/pathways/PathwaySelective";
 import PathwayAtar from "@/pages/pathways/PathwayAtar";
+import SchoolComingSoon from "@/pages/SchoolComingSoon";
 
 import Classroom from "@/pages/Classroom";
 import StudentDashboard from "@/pages/StudentDashboard";
@@ -226,6 +227,7 @@ function Router() {
       <Route path="/pathways/naplan" component={PathwayNaplan} />
       <Route path="/pathways/selective" component={PathwaySelective} />
       <Route path="/pathways/atar" component={PathwayAtar} />
+      <Route path="/school" component={SchoolComingSoon} />
       
       <Route path="/student" component={StudentHomePage} />
       <Route path="/student/today" component={StudentHomePage} />
