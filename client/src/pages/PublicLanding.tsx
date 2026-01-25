@@ -16,7 +16,11 @@ import {
   Heart,
   ChevronDown,
   CheckCircle,
-  Loader2
+  Loader2,
+  ArrowRight,
+  FileText,
+  Brain,
+  Target
 } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -229,6 +233,80 @@ export default function PublicLanding() {
           <p className="text-muted-foreground">
             More subjects coming soon — Science, History, and more.
           </p>
+        </div>
+      </section>
+
+      {/* Australian Learning Pathways */}
+      <section id="pathways" className="py-24 px-6 bg-gradient-to-b from-slate-50 to-white">
+        <div className="max-w-6xl mx-auto">
+          <h2 className="text-3xl md:text-4xl font-serif font-bold text-center mb-4">
+            Australian Learning Pathways
+          </h2>
+          <p className="text-lg text-muted-foreground text-center mb-12 max-w-2xl mx-auto">
+            Structured support for key milestones in your child's education.
+          </p>
+          
+          <div className="grid md:grid-cols-3 gap-6">
+            <Card className="border-2 hover:border-primary/30 transition-all hover:shadow-lg group" data-testid="pathway-card-naplan">
+              <CardHeader className="pb-3">
+                <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center mb-3">
+                  <FileText className="h-6 w-6 text-blue-600" />
+                </div>
+                <CardTitle className="text-xl">NAPLAN (Years 3, 5, 7, 9)</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-muted-foreground text-sm">
+                  Build strong literacy and numeracy with Australian-style practice.
+                </p>
+                <Link href="/pathways/naplan">
+                  <Button variant="outline" className="w-full group-hover:bg-primary group-hover:text-primary-foreground transition-colors" data-testid="pathway-btn-naplan">
+                    Learn more
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </Link>
+              </CardContent>
+            </Card>
+            
+            <Card className="border-2 hover:border-primary/30 transition-all hover:shadow-lg group" data-testid="pathway-card-selective">
+              <CardHeader className="pb-3">
+                <div className="w-12 h-12 rounded-xl bg-purple-100 flex items-center justify-center mb-3">
+                  <Brain className="h-6 w-6 text-purple-600" />
+                </div>
+                <CardTitle className="text-xl">Selective Readiness (Years 4–6)</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-muted-foreground text-sm">
+                  Reasoning, comprehension, and timed practice — guided, not pressured.
+                </p>
+                <Link href="/pathways/selective">
+                  <Button variant="outline" className="w-full group-hover:bg-primary group-hover:text-primary-foreground transition-colors" data-testid="pathway-btn-selective">
+                    Learn more
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </Link>
+              </CardContent>
+            </Card>
+            
+            <Card className="border-2 hover:border-primary/30 transition-all hover:shadow-lg group" data-testid="pathway-card-atar">
+              <CardHeader className="pb-3">
+                <div className="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center mb-3">
+                  <Target className="h-6 w-6 text-amber-600" />
+                </div>
+                <CardTitle className="text-xl">Senior Years (Year 11–12, ATAR)</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-muted-foreground text-sm">
+                  ATAR-focused learning journey (more subjects coming).
+                </p>
+                <Link href="/pathways/atar">
+                  <Button variant="outline" className="w-full group-hover:bg-primary group-hover:text-primary-foreground transition-colors" data-testid="pathway-btn-atar">
+                    Learn more
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </Link>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </section>
 

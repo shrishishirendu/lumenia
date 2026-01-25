@@ -18,6 +18,9 @@ import Login from "@/pages/Login";
 import Logout from "@/pages/Logout";
 import Unauthorized from "@/pages/Unauthorized";
 import Onboarding from "@/pages/Onboarding";
+import PathwayNaplan from "@/pages/pathways/PathwayNaplan";
+import PathwaySelective from "@/pages/pathways/PathwaySelective";
+import PathwayAtar from "@/pages/pathways/PathwayAtar";
 
 import Classroom from "@/pages/Classroom";
 import StudentDashboard from "@/pages/StudentDashboard";
@@ -219,6 +222,10 @@ function Router() {
       <Route path="/logout" component={Logout} />
       <Route path="/unauthorized" component={Unauthorized} />
       <Route path="/onboarding" component={Onboarding} />
+      
+      <Route path="/pathways/naplan" component={PathwayNaplan} />
+      <Route path="/pathways/selective" component={PathwaySelective} />
+      <Route path="/pathways/atar" component={PathwayAtar} />
       
       <Route path="/student" component={StudentHomePage} />
       <Route path="/student/today" component={StudentHomePage} />
