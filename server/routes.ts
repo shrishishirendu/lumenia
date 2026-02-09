@@ -1074,6 +1074,13 @@ export async function registerRoutes(
         }
       }
 
+      // Get student year level for AI context
+      let yearLevel: number | undefined;
+      try {
+        const studentProfile = await tutoringStorage.getProfileById(session.studentId);
+        yearLevel = studentProfile?.grade ?? undefined;
+      } catch {}
+
       // Generate AI response using selected teaching style
       const { generateTutoringResponse } = await import("./ai-tutor");
       const response = await generateTutoringResponse(
@@ -1082,7 +1089,8 @@ export async function registerRoutes(
         session.topic,
         wolframAnswer,
         subject,
-        teachingStyle || "socratic"
+        teachingStyle || "socratic",
+        yearLevel
       );
 
       // Store AI response (without the internal WolframAlpha note)
@@ -1903,6 +1911,84 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error fetching progress:", error);
       res.status(500).json({ error: "Failed to fetch progress" });
+    }
+  });
+
+  // Get active subjects with student's teaching plan status
+  app.get("/api/student/subjects", async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+
+      const profile = await tutoringStorage.getProfileByUserId(userId);
+      if (!profile) return res.status(404).json({ error: "Profile not found" });
+
+      const allSubjects = await tutoringStorage.getAllSubjects();
+      const plans = await tutoringStorage.getTeachingPlansByStudent(profile.id);
+
+      const subjectsWithPlans = allSubjects.map((s) => {
+        const plan = plans.find((p) => p.subjectId === s.id);
+        return {
+          ...s,
+          hasTeachingPlan: !!plan,
+          teachingPlanId: plan?.id ?? null,
+          currentTopicId: plan?.currentTopicId ?? null,
+        };
+      });
+
+      res.json({ subjects: subjectsWithPlans, grade: profile.grade });
+    } catch (error) {
+      console.error("Error fetching student subjects:", error);
+      res.status(500).json({ error: "Failed to fetch subjects" });
+    }
+  });
+
+  // Get or create teaching plan for a subject, return curriculum
+  app.get("/api/student/course/:subjectId", async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+
+      const profile = await tutoringStorage.getProfileByUserId(userId);
+      if (!profile) return res.status(404).json({ error: "Profile not found" });
+
+      const subjectId = parseInt(req.params.subjectId);
+      const subject = await tutoringStorage.getSubject(subjectId);
+      if (!subject) return res.status(404).json({ error: "Subject not found" });
+
+      const grade = profile.grade || 7;
+
+      const plans = await tutoringStorage.getTeachingPlansByStudent(profile.id);
+      let plan = plans.find((p) => p.subjectId === subjectId);
+
+      if (!plan) {
+        const topics = await tutoringStorage.getTopicsBySubject(subjectId);
+        const gradeTopic = topics.find((t) => t.gradeLevel === grade) || topics[0];
+        plan = await tutoringStorage.createTeachingPlan({
+          studentId: profile.id,
+          subjectId,
+          currentTopicId: gradeTopic?.id ?? null,
+          targetGrade: grade,
+          status: "active",
+        });
+      }
+
+      const { getCurriculum } = await import("@shared/curriculum");
+      const subjectNameLower = subject.name.toLowerCase();
+      const subjectSlug = (subjectNameLower.includes("math") ? "mathematics" : "english") as "mathematics" | "english";
+      const clampedGrade = Math.min(Math.max(grade, 6), 12);
+      const yearLevel = clampedGrade as 6 | 7 | 8 | 9 | 10 | 11 | 12;
+      let curriculum = null;
+      try {
+        curriculum = getCurriculum(subjectSlug, yearLevel);
+      } catch {
+        // curriculum not available for this combination
+      }
+
+      res.json({ subject, plan, curriculum, grade: yearLevel });
+    } catch (error) {
+      console.error("Error fetching student course:", error);
+      res.status(500).json({ error: "Failed to fetch course" });
     }
   });
 

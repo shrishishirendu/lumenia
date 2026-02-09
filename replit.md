@@ -136,6 +136,15 @@ Preferred communication style: Simple, everyday language.
 - **Storage Pattern**: Interface-based database operations.
 - **Client Path Aliases**: `@/` for `client/src/`, `@shared/` for `shared/`.
 
+### Student Course Navigation (MVP)
+- **My Subjects Page** (`/student/subjects`): Lists active subjects from DB, shows "Continue" if teaching plan exists, "Start" otherwise. Reads student grade from `profiles.grade`.
+- **Course Page** (`/student/course/:subjectId`): Shows curriculum for subject + student year level using `getCurriculum()` from `shared/curriculum.ts`. Units are expandable to reveal lessons. Auto-creates `teaching_plans` record on first visit.
+- **API Routes**:
+    - `GET /api/student/subjects` - Active subjects with teaching plan status
+    - `GET /api/student/course/:subjectId` - Course curriculum + auto-create teaching plan
+- **Navigation**: "My Subjects" link in StudentToday "What's next" section and sidebar nav (BookOpen icon).
+- **AI Year Level**: `generateTutoringResponse()` now accepts optional `yearLevel` parameter; injected as system message "Student grade: Year {n}." for age-appropriate content.
+
 ### Core Features
 - **Curriculum System**: Comprehensive year-level curriculum (Years 6-12) for Mathematics and English, aligned with ACARA.
 - **Student Learning Loop**: Structured learning experience with warmup quizzes, lessons, practice, reflection, and exit tickets.

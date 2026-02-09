@@ -318,16 +318,16 @@ export default function StudentToday() {
           </button>
           
           <button 
-            onClick={handleContinueLearning}
+            onClick={() => setLocation("/student/subjects")}
             className="flex items-center gap-3 p-3 rounded-lg bg-white border border-muted hover:border-primary/30 transition-colors text-left group"
-            data-testid="whats-next-continue"
+            data-testid="whats-next-subjects"
           >
             <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center group-hover:bg-blue-200 transition-colors">
               <BookOpen className="h-4 w-4 text-blue-600" />
             </div>
             <div>
-              <p className="text-sm font-medium">Resume learning</p>
-              <p className="text-xs text-muted-foreground capitalize">{currentSubject}</p>
+              <p className="text-sm font-medium">My Subjects</p>
+              <p className="text-xs text-muted-foreground">Browse courses &amp; units</p>
             </div>
           </button>
         </div>

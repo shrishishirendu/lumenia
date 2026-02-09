@@ -28,6 +28,8 @@ import StudentDashboard from "@/pages/StudentDashboard";
 import StudentToday from "@/pages/student/StudentToday";
 import SessionFlow from "@/pages/student/SessionFlow";
 import Practice from "@/pages/student/Practice";
+import StudentSubjects from "@/pages/student/StudentSubjects";
+import StudentCourse from "@/pages/student/StudentCourse";
 import ParentPortal from "@/pages/ParentPortal";
 import TutorDashboard from "@/pages/TutorDashboard";
 
@@ -88,6 +90,26 @@ function StudentPracticePage() {
     <ProtectedRoute allowedRoles={["student"]}>
       <StudentLayout>
         <Practice />
+      </StudentLayout>
+    </ProtectedRoute>
+  );
+}
+
+function StudentSubjectsPage() {
+  return (
+    <ProtectedRoute allowedRoles={["student"]}>
+      <StudentLayout>
+        <StudentSubjects />
+      </StudentLayout>
+    </ProtectedRoute>
+  );
+}
+
+function StudentCoursePage() {
+  return (
+    <ProtectedRoute allowedRoles={["student"]}>
+      <StudentLayout>
+        <StudentCourse />
       </StudentLayout>
     </ProtectedRoute>
   );
@@ -232,6 +254,8 @@ function Router() {
       <Route path="/student" component={StudentHomePage} />
       <Route path="/student/today" component={StudentHomePage} />
       <Route path="/student/classroom" component={StudentClassroomPage} />
+      <Route path="/student/subjects" component={StudentSubjectsPage} />
+      <Route path="/student/course/:subject" component={StudentCoursePage} />
       <Route path="/student/practice" component={StudentPracticePage} />
       <Route path="/student/session/:subject/:topic" component={StudentSessionPage} />
       

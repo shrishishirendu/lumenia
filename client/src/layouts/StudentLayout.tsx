@@ -28,11 +28,23 @@ export function StudentLayout({ children }: StudentLayoutProps) {
             <Button 
               variant="ghost" 
               size="icon" 
-              className={`w-full h-12 rounded-xl transition-all ${isActive('/student') && !isActive('/student/classroom') ? 'bg-blue-100 text-blue-600' : 'text-muted-foreground hover:bg-muted'}`}
+              className={`w-full h-12 rounded-xl transition-all ${isActive('/student') && !isActive('/student/classroom') && !isActive('/student/subjects') && !isActive('/student/course') ? 'bg-blue-100 text-blue-600' : 'text-muted-foreground hover:bg-muted'}`}
               data-testid="nav-my-learning"
               title="My Learning"
             >
               <Home className="w-5 h-5" />
+            </Button>
+          </Link>
+
+          <Link href="/student/subjects">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className={`w-full h-12 rounded-xl transition-all ${isActive('/student/subjects') || isActive('/student/course') ? 'bg-blue-100 text-blue-600' : 'text-muted-foreground hover:bg-muted'}`}
+              data-testid="nav-subjects"
+              title="My Subjects"
+            >
+              <BookOpen className="w-5 h-5" />
             </Button>
           </Link>
           
@@ -45,18 +57,6 @@ export function StudentLayout({ children }: StudentLayoutProps) {
               title="Classroom"
             >
               <GraduationCap className="w-5 h-5" />
-            </Button>
-          </Link>
-          
-          <Link href="/student/practice">
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className={`w-full h-12 rounded-xl transition-all ${isActive('/student/practice') ? 'bg-blue-100 text-blue-600' : 'text-muted-foreground hover:bg-muted'}`}
-              data-testid="nav-practice"
-              title="Practice"
-            >
-              <BookOpen className="w-5 h-5" />
             </Button>
           </Link>
         </div>

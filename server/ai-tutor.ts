@@ -131,7 +131,8 @@ export async function generateTutoringResponse(
   topic?: string,
   wolframAnswer?: string,
   subject: string = "math",
-  teachingStyle: TeachingStyle = "socratic"
+  teachingStyle: TeachingStyle = "socratic",
+  yearLevel?: number
 ): Promise<string> {
   const systemPrompt = getSystemPrompt(subject, teachingStyle);
   
@@ -143,6 +144,13 @@ export async function generateTutoringResponse(
     })),
     { role: "user", content: currentQuestion }
   ];
+
+  if (yearLevel) {
+    messages.splice(1, 0, {
+      role: "system",
+      content: `Student grade: Year ${yearLevel}. Keep content, vocabulary and difficulty appropriate for this year level.`
+    });
+  }
 
   if (topic) {
     messages.splice(1, 0, {

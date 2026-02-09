@@ -1,0 +1,142 @@
+1. Routing & Pages
+Main routes:
+
+Route	Page	Access
+/	PublicLanding (hero, pathways, early access form)	Public
+/login	Login (Replit OIDC)	Public
+/logout	Logout	Public
+/onboarding	Onboarding	Public
+/pathways/naplan	Static NAPLAN info page	Public
+/pathways/selective	Static Selective info page	Public
+/pathways/atar	Static ATAR info page	Public
+/school	Coming Soon page	Public
+/student	StudentToday (daily hub)	Protected: student
+/student/today	Same as above	Protected: student
+/student/classroom	Classroom (chat with Mentora)	Protected: student
+/student/practice	Practice page	Protected: student
+/student/session/:subject/:topic	SessionFlow (learning loop)	Protected: student
+/parent	ParentPortal	Protected: parent
+/tutor	TutorDashboard	Protected: teacher
+/admin	AdminDashboard	Protected: admin, owner, teacher
+/admin/students	Student list	Same
+/admin/students/:id	Student360 detail	Same
+/admin/growth	Growth Engine	Same
+/admin/bi	BI Dashboard	Same
+/admin/orchestration	Learning Orchestration	Same
+/admin/marketing	Marketing Agent	Same
+/admin/ops	Operations Agent	Same
+/admin/admissions	Admissions Agent	Same
+/admin/academic-quality	Academic Quality Agent	Same
+/privacy, /terms	Static legal pages	Public
+Student landing page: /student (renders StudentToday).
+
+2. Role Handling
+How role is determined:
+
+Authentication is via Replit OIDC (Passport.js). On login, the server creates/finds a users record and a profiles record.
+The users table has a role field (set at account level: "student", "parent", "teacher", "admin", "owner").
+The profiles table also has a role field and a grade (year level) field.
+Where role is stored:
+
+Database — in both users.role and profiles.role.
+The client reads role from /api/auth/check which returns user.role.
+localStorage key lumenia_role is used only on the public landing page for the role selector (marketing purpose, not auth).
+Role-based routing:
+
+Fully implemented via ProtectedRoute component.
+Each protected route wraps its content in <ProtectedRoute allowedRoles={[...]}>.
+If unauthenticated → redirect to /login.
+If wrong role → redirect to /unauthorized.
+A helper getRoleHomeRoute(role) maps roles to home pages:
+student → /student
+parent → /parent
+teacher → /tutor
+owner/admin → /admin
+3. Data Model
+Data store: PostgreSQL via Drizzle ORM. Schema defined in shared/schema.ts.
+
+Key tables relevant to learning:
+
+Concept	Table	Key Fields
+Subjects	subjects	id, name ("Mathematics"/"English"), teacherName, teacherVoice, isActive
+Topics	topics	id, subjectId, title, gradeLevel (6–12), orderIndex, prerequisiteTopicId
+Year level	profiles.grade	Integer (e.g. 9, 10, 11)
+Lessons	lessons	id, topicId, title, description, orderIndex, estimatedMinutes, objectives
+Lesson segments	lesson_segments	id, lessonId, title, type (explanation/example/practice), content, whiteboardContent, tutorScript
+Questions	quiz_questions	id, lessonId, topicId, subjectId, questionText, questionType, options, correctAnswer, explanation, difficulty, points
+Quiz attempts	quiz_attempts	id, studentId, lessonId, quizType, score, totalPoints, passed
+Quiz answers	quiz_answers	id, attemptId, questionId, studentAnswer, isCorrect, pointsEarned
+Progress	progress	id, studentId, subject, topic, masteryLevel (0–100), problemsAttempted, problemsCorrect
+Topic mastery	topic_mastery	id, studentId, subject, topicId, topicName, masteryStatus, accuracyRolling, hintsRolling, attemptsCount, mistakeTags, confidence
+Session attempts	session_attempts	id, studentId, subject, topicId, warmupResults, lessonCompleted, practiceResults, reflectionText, exitTicketResults, hintsUsed, timeSpentSec
+Teaching plans	teaching_plans	id, studentId, subjectId, currentTopicId, targetGrade, status
+Student memory	student_memory	id, studentId, preferredExplanationStyle, motivationPreference, lastSubject, lastTopicId, lastTopicName, streakCount, dailyGoalMinutes, todayMinutesCompleted
+Tutoring sessions	tutoring_sessions	id, studentId, subject, topic, status, transcript, problemsSolved
+Session messages	session_messages	id, sessionId, role (user/assistant), content, audioData
+Courses concept: There is no explicit "course" table. The closest equivalent is teaching_plans (links a student to a subject with a current topic and target grade).
+
+4. Content Handling
+Curriculum is defined statically in shared/curriculum.ts:
+
+Full curriculum definitions for Years 6–12, both Mathematics and English.
+Structure: YearCurriculum → Unit[] → Lesson[] + PracticeSet[].
+Each lesson has id, title, description, duration, objectives, keyConcepts.
+Each practice set has difficulty, questionCount, estimatedTime, topics.
+Helper functions: getCurriculum(subject, year), getUnit(), getLesson(), getLessonsForYear(), getPracticeSetsForYear().
+Australian Curriculum codes are included (e.g. ACMNA123).
+Topic catalog in shared/topicCatalog.ts:
+
+Maps subjects → topics with id, name, description, gradeRange, prerequisites, estimatedMinutes.
+Helpers: getTopicsForGrade(), getTopic(), getNextTopic().
+Question bank: The quiz_questions table exists with structured fields (questionText, questionType, options, correctAnswer, explanation, difficulty). Questions can be linked to lessons, topics, or subjects. Whether they are pre-populated or AI-generated depends on usage — the table structure supports both.
+
+AI-generated content: Mentora generates explanations, practice questions, and feedback on demand during sessions.
+
+5. Mentora / AI Context
+How Mentora is invoked:
+
+Through generateTutoringResponse() in server/ai-tutor.ts.
+Uses OpenAI gpt-4o-mini via openai.chat.completions.create.
+Context passed:
+
+Subject → determines which system prompt (Math or English).
+Teaching style → "socratic" or "direct" (selects from 4 prompts: MATH_SOCRATIC_PROMPT, MATH_DIRECT_PROMPT, ENGLISH_SOCRATIC_PROMPT, ENGLISH_DIRECT_PROMPT).
+Topic → injected as a system message: "Current topic: ${topic}. Keep questions focused on this area."
+WolframAlpha answer → for math only, injected as an internal accuracy reference the tutor must not reveal directly.
+Session history → full conversation history passed as messages.
+Where prompts are defined:
+
+server/ai-tutor.ts — contains all 4 subject/style system prompts. The Math Socratic prompt identifies the tutor as "Ms. Eleanor Chen" for Years 6–12 Australian Curriculum. The English prompt is "Mr. James Mitchell."
+Year level is NOT explicitly passed to the AI prompt — it's implicitly handled through the topic selection. The system prompt mentions "Year 6–12 students" generically.
+
+6. Navigation Flow
+From the Student Today page (/student):
+
+"Start today's session" → /student/session/{subject}/{topicId}?year={year} (SessionFlow)
+"Quick warm-up" → /student/session/{subject}/warmup?year={year}
+"Resume learning" → /student/session/{subject}/{topicId}?year={year}
+"Ask Mentora" → /student/classroom?subject={}&year={}
+"Book a Session" → /student/practice
+"My Courses" / "My Subjects": Not implemented as a standalone page. The closest is StudentDashboard (at no dedicated route currently, but the component exists) which shows teaching plans and progress. The student memory (student_memory table) tracks the last subject/topic for continuity.
+
+7. Extensibility Constraints
+Year-based courses (e.g. Year 9 Maths):
+
+The curriculum structure in shared/curriculum.ts already supports this (curricula defined per year per subject).
+topics.gradeLevel and profiles.grade exist.
+teaching_plans links students to subjects with a targetGrade.
+Constraint: No dedicated "course enrollment" or "course catalog" UI exists yet. You'd build on top of teaching_plans.
+Topic-based practice:
+
+topics table, topicCatalog.ts, and quiz_questions (linked by topicId) are ready.
+topic_mastery tracks per-topic performance.
+Constraint: Questions in quiz_questions may need pre-seeding — the table exists but the extent of pre-populated questions depends on what's been added.
+Question banks:
+
+quiz_questions table with questionType, options, correctAnswer, explanation, difficulty, points is fully structured.
+Can be linked to lessonId, topicId, or subjectId.
+Constraint: If you want large-scale question banks, you'll likely want a seeding script or an admin UI for bulk entry. The AI can also generate questions on demand.
+Progress tracking:
+
+Already implemented across multiple tables: progress, topic_mastery, session_attempts, quiz_attempts, quiz_answers, lesson_progress, student_memory.
+Constraint: The data is spread across several tables. topic_mastery is the most detailed (rolling accuracy, hints, confidence). progress is simpler (mastery level, problems attempted/correct). Both may need to be kept in sync depending on which you extend.
