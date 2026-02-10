@@ -29,14 +29,6 @@ import {
   CheckCircle,
   ChevronRight
 } from "lucide-react";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { type YearLevel } from "@shared/curriculum";
 import { apiRequest } from "@/lib/queryClient";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -47,7 +39,7 @@ interface StudentMemoryData {
   streakCount: number;
   dailyGoalMinutes: number;
   todayMinutesCompleted: number;
-  yearLevel: YearLevel;
+  yearLevel: number;
   lastAccuracy?: number;
   previousAccuracy?: number;
   problemsCorrectToday?: number;
@@ -55,6 +47,7 @@ interface StudentMemoryData {
 
 interface DashboardData {
   memory: StudentMemoryData | null;
+  grade: number;
   hasWarmupQuestions: boolean;
   nextSession: { subject: string; topic: string; scheduledAt: string } | null;
 }
@@ -110,21 +103,20 @@ export default function StudentToday() {
   const [quickHelpSubject, setQuickHelpSubject] = useState<"math" | "english">("math");
   const [showGoalDialog, setShowGoalDialog] = useState(false);
   const [newGoalMinutes, setNewGoalMinutes] = useState("15");
-  const [selectedYear, setSelectedYear] = useState<YearLevel>(7);
   const [showClosure, setShowClosure] = useState(false);
   const [closureMessage, setClosureMessage] = useState("");
-  const yearLevels: YearLevel[] = [6, 7, 8, 9, 10, 11, 12];
 
   const { data: dashboardData, isLoading } = useQuery<DashboardData>({
     queryKey: ["/api/student/dashboard"],
     queryFn: async () => {
-      const res = await fetch("/api/student/dashboard");
+      const res = await fetch("/api/student/dashboard", { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch dashboard");
       return res.json();
     }
   });
 
   const memory = dashboardData?.memory;
+  const studentGrade = dashboardData?.grade || 9;
   const streakCount = memory?.streakCount || 0;
   const dailyGoalMinutes = memory?.dailyGoalMinutes || 15;
   const todayMinutesCompleted = memory?.todayMinutesCompleted || 0;
@@ -156,13 +148,13 @@ export default function StudentToday() {
     const topic = memory?.lastTopicId;
     
     if (topic) {
-      setLocation(`/student/session/${subject}/${topic}?year=${selectedYear}`);
+      setLocation(`/student/session/${subject}/${topic}?year=${studentGrade}`);
     } else {
       toast({
         title: "Session flow coming soon",
         description: "For now, continue with your last activity or try a warm-up.",
       });
-      setLocation(`/student/session/${subject}/warmup?year=${selectedYear}`);
+      setLocation(`/student/session/${subject}/warmup?year=${studentGrade}`);
     }
   };
 
@@ -170,7 +162,7 @@ export default function StudentToday() {
     localStorage.setItem(SESSION_FLAG_KEY, "true");
     localStorage.removeItem(CLOSURE_SHOWN_KEY);
     const subject = memory?.lastSubject || "math";
-    setLocation(`/student/session/${subject}/warmup?year=${selectedYear}`);
+    setLocation(`/student/session/${subject}/warmup?year=${studentGrade}`);
   };
 
   const handleContinueLearning = () => {
@@ -178,7 +170,7 @@ export default function StudentToday() {
     localStorage.removeItem(CLOSURE_SHOWN_KEY);
     const subject = memory?.lastSubject || "math";
     const topic = memory?.lastTopicId || "linear_equations";
-    setLocation(`/student/session/${subject}/${topic}?year=${selectedYear}`);
+    setLocation(`/student/session/${subject}/${topic}?year=${studentGrade}`);
   };
 
   const updateGoalMutation = useMutation({
@@ -193,7 +185,7 @@ export default function StudentToday() {
   });
 
   const handleQuickHelp = () => {
-    const subjectParam = `subject=${quickHelpSubject}&year=${selectedYear}`;
+    const subjectParam = `subject=${quickHelpSubject}&year=${studentGrade}`;
     if (quickHelpInput.trim()) {
       setLocation(`/student/classroom?${subjectParam}&question=${encodeURIComponent(quickHelpInput)}`);
     } else {
@@ -250,23 +242,9 @@ export default function StudentToday() {
             <div className="flex items-center gap-2">
               <Sparkles className="w-5 h-5 text-primary" />
               <h2 className="text-lg font-semibold text-foreground">Today's Focus</h2>
-              <div className="flex items-center gap-2 ml-2 bg-muted rounded-lg px-2 py-0.5">
+              <div className="flex items-center gap-2 ml-2 bg-muted rounded-lg px-2 py-1">
                 <GraduationCap className="h-3 w-3 text-muted-foreground" />
-                <Select 
-                  value={selectedYear.toString()} 
-                  onValueChange={(val) => setSelectedYear(parseInt(val) as YearLevel)}
-                >
-                  <SelectTrigger className="w-20 h-7 border-0 bg-transparent text-xs" data-testid="year-selector">
-                    <SelectValue placeholder="Year" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {yearLevels.map((year) => (
-                      <SelectItem key={year} value={year.toString()}>
-                        Year {year}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <span className="text-xs text-muted-foreground font-medium" data-testid="year-display">Year {studentGrade}</span>
               </div>
             </div>
             

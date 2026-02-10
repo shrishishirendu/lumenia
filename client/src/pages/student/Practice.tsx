@@ -14,12 +14,14 @@ import {
   Trophy,
   Zap,
   Star,
+  GraduationCap,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { motion, AnimatePresence } from "framer-motion";
 import TopicNotesDrawer from "@/components/TopicNotesDrawer";
+import { useStudentProfile } from "@/hooks/useStudentProfile";
 
 interface PracticeQuestion {
   id: number;
@@ -38,6 +40,19 @@ interface QuestionsResponse {
   distribution: Record<string, number>;
 }
 
+interface TopicInfo {
+  id: number;
+  title: string;
+  description: string | null;
+  gradeLevel: number;
+}
+
+interface TopicsByGradeResponse {
+  topics: TopicInfo[];
+  grade: number;
+  subjectId: number;
+}
+
 const DIFFICULTY_CONFIG: Record<number, { label: string; color: string; bg: string; icon: React.ElementType; description: string }> = {
   1: { label: "Level 1 — Easy", color: "text-green-600", bg: "bg-green-100", icon: Zap, description: "One-step equations" },
   2: { label: "Level 2 — Medium", color: "text-blue-600", bg: "bg-blue-100", icon: BookOpen, description: "Two-step equations" },
@@ -47,6 +62,7 @@ const DIFFICULTY_CONFIG: Record<number, { label: string; color: string; bg: stri
 };
 
 export default function Practice() {
+  const { grade, isLoading: profileLoading } = useStudentProfile();
   const [selectedDifficulty, setSelectedDifficulty] = useState<number | null>(null);
   const [quizState, setQuizState] = useState<"browse" | "quiz" | "results">("browse");
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -56,20 +72,31 @@ export default function Practice() {
   const [results, setResults] = useState<{ questionId: number; correct: boolean; userAnswer: string }[]>([]);
   const [quizQuestions, setQuizQuestions] = useState<PracticeQuestion[]>([]);
 
-  const topicId = 1;
-
-  const { data: questionsData, isLoading } = useQuery<QuestionsResponse>({
-    queryKey: ["/api/topics", topicId, "questions", selectedDifficulty],
+  const { data: topicsData, isLoading: topicsLoading } = useQuery<TopicsByGradeResponse>({
+    queryKey: ["/api/topics/by-grade", grade],
     queryFn: async () => {
-      const url = selectedDifficulty
-        ? `/api/topics/${topicId}/questions?difficulty=${selectedDifficulty}`
-        : `/api/topics/${topicId}/questions`;
-      const res = await fetch(url, { credentials: "include" });
+      const res = await fetch(`/api/topics/by-grade?grade=${grade}&subjectId=1`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch topics");
+      return res.json();
+    },
+    enabled: !profileLoading,
+  });
+
+  const activeTopic = topicsData?.topics?.[0] || null;
+  const topicId = activeTopic?.id;
+  const topicTitle = activeTopic?.title || "Practice";
+
+  const { data: questionsData, isLoading: questionsLoading } = useQuery<QuestionsResponse>({
+    queryKey: ["/api/topics", topicId, "questions"],
+    queryFn: async () => {
+      const res = await fetch(`/api/topics/${topicId}/questions`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch questions");
       return res.json();
     },
+    enabled: !!topicId,
   });
 
+  const isLoading = profileLoading || topicsLoading || questionsLoading;
   const distribution = questionsData?.distribution || {};
   const questions = questionsData?.questions || [];
 
@@ -196,7 +223,7 @@ export default function Practice() {
           </Button>
           <div className="flex items-center gap-2">
             <Badge className={`${diffConfig.bg} ${diffConfig.color} border-0`}>{diffConfig.label}</Badge>
-            <TopicNotesDrawer topicId={topicId} topicTitle="Linear Equations" triggerVariant="button" />
+            {topicId && <TopicNotesDrawer topicId={topicId} topicTitle={topicTitle} triggerVariant="button" />}
           </div>
         </div>
 
@@ -211,7 +238,7 @@ export default function Practice() {
         <motion.div key={current.id} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.2 }}>
           <Card>
             <CardContent className="p-6 space-y-5">
-              <h2 className="text-xl font-semibold leading-relaxed" data-testid="question-text">{current.questionText}</h2>
+              <h2 className="text-xl font-semibold leading-relaxed text-foreground" data-testid="question-text">{current.questionText}</h2>
 
               <div className="space-y-3">
                 <label className="text-sm font-medium text-muted-foreground">Your answer:</label>
@@ -279,9 +306,11 @@ export default function Practice() {
     <div className="max-w-4xl mx-auto p-6 space-y-6" data-testid="practice-page">
       <div className="text-center mb-6">
         <h1 className="text-3xl font-bold text-foreground mb-2" data-testid="practice-title">Practice Question Bank</h1>
-        <p className="text-muted-foreground">
-          Year 9 Mathematics &mdash; Linear Equations
-        </p>
+        <div className="flex items-center justify-center gap-2 text-muted-foreground">
+          <GraduationCap className="w-4 h-4" />
+          <span data-testid="practice-year">Year {grade} Mathematics</span>
+          {activeTopic && <span>&mdash; {topicTitle}</span>}
+        </div>
         <p className="text-sm text-muted-foreground mt-1">
           {questionsData?.total || 0} questions across 5 difficulty levels
         </p>
@@ -291,11 +320,27 @@ export default function Practice() {
         <div className="flex items-center justify-center py-12">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
         </div>
+      ) : !activeTopic ? (
+        <Card>
+          <CardContent className="p-8 text-center">
+            <Target className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
+            <p className="text-muted-foreground font-medium">No practice topics available for Year {grade} yet.</p>
+            <p className="text-sm text-muted-foreground mt-1">Check back soon — new content is being added.</p>
+          </CardContent>
+        </Card>
+      ) : questions.length === 0 ? (
+        <Card>
+          <CardContent className="p-8 text-center">
+            <BookOpen className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
+            <p className="text-muted-foreground font-medium">No questions available for {topicTitle} yet.</p>
+            <p className="text-sm text-muted-foreground mt-1">Practice questions are being prepared for this topic.</p>
+          </CardContent>
+        </Card>
       ) : (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold">Choose a Difficulty Level</h2>
-            <TopicNotesDrawer topicId={topicId} topicTitle="Linear Equations" triggerVariant="button" />
+            {topicId && <TopicNotesDrawer topicId={topicId} topicTitle={topicTitle} triggerVariant="button" />}
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -306,8 +351,8 @@ export default function Practice() {
               return (
                 <motion.div key={level} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: level * 0.05 }}>
                   <Card
-                    className="hover:shadow-md transition-all cursor-pointer group"
-                    onClick={() => { setSelectedDifficulty(level); startQuiz(level); }}
+                    className={`hover:shadow-md transition-all cursor-pointer group ${count === 0 ? "opacity-50 cursor-not-allowed" : ""}`}
+                    onClick={() => { if (count > 0) { setSelectedDifficulty(level); startQuiz(level); } }}
                     data-testid={`difficulty-card-${level}`}
                   >
                     <CardContent className="p-5">
@@ -323,7 +368,7 @@ export default function Practice() {
                             <Badge variant="outline" className="text-xs">{level} pts each</Badge>
                           </div>
                         </div>
-                        <ArrowRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity mt-1" />
+                        {count > 0 && <ArrowRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity mt-1" />}
                       </div>
                     </CardContent>
                   </Card>

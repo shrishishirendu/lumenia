@@ -811,8 +811,10 @@ export async function registerRoutes(
           lastTopicName: null,
           streakCount: 0,
           dailyGoalMinutes: 15,
-          todayMinutesCompleted: 0
+          todayMinutesCompleted: 0,
+          yearLevel: profile.grade || 9,
         },
+        grade: profile.grade || 9,
         hasWarmupQuestions: !!latestSession,
         nextSession: null
       });
@@ -933,6 +935,26 @@ export async function registerRoutes(
       const updates = req.body;
       
       const session = await tutoringStorage.updateSessionAttempt(sessionId, updates);
+
+      if (updates.endedAt && updates.timeSpentSec) {
+        const profile = await tutoringStorage.getProfileByUserId(userId);
+        if (profile) {
+          const minutesCompleted = Math.max(1, Math.round(updates.timeSpentSec / 60));
+          const existingMemory = await tutoringStorage.getStudentMemory(profile.id);
+          const currentMinutes = existingMemory?.todayMinutesCompleted ?? 0;
+          await tutoringStorage.upsertStudentMemory({
+            studentId: profile.id,
+            todayMinutesCompleted: currentMinutes + minutesCompleted,
+            lastActiveDate: new Date(),
+            streakCount: existingMemory?.streakCount ?? 0,
+            dailyGoalMinutes: existingMemory?.dailyGoalMinutes ?? 15,
+            lastSubject: existingMemory?.lastSubject ?? null,
+            lastTopicId: existingMemory?.lastTopicId ?? null,
+            lastTopicName: existingMemory?.lastTopicName ?? null,
+          });
+        }
+      }
+
       res.json(session);
     } catch (error) {
       console.error("Error updating session:", error);
@@ -1365,6 +1387,25 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error fetching topic content:", error);
       res.status(500).json({ error: "Failed to fetch topic content" });
+    }
+  });
+
+  // Get topics for a subject filtered by grade
+  app.get("/api/topics/by-grade", async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+
+      const grade = parseInt(req.query.grade as string) || 9;
+      const subjectId = parseInt(req.query.subjectId as string) || 1;
+
+      const allTopics = await tutoringStorage.getTopicsBySubject(subjectId);
+      const gradeTopics = allTopics.filter(t => t.gradeLevel === grade);
+
+      res.json({ topics: gradeTopics, grade, subjectId });
+    } catch (error) {
+      console.error("Error fetching topics by grade:", error);
+      res.status(500).json({ error: "Failed to fetch topics" });
     }
   });
 
