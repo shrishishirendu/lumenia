@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams, useLocation } from "wouter";
+import { useParams, useLocation, useSearch } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { 
   Zap, 
   BookOpen, 
@@ -33,6 +34,47 @@ interface Question {
   correctAnswer: string;
   explanation: string;
   difficulty: number;
+  questionType?: string;
+}
+
+interface DBSegment {
+  id: number;
+  lessonId: number;
+  title: string;
+  type: string;
+  content: string;
+  whiteboardContent: string | null;
+  tutorScript: string | null;
+  orderIndex: number;
+}
+
+interface DBLesson {
+  id: number;
+  topicId: number;
+  title: string;
+  description: string | null;
+  orderIndex: number;
+  estimatedMinutes: number | null;
+  objectives: string[] | null;
+  segments: DBSegment[];
+  questions: DBQuestion[];
+}
+
+interface DBQuestion {
+  id: number;
+  questionText: string;
+  questionType: string;
+  options: string[] | null;
+  correctAnswer: string;
+  explanation: string | null;
+  difficulty: number;
+  points: number;
+}
+
+interface TopicContent {
+  topic: { id: number; title: string; description: string | null };
+  lessons: DBLesson[];
+  exitTicketQuestions: DBQuestion[];
 }
 
 interface SessionState {
@@ -46,6 +88,7 @@ interface SessionState {
   exitTicketResults: { questions: Question[]; answers: Record<string, string>; passed: boolean };
   hintsUsed: number;
   startTime: number;
+  currentLessonIndex: number;
 }
 
 const STEPS: { id: SessionStep; label: string; icon: React.ElementType }[] = [
@@ -75,16 +118,68 @@ const generateMockQuestions = (subject: string, topic: string, count: number, di
   return questions.slice(0, count);
 };
 
+function dbQuestionToQuestion(q: DBQuestion): Question {
+  if (q.questionType === "short_answer") {
+    return {
+      id: String(q.id),
+      text: q.questionText,
+      options: [],
+      correctAnswer: q.correctAnswer,
+      explanation: q.explanation || "",
+      difficulty: q.difficulty,
+      questionType: "short_answer",
+    };
+  }
+  return {
+    id: String(q.id),
+    text: q.questionText,
+    options: q.options || [],
+    correctAnswer: q.correctAnswer,
+    explanation: q.explanation || "",
+    difficulty: q.difficulty,
+    questionType: q.questionType,
+  };
+}
+
 export default function SessionFlow() {
   const params = useParams<{ subject: string; topic: string }>();
   const [, setLocation] = useLocation();
+  const searchString = useSearch();
+  const searchParams = new URLSearchParams(searchString);
   const subject = params.subject || "math";
   const rawTopicId = params.topic || "linear_equations";
   const isWarmupMode = rawTopicId === "warmup";
   const topicId = isWarmupMode ? "linear_equations" : rawTopicId;
-  
+  const yearParam = searchParams.get("year");
+  const dbTopicIdParam = searchParams.get("topicId");
+
   const topicConfig = getTopic(subject, topicId);
-  const topicName = isWarmupMode ? "Quick Review" : (topicConfig?.name || "Linear Equations");
+  const fallbackTopicName = isWarmupMode ? "Quick Review" : (topicConfig?.name || decodeURIComponent(topicId));
+
+  const { data: topicContent, isLoading: contentLoading } = useQuery<TopicContent>({
+    queryKey: ["/api/topics/content", dbTopicIdParam],
+    queryFn: async () => {
+      const res = await fetch(`/api/topics/${dbTopicIdParam}/content`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch topic content");
+      return res.json();
+    },
+    enabled: !!dbTopicIdParam && !isWarmupMode,
+  });
+
+  const hasDBContent = !!topicContent &&
+    topicContent.lessons.length > 0 &&
+    topicContent.lessons.some((l) => l.segments && l.segments.length > 0);
+  const topicName = hasDBContent ? topicContent.topic.title : fallbackTopicName;
+
+  const warmupQuestions = hasDBContent
+    ? topicContent.lessons[0]?.questions?.filter((q) => q.difficulty <= 1).slice(0, 3).map(dbQuestionToQuestion) || []
+    : null;
+  const practiceQuestions = hasDBContent
+    ? topicContent.lessons.flatMap((l) => l.questions).filter((q) => q.difficulty >= 2 && q.difficulty <= 3).slice(0, 4).map(dbQuestionToQuestion)
+    : null;
+  const exitQuestions = hasDBContent
+    ? topicContent.exitTicketQuestions.slice(0, 4).map(dbQuestionToQuestion)
+    : null;
 
   const WARMUP_ONLY_STEPS: { id: SessionStep; label: string; icon: React.ElementType }[] = [
     { id: "warmup", label: "Review", icon: Zap },
@@ -96,15 +191,30 @@ export default function SessionFlow() {
   const [state, setState] = useState<SessionState>({
     currentStep: "warmup",
     sessionId: null,
-    warmupResults: { questions: generateMockQuestions(subject, topicId, 3, 1), answers: {}, score: 0 },
+    warmupResults: { questions: warmupQuestions || generateMockQuestions(subject, topicId, 3, 1), answers: {}, score: 0 },
     lessonCompleted: false,
     explanationStyle: "step_by_step",
-    practiceResults: { questions: generateMockQuestions(subject, topicId, 4, 2), answers: {}, hintsUsed: 0 },
+    practiceResults: { questions: practiceQuestions || generateMockQuestions(subject, topicId, 4, 2), answers: {}, hintsUsed: 0 },
     reflectionText: "",
-    exitTicketResults: { questions: generateMockQuestions(subject, topicId, 2, 2), answers: {}, passed: false },
+    exitTicketResults: { questions: exitQuestions || generateMockQuestions(subject, topicId, 2, 2), answers: {}, passed: false },
     hintsUsed: 0,
-    startTime: Date.now()
+    startTime: Date.now(),
+    currentLessonIndex: 0,
   });
+
+  useEffect(() => {
+    if (hasDBContent) {
+      const wu = warmupQuestions && warmupQuestions.length > 0 ? warmupQuestions : generateMockQuestions(subject, topicId, 3, 1);
+      const pr = practiceQuestions && practiceQuestions.length > 0 ? practiceQuestions : generateMockQuestions(subject, topicId, 4, 2);
+      const et = exitQuestions && exitQuestions.length > 0 ? exitQuestions : generateMockQuestions(subject, topicId, 2, 2);
+      setState((prev) => ({
+        ...prev,
+        warmupResults: { ...prev.warmupResults, questions: wu },
+        practiceResults: { ...prev.practiceResults, questions: pr },
+        exitTicketResults: { ...prev.exitTicketResults, questions: et },
+      }));
+    }
+  }, [hasDBContent]);
 
   const createSessionMutation = useMutation({
     mutationFn: async () => {
@@ -230,12 +340,64 @@ export default function SessionFlow() {
 
   const calculateScore = (questions: Question[], answers: Record<string, string>): number => {
     if (questions.length === 0) return 0;
-    const correct = questions.filter(q => answers[q.id] === q.correctAnswer).length;
+    const correct = questions.filter(q => {
+      const ans = answers[q.id];
+      if (!ans) return false;
+      return ans.toLowerCase().trim() === q.correctAnswer.toLowerCase().trim();
+    }).length;
     return Math.round((correct / questions.length) * 100);
   };
 
   const requestHint = () => {
     setState(prev => ({ ...prev, hintsUsed: prev.hintsUsed + 1 }));
+  };
+
+  const renderQuestionInput = (q: Question, section: "warmup" | "practice" | "exit_ticket", answers: Record<string, string>) => {
+    if (q.questionType === "short_answer" || q.options.length === 0) {
+      const currentAnswer = answers[q.id] || "";
+      const isSubmitted = !!currentAnswer;
+      const isCorrect = isSubmitted && currentAnswer.toLowerCase().trim() === q.correctAnswer.toLowerCase().trim();
+      return (
+        <div>
+          <div className="flex gap-2 items-center">
+            <Input
+              type="text"
+              placeholder="Type your answer..."
+              value={currentAnswer}
+              onChange={(e) => handleAnswer(q.id, e.target.value, section)}
+              className="max-w-xs"
+              data-testid={`input-${q.id}`}
+            />
+          </div>
+          {isSubmitted && section !== "exit_ticket" && (
+            <div className={`mt-2 p-2 rounded text-sm ${isCorrect ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>
+              {isCorrect ? "Correct!" : `The answer is ${q.correctAnswer}. ${q.explanation}`}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    return (
+      <div>
+        <RadioGroup
+          value={answers[q.id] || ""}
+          onValueChange={(value) => handleAnswer(q.id, value, section)}
+        >
+          {q.options.map((option) => (
+            <div key={option} className="flex items-center space-x-2">
+              <RadioGroupItem value={option} id={`${section}-${q.id}-${option}`} />
+              <Label htmlFor={`${section}-${q.id}-${option}`}>{option}</Label>
+            </div>
+          ))}
+        </RadioGroup>
+        {answers[q.id] && section !== "exit_ticket" && (
+          <div className={`mt-2 p-2 rounded text-sm ${answers[q.id] === q.correctAnswer ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>
+            {answers[q.id] === q.correctAnswer ? "Correct!" : `The answer is ${q.correctAnswer}. ${q.explanation}`}
+          </div>
+        )}
+      </div>
+    );
   };
 
   const renderWarmup = () => (
@@ -247,25 +409,142 @@ export default function SessionFlow() {
       </div>
       
       {state.warmupResults.questions.map((q, idx) => (
-        <Card key={q.id} className="p-4">
+        <Card key={q.id} className="p-4" data-testid={`warmup-question-${idx}`}>
           <p className="font-medium mb-3">Q{idx + 1}: {q.text}</p>
-          <RadioGroup
-            value={state.warmupResults.answers[q.id] || ""}
-            onValueChange={(value) => handleAnswer(q.id, value, "warmup")}
-          >
-            {q.options.map((option) => (
-              <div key={option} className="flex items-center space-x-2">
-                <RadioGroupItem value={option} id={`${q.id}-${option}`} />
-                <Label htmlFor={`${q.id}-${option}`}>{option}</Label>
-              </div>
-            ))}
-          </RadioGroup>
+          {renderQuestionInput(q, "warmup", state.warmupResults.answers)}
         </Card>
       ))}
     </div>
   );
 
-  const renderLesson = () => (
+  const renderDBLesson = () => {
+    if (!topicContent || !hasDBContent) return renderFallbackLesson();
+
+    const allLessons = topicContent.lessons;
+    const currentLesson = allLessons[state.currentLessonIndex] || allLessons[0];
+    if (!currentLesson) return renderFallbackLesson();
+
+    const explanationSegments = currentLesson.segments.filter((s) => s.type === "explanation");
+    const exampleSegments = currentLesson.segments.filter((s) => s.type === "example");
+    const practiceSegments = currentLesson.segments.filter((s) => s.type === "practice");
+
+    return (
+      <div className="space-y-6" data-testid="lesson-step">
+        <div className="text-center mb-6">
+          <BookOpen className="h-12 w-12 text-blue-500 mx-auto mb-2" />
+          <h2 className="text-2xl font-bold" data-testid="lesson-title">{currentLesson.title}</h2>
+          <p className="text-muted-foreground">{currentLesson.description}</p>
+          {currentLesson.objectives && currentLesson.objectives.length > 0 && (
+            <div className="mt-3 text-sm text-left max-w-md mx-auto">
+              <p className="font-medium text-muted-foreground mb-1">Learning objectives:</p>
+              <ul className="list-disc pl-5 space-y-0.5 text-muted-foreground">
+                {currentLesson.objectives.map((obj, i) => (
+                  <li key={i}>{obj}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+
+        {explanationSegments.map((seg) => (
+          <Card key={seg.id} className="p-6" data-testid={`segment-explanation-${seg.id}`}>
+            <h3 className="text-lg font-semibold mb-4">{seg.title}</h3>
+            <div className="prose prose-sm max-w-none whitespace-pre-line">
+              {seg.content}
+            </div>
+            {seg.tutorScript && (
+              <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-100">
+                <p className="text-sm text-blue-800 flex items-start gap-2">
+                  <Lightbulb className="h-4 w-4 mt-0.5 shrink-0" />
+                  <span><strong>Mentora says:</strong> {seg.tutorScript}</span>
+                </p>
+              </div>
+            )}
+          </Card>
+        ))}
+
+        {exampleSegments.map((seg) => (
+          <Card key={seg.id} className="p-6 bg-blue-50" data-testid={`segment-example-${seg.id}`}>
+            <h3 className="text-lg font-semibold mb-3">{seg.title}</h3>
+            <div className="prose prose-sm max-w-none whitespace-pre-line">
+              {seg.content}
+            </div>
+            {seg.whiteboardContent && (() => {
+              try {
+                const wb = JSON.parse(seg.whiteboardContent);
+                if (wb.steps) {
+                  return (
+                    <div className="mt-4 space-y-2">
+                      {wb.steps.map((step: { label: string; work: string }, i: number) => (
+                        <div key={i} className="p-2 bg-white rounded border text-sm">
+                          <span className="font-medium text-blue-700">{step.label}:</span>{" "}
+                          <code>{step.work}</code>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                }
+              } catch {}
+              return null;
+            })()}
+            {seg.tutorScript && (
+              <div className="mt-4 p-3 bg-white/70 rounded-lg border border-blue-100">
+                <p className="text-sm text-blue-800 flex items-start gap-2">
+                  <Lightbulb className="h-4 w-4 mt-0.5 shrink-0" />
+                  <span><strong>Mentora says:</strong> {seg.tutorScript}</span>
+                </p>
+              </div>
+            )}
+          </Card>
+        ))}
+
+        {practiceSegments.map((seg) => (
+          <Card key={seg.id} className="p-6 bg-green-50" data-testid={`segment-practice-${seg.id}`}>
+            <h3 className="text-lg font-semibold mb-3">{seg.title}</h3>
+            <div className="prose prose-sm max-w-none whitespace-pre-line">
+              {seg.content}
+            </div>
+            {seg.tutorScript && (
+              <div className="mt-4 p-3 bg-white/70 rounded-lg border border-green-100">
+                <p className="text-sm text-green-800 flex items-start gap-2">
+                  <Lightbulb className="h-4 w-4 mt-0.5 shrink-0" />
+                  <span><strong>Mentora says:</strong> {seg.tutorScript}</span>
+                </p>
+              </div>
+            )}
+          </Card>
+        ))}
+
+        {allLessons.length > 1 && (
+          <div className="flex items-center justify-between pt-4 border-t">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={state.currentLessonIndex === 0}
+              onClick={() => setState((prev) => ({ ...prev, currentLessonIndex: prev.currentLessonIndex - 1 }))}
+              data-testid="prev-lesson-btn"
+            >
+              <ArrowLeft className="h-4 w-4 mr-1" /> Previous Lesson
+            </Button>
+            <span className="text-sm text-muted-foreground">
+              Lesson {state.currentLessonIndex + 1} of {allLessons.length}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={state.currentLessonIndex === allLessons.length - 1}
+              onClick={() => setState((prev) => ({ ...prev, currentLessonIndex: prev.currentLessonIndex + 1 }))}
+              data-testid="next-lesson-btn"
+            >
+              Next Lesson <ArrowRight className="h-4 w-4 ml-1" />
+            </Button>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderFallbackLesson = () => (
     <div className="space-y-6" data-testid="lesson-step">
       <div className="text-center mb-6">
         <BookOpen className="h-12 w-12 text-blue-500 mx-auto mb-2" />
@@ -317,13 +596,18 @@ export default function SessionFlow() {
         <h3 className="text-lg font-semibold mb-3">Worked Example</h3>
         <p className="mb-2">Solve: <code>3x - 4 = 11</code></p>
         <div className="space-y-2 text-sm">
-          <p>Step 1: Add 4 to both sides → <code>3x = 15</code></p>
-          <p>Step 2: Divide by 3 → <code>x = 5</code></p>
-          <p className="text-green-600 font-medium">✓ Answer: x = 5</p>
+          <p>Step 1: Add 4 to both sides: <code>3x = 15</code></p>
+          <p>Step 2: Divide by 3: <code>x = 5</code></p>
+          <p className="text-green-600 font-medium">Answer: x = 5</p>
         </div>
       </Card>
     </div>
   );
+
+  const renderLesson = () => {
+    if (hasDBContent) return renderDBLesson();
+    return renderFallbackLesson();
+  };
 
   const renderPractice = () => (
     <div className="space-y-6" data-testid="practice-step">
@@ -334,29 +618,14 @@ export default function SessionFlow() {
       </div>
       
       {state.practiceResults.questions.map((q, idx) => (
-        <Card key={q.id} className="p-4">
+        <Card key={q.id} className="p-4" data-testid={`practice-question-${idx}`}>
           <div className="flex justify-between items-start mb-3">
             <p className="font-medium">Q{idx + 1}: {q.text}</p>
             <Button variant="ghost" size="sm" onClick={requestHint}>
               <HelpCircle className="h-4 w-4 mr-1" /> Hint
             </Button>
           </div>
-          <RadioGroup
-            value={state.practiceResults.answers[q.id] || ""}
-            onValueChange={(value) => handleAnswer(q.id, value, "practice")}
-          >
-            {q.options.map((option) => (
-              <div key={option} className="flex items-center space-x-2">
-                <RadioGroupItem value={option} id={`practice-${q.id}-${option}`} />
-                <Label htmlFor={`practice-${q.id}-${option}`}>{option}</Label>
-              </div>
-            ))}
-          </RadioGroup>
-          {state.practiceResults.answers[q.id] && (
-            <div className={`mt-2 p-2 rounded text-sm ${state.practiceResults.answers[q.id] === q.correctAnswer ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>
-              {state.practiceResults.answers[q.id] === q.correctAnswer ? "✓ Correct!" : `✗ The answer is ${q.correctAnswer}. ${q.explanation}`}
-            </div>
-          )}
+          {renderQuestionInput(q, "practice", state.practiceResults.answers)}
         </Card>
       ))}
       
@@ -384,6 +653,7 @@ export default function SessionFlow() {
               value={state.reflectionText}
               onChange={(e) => setState(prev => ({ ...prev, reflectionText: e.target.value }))}
               rows={3}
+              data-testid="reflection-textarea"
             />
           </div>
           <div>
@@ -408,19 +678,9 @@ export default function SessionFlow() {
       </div>
       
       {state.exitTicketResults.questions.map((q, idx) => (
-        <Card key={q.id} className="p-4">
+        <Card key={q.id} className="p-4" data-testid={`exit-question-${idx}`}>
           <p className="font-medium mb-3">Q{idx + 1}: {q.text}</p>
-          <RadioGroup
-            value={state.exitTicketResults.answers[q.id] || ""}
-            onValueChange={(value) => handleAnswer(q.id, value, "exit_ticket")}
-          >
-            {q.options.map((option) => (
-              <div key={option} className="flex items-center space-x-2">
-                <RadioGroupItem value={option} id={`exit-${q.id}-${option}`} />
-                <Label htmlFor={`exit-${q.id}-${option}`}>{option}</Label>
-              </div>
-            ))}
-          </RadioGroup>
+          {renderQuestionInput(q, "exit_ticket", state.exitTicketResults.answers)}
         </Card>
       ))}
     </div>
@@ -464,7 +724,7 @@ export default function SessionFlow() {
                 ? "Great recall! You're warmed up and ready to continue."
                 : "Good effort! Consider reviewing these topics during your next session."}
             </p>
-            <Button onClick={handleFinish} className="w-full bg-amber-500 hover:bg-amber-600">
+            <Button onClick={handleFinish} className="w-full bg-amber-500 hover:bg-amber-600" data-testid="finish-review-btn">
               Back to Today
             </Button>
           </Card>
@@ -500,7 +760,7 @@ export default function SessionFlow() {
             </div>
             <div className="text-center p-3 bg-slate-50 rounded-lg">
               <CheckCircle className="h-5 w-5 mx-auto text-muted-foreground mb-1" />
-              <p className="text-2xl font-bold">{exitScore >= 80 ? "✓" : "Review"}</p>
+              <p className="text-2xl font-bold">{exitScore >= 80 ? "Pass" : "Review"}</p>
               <p className="text-xs text-muted-foreground">Exit Ticket</p>
             </div>
           </div>
@@ -513,7 +773,7 @@ export default function SessionFlow() {
               ? "You've demonstrated good understanding! Ready to move on."
               : "Consider reviewing this topic again before moving on."}
           </p>
-          <Button onClick={handleFinish} className="w-full bg-green-600 hover:bg-green-700">
+          <Button onClick={handleFinish} className="w-full bg-green-600 hover:bg-green-700" data-testid="finish-session-btn">
             Return to Dashboard
           </Button>
         </Card>
@@ -533,11 +793,19 @@ export default function SessionFlow() {
     }
   };
 
+  if (contentLoading) {
+    return (
+      <div className="max-w-3xl mx-auto p-6 flex items-center justify-center min-h-[50vh]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-3xl mx-auto p-6" data-testid="session-flow-page">
       <div className="mb-8">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-sm text-muted-foreground capitalize">{subject} • {topicName}</span>
+          <span className="text-sm text-muted-foreground capitalize">{subject} &bull; {topicName}</span>
           <span className="text-sm text-muted-foreground">Step {currentStepIndex + 1} of {activeSteps.length}</span>
         </div>
         <Progress value={progressPercent} className="h-2 mb-4" />
@@ -570,13 +838,14 @@ export default function SessionFlow() {
           variant="outline" 
           onClick={handlePrevStep}
           disabled={state.currentStep === "warmup"}
+          data-testid="prev-step-btn"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
           Previous
         </Button>
         
         {state.currentStep !== "next_step" && (
-          <Button onClick={handleNextStep}>
+          <Button onClick={handleNextStep} data-testid="next-step-btn">
             Next
             <ArrowRight className="h-4 w-4 ml-2" />
           </Button>

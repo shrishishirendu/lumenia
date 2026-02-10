@@ -1,0 +1,141 @@
+You are working on the Lumenia Replit app (Postgres + Drizzle, curriculum in shared/curriculum.ts, topics/lessons/lesson_segments/quiz_questions tables). 
+
+Goal: Add FULL “Linear Equations” content for Year 9 Mathematics into the system and make it appear correctly in the Subject Tree and SessionFlow.
+
+Context
+- Subject: Mathematics (subjects.name = "Mathematics")
+- Target year/grade: 9
+- We already have topic catalog + curriculum helpers.
+- We want this content stored in DB (lessons, lesson_segments, quiz_questions), not just hardcoded UI text.
+
+Deliverables
+A) Ensure Topic exists
+1) In topics table, ensure a topic exists for:
+   - title: "Linear Equations"
+   - subjectId: Mathematics subject id
+   - gradeLevel: 9
+   - orderIndex: place it logically in Number & Algebra section (after "Algebraic Expressions" and before "Linear Relationships" if those exist; otherwise choose a sensible orderIndex)
+   - prerequisiteTopicId: set to the topic "Algebraic Expressions" or "Simplifying Expressions" if present; if not present, leave null.
+
+B) Create Lessons (4 lessons) for the topic
+2) Insert 4 lessons in lessons table linked to the Linear Equations topicId, with orderIndex 1..4:
+   Lesson 1: "One-Step Linear Equations"
+   Lesson 2: "Two-Step Linear Equations"
+   Lesson 3: "Equations with Brackets"
+   Lesson 4: "Word Problems → Equations"
+   Each lesson should have:
+   - description (1–2 lines)
+   - estimatedMinutes (15)
+   - objectives (as an array or string format consistent with schema; include 2–3 objectives per lesson)
+
+C) Create Lesson Segments (Explanation, Worked Example, Guided Practice)
+3) For each lesson, create lesson_segments with orderIndex increasing and types:
+   - explanation
+   - example
+   - practice
+   For each segment:
+   - title
+   - content: include the exact text below (keep it concise, student-friendly)
+   - whiteboardContent: for examples, include step-by-step working in a clear format
+   - tutorScript: short Mentora guidance for the segment
+
+Use this canonical content:
+
+TOPIC META (use in lesson descriptions/objectives as needed)
+Learning objectives (topic-level):
+- Solve one-step and two-step linear equations
+- Solve equations with brackets
+- Translate word problems into equations
+- Check solutions
+
+Lesson 1 content
+Explanation:
+"A linear equation is an equation where the variable has power 1. To solve, isolate the variable by undoing operations. Whatever you do to one side, do to the other."
+Worked examples:
+1) x + 5 = 12 → x = 7
+2) 3x = 18 → x = 6
+Guided practice (with hints):
+- x − 4 = 9
+- 5x = 25
+- x ÷ 3 = 6
+
+Lesson 2 content
+Explanation:
+"Two-step equations need two moves. Undo addition/subtraction first, then undo multiplication/division."
+Worked examples:
+1) 2x + 3 = 11 → x = 4
+2) 5x − 7 = 18 → x = 5
+Guided practice:
+- 3x + 4 = 19
+- 6x − 8 = 16
+- 2x + 9 = 21
+
+Lesson 3 content
+Explanation:
+"If brackets are present, expand first using the distributive law, then solve normally."
+Worked example:
+3(x + 2) = 18 → 3x + 6 = 18 → x = 4
+Guided practice:
+- 2(x + 5) = 16
+- 4(x − 1) = 12
+- −3(x + 2) = 6
+
+Lesson 4 content
+Explanation:
+"Word problems describe operations on an unknown. Let the unknown be x, write an equation, solve, then check."
+Worked example:
+"A number increased by 7 equals 19." → x + 7 = 19 → x = 12
+Guided practice:
+- A number multiplied by 4 equals 28
+- A number minus 5 equals 13
+- Twice a number plus 6 equals 20
+
+D) Create Question Bank entries (quiz_questions)
+4) Insert quiz_questions linked to the Linear Equations topicId. Also link to lessonId where relevant.
+Create:
+- Warm-up set (3 easy questions)
+  1) x + 3 = 10
+  2) 7x = 35
+  3) x − 8 = 2
+- Core set (4 medium questions)
+  1) 2x + 5 = 15
+  2) 4x − 6 = 10
+  3) 3(x + 4) = 21
+  4) 5(x − 2) = 15
+- Challenge set (3 hard questions)
+  1) 2(x − 3) + 4 = 14
+  2) −3(x + 1) = 9
+  3) Worded: "Three more than twice a number is 17. Find the number."
+- Exit ticket (4 questions, difficulty medium/hard)
+  1) 5x + 10 = 35
+  2) 3(x − 2) = 9
+  3) x ÷ 4 = 7
+  4) Worded: "A number decreased by 6 equals 11."
+
+For each quiz_question:
+- questionType: use existing enum pattern (e.g., "short_answer" / "mcq"); use short_answer unless MCQ is required by UI
+- options: null unless MCQ
+- correctAnswer: provide the value of x (e.g., "7") OR the simplified expression (for worded, provide x value)
+- explanation: 1–3 sentence solution
+- difficulty: easy=1, medium=2-3, hard=4
+- points: easy=1, medium=2, hard=3
+
+E) Wire into UI
+5) Ensure the subject tree page shows "Linear Equations" under Year 9 Mathematics.
+6) Ensure clicking "Start" for Linear Equations launches SessionFlow:
+   /student/session/mathematics/{topicId}?year=9
+   and that SessionFlow can pull the lessons/segments/questions you inserted.
+
+F) Seeding mechanism
+7) Implement as a DB seed script (preferred) or an admin action:
+- Add a seed function (idempotent): running twice must not duplicate content.
+- If the project has existing seed conventions, follow them.
+
+G) AI context improvement (small but important)
+8) When SessionFlow invokes generateTutoringResponse(), add a system message:
+"Student grade: Year 9. Keep explanations and difficulty appropriate for Year 9 Australian Curriculum."
+Use profiles.grade or query param year if that’s already passed.
+
+Output
+- List files changed/created
+- Confirm the topic appears in Year 9 Maths and that Start launches a session without errors.

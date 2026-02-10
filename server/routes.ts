@@ -1287,6 +1287,73 @@ export async function registerRoutes(
     }
   });
 
+  // Topic resolution endpoint
+  app.get("/api/topics/resolve", async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+
+      const { subject, title, grade } = req.query;
+      if (!subject || !title || !grade) {
+        return res.status(400).json({ error: "subject, title, and grade query params required" });
+      }
+
+      const subjectNameLower = String(subject).toLowerCase();
+      const subjectId = subjectNameLower.includes("math") ? 1 : 2;
+      const gradeLevel = parseInt(String(grade));
+
+      const topic = await tutoringStorage.getTopicBySubjectAndGrade(subjectId, gradeLevel, String(title));
+      if (!topic) {
+        return res.status(404).json({ error: "Topic not found" });
+      }
+
+      const topicLessons = await tutoringStorage.getLessonsByTopic(topic.id);
+      const questions = await tutoringStorage.getQuizQuestionsByTopic(topic.id);
+
+      res.json({
+        topic,
+        lessons: topicLessons,
+        questionCount: questions.length,
+      });
+    } catch (error) {
+      console.error("Error resolving topic:", error);
+      res.status(500).json({ error: "Failed to resolve topic" });
+    }
+  });
+
+  // Full topic content for SessionFlow (lessons + segments + questions)
+  app.get("/api/topics/:topicId/content", async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+
+      const topicId = parseInt(req.params.topicId);
+      const topic = await tutoringStorage.getTopic(topicId);
+      if (!topic) return res.status(404).json({ error: "Topic not found" });
+
+      const topicLessons = await tutoringStorage.getLessonsByTopic(topicId);
+      const lessonsWithSegments = await Promise.all(
+        topicLessons.map(async (lesson) => {
+          const segments = await tutoringStorage.getLessonSegments(lesson.id);
+          const questions = await tutoringStorage.getQuizQuestionsByLesson(lesson.id);
+          return { ...lesson, segments, questions };
+        })
+      );
+
+      const topicQuestions = await tutoringStorage.getQuizQuestionsByTopic(topicId);
+      const exitTicketQuestions = topicQuestions.filter((q) => q.lessonId === null);
+
+      res.json({
+        topic,
+        lessons: lessonsWithSegments,
+        exitTicketQuestions,
+      });
+    } catch (error) {
+      console.error("Error fetching topic content:", error);
+      res.status(500).json({ error: "Failed to fetch topic content" });
+    }
+  });
+
   // Lessons and structured content (auth required)
   app.get("/api/lessons/topic/:topicId", async (req: any, res) => {
     try {
@@ -1985,7 +2052,16 @@ export async function registerRoutes(
         // curriculum not available for this combination
       }
 
-      res.json({ subject, plan, curriculum, grade: yearLevel });
+      const allTopics = await tutoringStorage.getTopicsBySubject(subjectId);
+      const gradeTopics = allTopics.filter((t) => t.gradeLevel === yearLevel);
+      const dbTopicsWithLessons = await Promise.all(
+        gradeTopics.map(async (t) => {
+          const topicLessons = await tutoringStorage.getLessonsByTopic(t.id);
+          return { ...t, lessonCount: topicLessons.length };
+        })
+      );
+
+      res.json({ subject, plan, curriculum, grade: yearLevel, dbTopics: dbTopicsWithLessons });
     } catch (error) {
       console.error("Error fetching student course:", error);
       res.status(500).json({ error: "Failed to fetch course" });

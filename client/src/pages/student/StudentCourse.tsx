@@ -14,15 +14,26 @@ import {
   Target,
   Calculator,
   PenTool,
+  Sparkles,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { YearCurriculum, Unit, Lesson } from "@shared/curriculum";
+
+interface DBTopic {
+  id: number;
+  title: string;
+  description: string | null;
+  gradeLevel: number;
+  orderIndex: number;
+  lessonCount: number;
+}
 
 interface CourseResponse {
   subject: { id: number; name: string; description: string | null; teacherName: string | null };
   plan: { id: number; currentTopicId: number | null; status: string };
   curriculum: YearCurriculum | null;
   grade: number;
+  dbTopics?: DBTopic[];
 }
 
 export default function StudentCourse() {
@@ -65,9 +76,24 @@ export default function StudentCourse() {
     setLocation(`/student/session/${slug}/${topicParam}?year=${data?.grade}`);
   };
 
+  const handleStartDBTopic = (topic: DBTopic) => {
+    const slug = getSubjectSlug();
+    const topicParam = encodeURIComponent(topic.title);
+    setLocation(`/student/session/${slug}/${topicParam}?year=${data?.grade}&topicId=${topic.id}`);
+  };
+
   const handleResume = () => {
     if (!data) return;
     const slug = getSubjectSlug();
+
+    const dbTopics = data.dbTopics || [];
+    if (dbTopics.length > 0) {
+      const firstTopic = dbTopics[0];
+      const topicParam = encodeURIComponent(firstTopic.title);
+      setLocation(`/student/session/${slug}/${topicParam}?year=${data.grade}&topicId=${firstTopic.id}`);
+      return;
+    }
+
     const curriculum = data.curriculum;
     if (curriculum && curriculum.units.length > 0) {
       const firstLesson = curriculum.units[0].lessons[0];
@@ -104,11 +130,12 @@ export default function StudentCourse() {
   }
 
   const { subject, curriculum, grade } = data;
+  const dbTopics = data.dbTopics || [];
   const isMath = subject.name.toLowerCase() === "mathematics";
   const subjectIcon = isMath ? <Calculator className="w-6 h-6" /> : <PenTool className="w-6 h-6" />;
   const styles = isMath
-    ? { header: "bg-gradient-to-br from-blue-50 to-transparent border border-blue-200", iconBg: "bg-blue-100 text-blue-600", unitBadge: "bg-blue-100 text-blue-600" }
-    : { header: "bg-gradient-to-br from-purple-50 to-transparent border border-purple-200", iconBg: "bg-purple-100 text-purple-600", unitBadge: "bg-purple-100 text-purple-600" };
+    ? { header: "bg-gradient-to-br from-blue-50 to-transparent border border-blue-200", iconBg: "bg-blue-100 text-blue-600", unitBadge: "bg-blue-100 text-blue-600", topicAccent: "border-blue-200 bg-blue-50" }
+    : { header: "bg-gradient-to-br from-purple-50 to-transparent border border-purple-200", iconBg: "bg-purple-100 text-purple-600", unitBadge: "bg-purple-100 text-purple-600", topicAccent: "border-purple-200 bg-purple-50" };
 
   return (
     <div className="max-w-4xl mx-auto p-4 sm:p-6 space-y-6" data-testid="student-course-page">
@@ -157,7 +184,62 @@ export default function StudentCourse() {
         </p>
       )}
 
-      {!curriculum ? (
+      {dbTopics.length > 0 && (
+        <div className="space-y-3" data-testid="db-topics-list">
+          <h2 className="text-lg font-semibold flex items-center gap-2">
+            <Sparkles className="w-5 h-5 text-amber-500" />
+            Interactive Topics
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            These topics have full lesson content with worked examples, guided practice, and quiz questions.
+          </p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {dbTopics.map((topic, idx) => (
+              <motion.div
+                key={topic.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: idx * 0.05 }}
+              >
+                <Card
+                  className={`${styles.topicAccent} hover:shadow-md transition-shadow cursor-pointer`}
+                  onClick={() => handleStartDBTopic(topic)}
+                  data-testid={`db-topic-card-${topic.id}`}
+                >
+                  <CardContent className="p-5">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-base" data-testid={`db-topic-title-${topic.id}`}>
+                          {topic.title}
+                        </h3>
+                        {topic.description && (
+                          <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
+                            {topic.description}
+                          </p>
+                        )}
+                        <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
+                          <span className="flex items-center gap-1">
+                            <BookOpen className="w-3 h-3" /> {topic.lessonCount} lessons
+                          </span>
+                        </div>
+                      </div>
+                      <Button
+                        size="sm"
+                        className="shrink-0 gap-1"
+                        data-testid={`start-topic-${topic.id}`}
+                      >
+                        <Play className="w-3 h-3" /> Start
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {!curriculum && dbTopics.length === 0 ? (
         <Card>
           <CardContent className="p-8 text-center">
             <GraduationCap className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
@@ -166,8 +248,9 @@ export default function StudentCourse() {
             </p>
           </CardContent>
         </Card>
-      ) : (
+      ) : curriculum ? (
         <div className="space-y-3" data-testid="units-list">
+          <h2 className="text-lg font-semibold">Curriculum Overview</h2>
           {curriculum.units.map((unit: Unit, unitIndex: number) => {
             const isExpanded = expandedUnits.has(unit.id);
             return (
@@ -287,7 +370,7 @@ export default function StudentCourse() {
             );
           })}
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

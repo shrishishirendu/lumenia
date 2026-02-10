@@ -141,9 +141,14 @@ Preferred communication style: Simple, everyday language.
 - **Course Page** (`/student/course/:subjectId`): Shows curriculum for subject + student year level using `getCurriculum()` from `shared/curriculum.ts`. Units are expandable to reveal lessons. Auto-creates `teaching_plans` record on first visit.
 - **API Routes**:
     - `GET /api/student/subjects` - Active subjects with teaching plan status
-    - `GET /api/student/course/:subjectId` - Course curriculum + auto-create teaching plan
+    - `GET /api/student/course/:subjectId` - Course curriculum + auto-create teaching plan + DB topics
+    - `GET /api/topics/resolve` - Resolve topic by subject+title+grade
+    - `GET /api/topics/:topicId/content` - Full topic content (lessons, segments, questions)
 - **Navigation**: "My Subjects" link in StudentToday "What's next" section and sidebar nav (BookOpen icon).
 - **AI Year Level**: `generateTutoringResponse()` now accepts optional `yearLevel` parameter; injected as system message "Student grade: Year {n}." for age-appropriate content.
+- **DB Content Pipeline**: Topics, lessons, lesson_segments, quiz_questions stored in PostgreSQL. SessionFlow fetches from `/api/topics/:topicId/content` when `topicId` query param is present, falling back to mock data otherwise.
+- **Seed Script**: `server/seeds/linearEquations.ts` seeds Year 9 "Linear Equations" topic with 4 lessons, 12 segments (explanation+example+practice per lesson), and 14 quiz questions. Idempotent (checks for existing topic before inserting). Run via `npx tsx server/seeds/linearEquations.ts`.
+- **Interactive Topics**: StudentCourse page shows DB topics in a highlighted "Interactive Topics" section above the static curriculum, with Start buttons that pass `topicId` to SessionFlow.
 
 ### Core Features
 - **Curriculum System**: Comprehensive year-level curriculum (Years 6-12) for Mathematics and English, aligned with ACARA.

@@ -148,6 +148,7 @@ export interface ITutoringStorage {
   getTopicsBySubject(subjectId: number): Promise<Topic[]>;
   getTopicsByGrade(gradeLevel: number): Promise<Topic[]>;
   getTopic(id: number): Promise<Topic | undefined>;
+  getTopicBySubjectAndGrade(subjectId: number, gradeLevel: number, title: string): Promise<Topic | undefined>;
   createTopic(topic: InsertTopic): Promise<Topic>;
   
   // Teaching Plans
@@ -501,6 +502,17 @@ class TutoringStorage implements ITutoringStorage {
 
   async getTopic(id: number): Promise<Topic | undefined> {
     const [topic] = await db.select().from(topics).where(eq(topics.id, id));
+    return topic;
+  }
+
+  async getTopicBySubjectAndGrade(subjectId: number, gradeLevel: number, title: string): Promise<Topic | undefined> {
+    const [topic] = await db.select().from(topics).where(
+      and(
+        eq(topics.subjectId, subjectId),
+        eq(topics.gradeLevel, gradeLevel),
+        eq(topics.title, title)
+      )
+    );
     return topic;
   }
 
