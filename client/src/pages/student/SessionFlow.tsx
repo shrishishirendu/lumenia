@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { TOPIC_CATALOG, getTopic } from "@shared/topicCatalog";
 import { apiRequest } from "@/lib/queryClient";
+import TopicNotesDrawer from "@/components/TopicNotesDrawer";
 
 type SessionStep = "warmup" | "lesson" | "practice" | "reflection" | "exit_ticket" | "next_step";
 
@@ -805,7 +806,10 @@ export default function SessionFlow() {
     <div className="max-w-3xl mx-auto p-6" data-testid="session-flow-page">
       <div className="mb-8">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-sm text-muted-foreground capitalize">{subject} &bull; {topicName}</span>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground capitalize">{subject} &bull; {topicName}</span>
+            {dbTopicIdParam && <TopicNotesDrawer topicId={Number(dbTopicIdParam)} topicTitle={topicName} triggerVariant="button" />}
+          </div>
           <span className="text-sm text-muted-foreground">Step {currentStepIndex + 1} of {activeSteps.length}</span>
         </div>
         <Progress value={progressPercent} className="h-2 mb-4" />

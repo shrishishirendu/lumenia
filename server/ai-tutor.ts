@@ -132,7 +132,8 @@ export async function generateTutoringResponse(
   wolframAnswer?: string,
   subject: string = "math",
   teachingStyle: TeachingStyle = "socratic",
-  yearLevel?: number
+  yearLevel?: number,
+  topicNoteSummary?: string
 ): Promise<string> {
   const systemPrompt = getSystemPrompt(subject, teachingStyle);
   
@@ -155,9 +156,18 @@ export async function generateTutoringResponse(
   }
 
   if (topic) {
+    let topicContext = `Current topic: ${topic}. Keep questions focused on this area.`;
+    if (topicNoteSummary) {
+      topicContext += ` Topic overview: ${topicNoteSummary}`;
+    }
     messages.splice(1, 0, {
       role: "system",
-      content: `Current topic: ${topic}. Keep questions focused on this area.`
+      content: topicContext
+    });
+  } else if (topicNoteSummary) {
+    messages.splice(1, 0, {
+      role: "system",
+      content: `Topic overview: ${topicNoteSummary}`
     });
   }
 

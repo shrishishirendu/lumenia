@@ -1085,6 +1085,15 @@ export async function registerRoutes(
         if (isNaN(yearLevel)) yearLevel = undefined;
       }
 
+      // Fetch topic notes summary for AI context
+      let topicNoteSummary: string | undefined;
+      if (req.body.topicId) {
+        try {
+          const notes = await tutoringStorage.getTopicNotes(parseInt(req.body.topicId));
+          if (notes?.summary) topicNoteSummary = notes.summary;
+        } catch {}
+      }
+
       // Generate AI response using selected teaching style
       const { generateTutoringResponse } = await import("./ai-tutor");
       const response = await generateTutoringResponse(
@@ -1094,7 +1103,8 @@ export async function registerRoutes(
         wolframAnswer,
         subject,
         teachingStyle || "socratic",
-        yearLevel
+        yearLevel,
+        topicNoteSummary
       );
 
       // Store AI response (without the internal WolframAlpha note)
@@ -1355,6 +1365,48 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error fetching topic content:", error);
       res.status(500).json({ error: "Failed to fetch topic content" });
+    }
+  });
+
+  // Topic Notes
+  app.get("/api/topics/:topicId/notes", async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+
+      const topicId = parseInt(req.params.topicId);
+      if (isNaN(topicId)) return res.status(400).json({ error: "Invalid topic ID" });
+      const notes = await tutoringStorage.getTopicNotes(topicId);
+      res.json(notes || null);
+    } catch (error) {
+      console.error("Error fetching topic notes:", error);
+      res.status(500).json({ error: "Failed to fetch topic notes" });
+    }
+  });
+
+  app.post("/api/topics/:topicId/notes", requireAdminRole, async (req: any, res) => {
+    try {
+      const topicId = parseInt(req.params.topicId);
+      if (isNaN(topicId)) return res.status(400).json({ error: "Invalid topic ID" });
+
+      const topic = await tutoringStorage.getTopic(topicId);
+      if (!topic) return res.status(404).json({ error: "Topic not found" });
+
+      const { summary, notesMarkdown } = req.body;
+      if (!summary || typeof summary !== "string") return res.status(400).json({ error: "summary is required" });
+      if (!notesMarkdown || typeof notesMarkdown !== "string") return res.status(400).json({ error: "notesMarkdown is required" });
+
+      const notes = await tutoringStorage.upsertTopicNotes({
+        topicId,
+        summary,
+        notesMarkdown,
+        keyFormulas: Array.isArray(req.body.keyFormulas) ? req.body.keyFormulas : null,
+        commonMistakes: Array.isArray(req.body.commonMistakes) ? req.body.commonMistakes : null,
+      });
+      res.json(notes);
+    } catch (error) {
+      console.error("Error upserting topic notes:", error);
+      res.status(500).json({ error: "Failed to save topic notes" });
     }
   });
 

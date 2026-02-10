@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { YearCurriculum, Unit, Lesson } from "@shared/curriculum";
+import TopicNotesDrawer from "@/components/TopicNotesDrawer";
 
 interface DBTopic {
   id: number;
@@ -223,13 +224,16 @@ export default function StudentCourse() {
                           </span>
                         </div>
                       </div>
-                      <Button
-                        size="sm"
-                        className="shrink-0 gap-1"
-                        data-testid={`start-topic-${topic.id}`}
-                      >
-                        <Play className="w-3 h-3" /> Start
-                      </Button>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <TopicNotesDrawer topicId={topic.id} topicTitle={topic.title} triggerVariant="icon" />
+                        <Button
+                          size="sm"
+                          className="gap-1"
+                          data-testid={`start-topic-${topic.id}`}
+                        >
+                          <Play className="w-3 h-3" /> Start
+                        </Button>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>

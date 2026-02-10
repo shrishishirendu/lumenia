@@ -1,0 +1,55 @@
+Add a lightweight Topic Notes layer to Lumenia without changing the existing SessionFlow architecture.
+
+1) DB: create a new table topic_notes in shared/schema.ts (Drizzle, Postgres)
+Fields:
+- id (serial/uuid depending on existing pattern)
+- topicId (FK to topics.id, unique per topic)
+- summary (text, short)
+- notesMarkdown (text, long)
+- keyFormulas (jsonb nullable)  // array of strings
+- commonMistakes (jsonb nullable) // array of strings
+- createdAt, updatedAt
+
+Ensure uniqueness: one notes record per topicId.
+
+2) API: create endpoints
+- GET /api/topics/:topicId/notes  -> returns topic notes (or null if not exists)
+- POST /api/topics/:topicId/notes -> upsert notes (admin only)
+Follow existing auth patterns. Only admin/owner/teacher can write.
+
+3) UI: Topic Notes viewer (read-only for students)
+- In the Subject Tree topic row, add a small “Notes” action.
+- Clicking “Notes” opens a right-side drawer or modal showing:
+  - summary
+  - notesMarkdown rendered as markdown
+  - keyFormulas bullets
+  - commonMistakes bullets
+No navigation away from page.
+
+4) UI: SessionFlow integration
+- Add a “Notes” button/tab in SessionFlow (near Ask Mentora).
+- It opens the same notes drawer/modal for the current topicId.
+
+5) Seed: create notes for topic "Linear Equations" (topicId=1)
+Insert topic_notes with:
+summary:
+"Linear equations are solved by keeping both sides balanced and isolating the variable."
+notesMarkdown:
+Include short sections: Core idea, Steps, Brackets rule, Checking answers.
+keyFormulas:
+["Do the same operation on both sides", "Expand brackets first if present"]
+commonMistakes:
+["Changing one side only", "Sign errors after expanding", "Wrong order of operations"]
+
+6) Mentora context (small improvement)
+When starting a session for a topic, fetch topic_notes.summary (if exists) and inject into the system messages:
+"Topic notes summary: {summary}. Follow these notes for consistency."
+
+Constraints:
+- Do NOT redesign the course flow.
+- Notes are supplementary only.
+- Keep styling consistent.
+- Provide files changed and confirm:
+  - Notes open from Subject Tree
+  - Notes open inside SessionFlow
+  - No errors when notes don't exist

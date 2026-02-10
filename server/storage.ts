@@ -100,7 +100,10 @@ import {
   type InsertAcademicQualitySettings,
   type AcademicAlertStatus,
   academicAlerts,
-  academicQualitySettings
+  academicQualitySettings,
+  topicNotes,
+  type TopicNotes,
+  type InsertTopicNotes,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, sql } from "drizzle-orm";
@@ -209,6 +212,10 @@ export interface ITutoringStorage {
   getQuizQuestion(id: number): Promise<QuizQuestion | undefined>;
   createQuizQuestion(question: InsertQuizQuestion): Promise<QuizQuestion>;
   
+  // Topic Notes
+  getTopicNotes(topicId: number): Promise<TopicNotes | undefined>;
+  upsertTopicNotes(notes: InsertTopicNotes): Promise<TopicNotes>;
+
   // Quiz Attempts
   createQuizAttempt(attempt: InsertQuizAttempt): Promise<QuizAttempt>;
   getQuizAttempt(id: number): Promise<QuizAttempt | undefined>;
@@ -702,6 +709,25 @@ class TutoringStorage implements ITutoringStorage {
   async createQuizQuestion(questionData: InsertQuizQuestion): Promise<QuizQuestion> {
     const [question] = await db.insert(quizQuestions).values(questionData).returning();
     return question;
+  }
+
+  // Topic Notes
+  async getTopicNotes(topicId: number): Promise<TopicNotes | undefined> {
+    const [notes] = await db.select().from(topicNotes).where(eq(topicNotes.topicId, topicId));
+    return notes;
+  }
+
+  async upsertTopicNotes(notes: InsertTopicNotes): Promise<TopicNotes> {
+    const existing = await this.getTopicNotes(notes.topicId);
+    if (existing) {
+      const [updated] = await db.update(topicNotes)
+        .set({ ...notes, updatedAt: new Date() })
+        .where(eq(topicNotes.topicId, notes.topicId))
+        .returning();
+      return updated;
+    }
+    const [created] = await db.insert(topicNotes).values(notes).returning();
+    return created;
   }
 
   // Quiz Attempts

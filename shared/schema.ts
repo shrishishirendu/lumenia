@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, serial, integer, timestamp, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, serial, integer, timestamp, boolean, jsonb, uniqueIndex } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -30,6 +30,18 @@ export const topics = pgTable("topics", {
   prerequisiteTopicId: integer("prerequisite_topic_id"), // Previous topic that should be mastered
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Topic Notes (supplementary reference material per topic)
+export const topicNotes = pgTable("topic_notes", {
+  id: serial("id").primaryKey(),
+  topicId: integer("topic_id").notNull().references(() => topics.id, { onDelete: "cascade" }).unique(),
+  summary: text("summary").notNull(),
+  notesMarkdown: text("notes_markdown").notNull(),
+  keyFormulas: jsonb("key_formulas"),
+  commonMistakes: jsonb("common_mistakes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
 // Student profiles with role information
@@ -369,6 +381,9 @@ export const insertAppointmentSchema = createInsertSchema(appointments).omit({ i
 export const insertSupportTicketSchema = createInsertSchema(supportTickets).omit({ id: true, createdAt: true });
 export const insertActivityLogSchema = createInsertSchema(activityLogs).omit({ id: true, createdAt: true });
 
+// Zod schemas - Topic Notes
+export const insertTopicNotesSchema = createInsertSchema(topicNotes).omit({ id: true, createdAt: true, updatedAt: true });
+
 // Zod schemas - Lessons and quizzes
 export const insertLessonSchema = createInsertSchema(lessons).omit({ id: true, createdAt: true });
 export const insertLessonSegmentSchema = createInsertSchema(lessonSegments).omit({ id: true, createdAt: true });
@@ -410,6 +425,10 @@ export type SupportTicket = typeof supportTickets.$inferSelect;
 export type InsertSupportTicket = z.infer<typeof insertSupportTicketSchema>;
 export type ActivityLog = typeof activityLogs.$inferSelect;
 export type InsertActivityLog = z.infer<typeof insertActivityLogSchema>;
+
+// Types - Topic Notes
+export type TopicNotes = typeof topicNotes.$inferSelect;
+export type InsertTopicNotes = z.infer<typeof insertTopicNotesSchema>;
 
 // Types - Lessons and quizzes
 export type Lesson = typeof lessons.$inferSelect;

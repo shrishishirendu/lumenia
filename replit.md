@@ -150,6 +150,19 @@ Preferred communication style: Simple, everyday language.
 - **Seed Script**: `server/seeds/linearEquations.ts` seeds Year 9 "Linear Equations" topic with 4 lessons, 12 segments (explanation+example+practice per lesson), and 14 quiz questions. Idempotent (checks for existing topic before inserting). Run via `npx tsx server/seeds/linearEquations.ts`.
 - **Interactive Topics**: StudentCourse page shows DB topics in a highlighted "Interactive Topics" section above the static curriculum, with Start buttons that pass `topicId` to SessionFlow.
 
+### Topic Notes (v0.1)
+- **Purpose**: Supplementary reference notes for DB-backed topics, viewable by students in a side panel.
+- **Data Model**: `topic_notes` table — `topicId` (unique FK to topics), `summary`, `notesMarkdown`, `keyFormulas` (JSONB array), `commonMistakes` (JSONB array), timestamps.
+- **Storage**: `getTopicNotes(topicId)`, `upsertTopicNotes(notes)` in `server/storage.ts`.
+- **API Routes**:
+    - `GET /api/topics/:topicId/notes` - Auth required, returns notes or null
+    - `POST /api/topics/:topicId/notes` - Admin-only, upserts notes
+- **UI**: `TopicNotesDrawer` component (`client/src/components/TopicNotesDrawer.tsx`) using Sheet (right-side panel). Integrated into:
+    - `StudentCourse` — icon button on each DB topic card
+    - `SessionFlow` — "Notes" button in the session header bar (only when `topicId` query param present)
+- **Mentora Integration**: `generateTutoringResponse()` accepts optional `topicNoteSummary` parameter; injected into system context when `topicId` is sent in chat requests.
+- **Seeded Data**: Linear Equations topic notes with summary, markdown guide, 4 key formulas, 4 common mistakes.
+
 ### Core Features
 - **Curriculum System**: Comprehensive year-level curriculum (Years 6-12) for Mathematics and English, aligned with ACARA.
 - **Student Learning Loop**: Structured learning experience with warmup quizzes, lessons, practice, reflection, and exit tickets.
