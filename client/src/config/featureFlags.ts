@@ -1,3 +1,3 @@
 export const featureFlags = {
-  simpleStudentToday: false,
+  simpleStudentToday: true,
 } as const;
