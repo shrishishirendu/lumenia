@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { motion, AnimatePresence } from "framer-motion";
+import { featureFlags } from "@/config/featureFlags";
 
 interface StudentMemoryData {
   lastSubject: string | null;
@@ -213,6 +214,77 @@ export default function StudentToday() {
   const currentTopic = memory?.lastTopicName || "Continue your learning";
   const currentSubject = memory?.lastSubject || "math";
   const improvementSentence = getImprovementSentence(memory ?? null);
+
+  const shouldSuggestPractice = 
+    (memory?.lastAccuracy !== undefined && memory.lastAccuracy < 70) ||
+    (memory?.problemsCorrectToday !== undefined && memory.problemsCorrectToday === 0);
+
+  if (featureFlags.simpleStudentToday) {
+    return (
+      <div className="max-w-md mx-auto p-4 sm:p-6 flex flex-col items-center justify-center min-h-[60vh] space-y-8" data-testid="student-today-page">
+        <AnimatePresence>
+          {showClosure && (
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-emerald-50 border border-emerald-200 rounded-xl px-6 py-4 shadow-lg flex items-center gap-3"
+              data-testid="closure-message"
+            >
+              <CheckCircle className="w-5 h-5 text-emerald-600" />
+              <span className="text-emerald-800 font-medium">{closureMessage}</span>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <div className="text-center space-y-1">
+          <p className="text-sm text-muted-foreground capitalize" data-testid="simple-context">
+            {currentSubject} · {currentTopic}
+          </p>
+        </div>
+
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="w-full"
+        >
+          <Button
+            size="lg"
+            onClick={handleStartTodaysSession}
+            className="w-full gap-2 py-6 text-lg shadow-md"
+            data-testid="simple-continue-btn"
+          >
+            <Play className="w-5 h-5" />
+            Continue today's learning
+          </Button>
+        </motion.div>
+
+        {shouldSuggestPractice && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="w-full"
+          >
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={() => setLocation("/student/practice")}
+              className="w-full gap-2"
+              data-testid="simple-practice-btn"
+            >
+              <Target className="w-4 h-4" />
+              Practice recommended
+            </Button>
+          </motion.div>
+        )}
+
+        <p className="text-sm text-muted-foreground text-center" data-testid="simple-reassurance">
+          You're on track for today.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-4xl mx-auto p-4 sm:p-6 space-y-6" data-testid="student-today-page">
