@@ -146,9 +146,11 @@ export async function generateTutoringResponse(
   ];
 
   if (yearLevel) {
+    const yearMsg = `Student grade: Year ${yearLevel}. Keep explanations and difficulty appropriate for Year ${yearLevel} Australian Curriculum.`;
+    console.log(`[Mentora] Year level context injected: "${yearMsg}"`);
     messages.splice(1, 0, {
       role: "system",
-      content: `Student grade: Year ${yearLevel}. Keep content, vocabulary and difficulty appropriate for this year level.`
+      content: yearMsg
     });
   }
 

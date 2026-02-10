@@ -1074,12 +1074,16 @@ export async function registerRoutes(
         }
       }
 
-      // Get student year level for AI context
+      // Get student year level for AI context (profiles.grade preferred, fall back to query param)
       let yearLevel: number | undefined;
       try {
         const studentProfile = await tutoringStorage.getProfileById(session.studentId);
         yearLevel = studentProfile?.grade ?? undefined;
       } catch {}
+      if (!yearLevel && req.body.year) {
+        yearLevel = parseInt(req.body.year);
+        if (isNaN(yearLevel)) yearLevel = undefined;
+      }
 
       // Generate AI response using selected teaching style
       const { generateTutoringResponse } = await import("./ai-tutor");
