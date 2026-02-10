@@ -1368,6 +1368,31 @@ export async function registerRoutes(
     }
   });
 
+  // Practice questions by topic with optional difficulty filter
+  app.get("/api/topics/:topicId/questions", async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+
+      const topicId = parseInt(req.params.topicId);
+      if (isNaN(topicId)) return res.status(400).json({ error: "Invalid topic ID" });
+
+      const allQuestions = await tutoringStorage.getQuizQuestionsByTopic(topicId);
+      const difficulty = req.query.difficulty ? parseInt(req.query.difficulty as string) : null;
+      const filtered = difficulty ? allQuestions.filter(q => q.difficulty === difficulty) : allQuestions;
+
+      const distribution: Record<number, number> = {};
+      for (const q of allQuestions) {
+        distribution[q.difficulty] = (distribution[q.difficulty] || 0) + 1;
+      }
+
+      res.json({ questions: filtered, total: allQuestions.length, distribution });
+    } catch (error) {
+      console.error("Error fetching practice questions:", error);
+      res.status(500).json({ error: "Failed to fetch practice questions" });
+    }
+  });
+
   // Topic Notes
   app.get("/api/topics/:topicId/notes", async (req: any, res) => {
     try {

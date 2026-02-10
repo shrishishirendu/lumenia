@@ -1,7 +1,7 @@
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
-import { Home, GraduationCap, BookOpen, Settings, LogOut, User } from "lucide-react";
+import { Home, GraduationCap, BookOpen, Settings, LogOut, User, Target } from "lucide-react";
 
 interface StudentLayoutProps {
   children: React.ReactNode;
@@ -48,6 +48,18 @@ export function StudentLayout({ children }: StudentLayoutProps) {
             </Button>
           </Link>
           
+          <Link href="/student/practice">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className={`w-full h-12 rounded-xl transition-all ${isActive('/student/practice') ? 'bg-blue-100 text-blue-600' : 'text-muted-foreground hover:bg-muted'}`}
+              data-testid="nav-practice"
+              title="Practice"
+            >
+              <Target className="w-5 h-5" />
+            </Button>
+          </Link>
+
           <Link href="/student/classroom">
             <Button 
               variant="ghost" 
