@@ -1390,6 +1390,102 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/topics/:topicId/session-questions", async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+
+      const profile = await tutoringStorage.getProfileByUserId(userId);
+      if (!profile) return res.status(404).json({ error: "Profile not found" });
+
+      const topicId = parseInt(req.params.topicId);
+      const allQuestions = await tutoringStorage.getQuizQuestionsByTopic(topicId);
+
+      const topic = await tutoringStorage.getTopic(topicId);
+      const topicName = topic?.title || "";
+
+      const previousIds: string[] = [];
+      try {
+        const allAttempts = await tutoringStorage.getSessionAttemptsByStudent(profile.id);
+        const topicAttempt = allAttempts.find(a => a.topicName === topicName && a.endedAt);
+        if (topicAttempt) {
+          if (topicAttempt.warmupResults) {
+            const wr = JSON.parse(topicAttempt.warmupResults);
+            (wr.questions || []).forEach((q: any) => previousIds.push(String(q.id)));
+          }
+          if (topicAttempt.exitTicketResults) {
+            const er = JSON.parse(topicAttempt.exitTicketResults);
+            (er.questions || []).forEach((q: any) => previousIds.push(String(q.id)));
+          }
+        }
+      } catch {}
+
+      const prevSet = new Set(previousIds);
+
+      const shuffle = <T,>(arr: T[]): T[] => {
+        const a = [...arr];
+        for (let i = a.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [a[i], a[j]] = [a[j], a[i]];
+        }
+        return a;
+      };
+
+      const pickRandom = <T extends { id: number }>(pool: T[], count: number, exclude: Set<string>): T[] => {
+        const preferred = pool.filter(q => !exclude.has(String(q.id)));
+        const source = preferred.length >= count ? preferred : pool;
+        return shuffle(source).slice(0, count);
+      };
+
+      const topicLevel = allQuestions.filter(q => q.lessonId === null);
+      const diff1 = topicLevel.filter(q => q.difficulty === 1);
+      const diff2 = topicLevel.filter(q => q.difficulty === 2);
+      const diff3 = topicLevel.filter(q => q.difficulty === 3);
+      const diff4 = topicLevel.filter(q => q.difficulty >= 4);
+      const lessonDiff1 = allQuestions.filter(q => q.lessonId !== null && q.difficulty <= 1);
+      const allDiff1 = [...diff1, ...lessonDiff1];
+
+      const warmupCount = Math.min(3, Math.max(2, allDiff1.length));
+      const warmupQuestions = pickRandom(allDiff1, warmupCount, prevSet);
+
+      const usedInWarmup = new Set(warmupQuestions.map(q => String(q.id)));
+      const exitExclude = new Set([...Array.from(prevSet), ...Array.from(usedInWarmup)]);
+
+      const anyPool = topicLevel.length > 0 ? topicLevel : allQuestions;
+
+      const exit1 = pickRandom(diff2.length > 0 ? diff2 : anyPool, 1, exitExclude);
+      exit1.forEach(q => exitExclude.add(String(q.id)));
+      const exit2 = pickRandom(diff3.length > 0 ? diff3 : anyPool, 1, exitExclude);
+      exit2.forEach(q => exitExclude.add(String(q.id)));
+
+      const wordProblems = diff4.filter(q => q.questionText.length > 60);
+      let exit3: typeof allQuestions = [];
+      if (wordProblems.length > 0) {
+        exit3 = pickRandom(wordProblems, 1, exitExclude);
+      } else {
+        const fallbackPool = diff2.length > 1 ? diff2 : (diff3.length > 0 ? diff3 : anyPool);
+        exit3 = pickRandom(fallbackPool, 1, exitExclude);
+      }
+      exit3.forEach(q => exitExclude.add(String(q.id)));
+
+      let exit4: typeof allQuestions = [];
+      const remaining = anyPool.filter(q => !exitExclude.has(String(q.id)));
+      if (remaining.length > 0) {
+        exit4 = pickRandom(remaining, 1, exitExclude);
+      }
+
+      const exitTicketQuestions = [...exit1, ...exit2, ...exit3, ...exit4];
+
+      res.json({
+        warmupQuestions,
+        exitTicketQuestions: shuffle(exitTicketQuestions),
+      });
+    } catch (error) {
+      console.error("Error fetching session questions:", error);
+      res.status(500).json({ error: "Failed to fetch session questions" });
+    }
+  });
+
   // Get topics for a subject filtered by grade
   app.get("/api/topics/by-grade", async (req: any, res) => {
     try {

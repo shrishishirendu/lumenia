@@ -167,20 +167,36 @@ export default function SessionFlow() {
     enabled: !!dbTopicIdParam && !isWarmupMode,
   });
 
+  const { data: sessionQuestions } = useQuery<{ warmupQuestions: DBQuestion[]; exitTicketQuestions: DBQuestion[] }>({
+    queryKey: ["/api/topics/session-questions", dbTopicIdParam],
+    queryFn: async () => {
+      const res = await fetch(`/api/topics/${dbTopicIdParam}/session-questions`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch session questions");
+      return res.json();
+    },
+    enabled: !!dbTopicIdParam,
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
+  });
+
   const hasDBContent = !!topicContent &&
     topicContent.lessons.length > 0 &&
     topicContent.lessons.some((l) => l.segments && l.segments.length > 0);
   const topicName = hasDBContent ? topicContent.topic.title : fallbackTopicName;
 
-  const warmupQuestions = hasDBContent
-    ? topicContent.lessons[0]?.questions?.filter((q) => q.difficulty <= 1).slice(0, 3).map(dbQuestionToQuestion) || []
-    : null;
+  const warmupQuestions = sessionQuestions?.warmupQuestions
+    ? sessionQuestions.warmupQuestions.map(dbQuestionToQuestion)
+    : (hasDBContent
+      ? topicContent.lessons[0]?.questions?.filter((q) => q.difficulty <= 1).slice(0, 3).map(dbQuestionToQuestion) || []
+      : null);
   const practiceQuestions = hasDBContent
     ? topicContent.lessons.flatMap((l) => l.questions).filter((q) => q.difficulty >= 2 && q.difficulty <= 3).slice(0, 4).map(dbQuestionToQuestion)
     : null;
-  const exitQuestions = hasDBContent
-    ? topicContent.exitTicketQuestions.slice(0, 4).map(dbQuestionToQuestion)
-    : null;
+  const exitQuestions = sessionQuestions?.exitTicketQuestions
+    ? sessionQuestions.exitTicketQuestions.map(dbQuestionToQuestion)
+    : (hasDBContent
+      ? topicContent.exitTicketQuestions.slice(0, 4).map(dbQuestionToQuestion)
+      : null);
 
   const WARMUP_ONLY_STEPS: { id: SessionStep; label: string; icon: React.ElementType }[] = [
     { id: "warmup", label: "Review", icon: Zap },
@@ -204,7 +220,7 @@ export default function SessionFlow() {
   });
 
   useEffect(() => {
-    if (hasDBContent) {
+    if (hasDBContent || sessionQuestions) {
       const wu = warmupQuestions && warmupQuestions.length > 0 ? warmupQuestions : generateMockQuestions(subject, topicId, 3, 1);
       const pr = practiceQuestions && practiceQuestions.length > 0 ? practiceQuestions : generateMockQuestions(subject, topicId, 4, 2);
       const et = exitQuestions && exitQuestions.length > 0 ? exitQuestions : generateMockQuestions(subject, topicId, 2, 2);
@@ -215,7 +231,7 @@ export default function SessionFlow() {
         exitTicketResults: { ...prev.exitTicketResults, questions: et },
       }));
     }
-  }, [hasDBContent]);
+  }, [hasDBContent, sessionQuestions]);
 
   const createSessionMutation = useMutation({
     mutationFn: async () => {

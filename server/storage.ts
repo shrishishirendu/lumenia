@@ -243,6 +243,7 @@ export interface ITutoringStorage {
   getSessionAttempt(id: number): Promise<SessionAttempt | undefined>;
   getSessionAttemptsByStudent(studentId: number): Promise<SessionAttempt[]>;
   getLatestSessionAttempt(studentId: number): Promise<SessionAttempt | undefined>;
+  getLatestSessionAttemptByTopic(studentId: number, topicId: string): Promise<SessionAttempt | undefined>;
   updateSessionAttempt(id: number, updates: Partial<SessionAttempt>): Promise<SessionAttempt>;
   
   // Student Memory (Learning Loop)
@@ -858,6 +859,14 @@ class TutoringStorage implements ITutoringStorage {
   async getLatestSessionAttempt(studentId: number): Promise<SessionAttempt | undefined> {
     const [attempt] = await db.select().from(sessionAttempts)
       .where(eq(sessionAttempts.studentId, studentId))
+      .orderBy(desc(sessionAttempts.startedAt))
+      .limit(1);
+    return attempt;
+  }
+
+  async getLatestSessionAttemptByTopic(studentId: number, topicId: string): Promise<SessionAttempt | undefined> {
+    const [attempt] = await db.select().from(sessionAttempts)
+      .where(and(eq(sessionAttempts.studentId, studentId), eq(sessionAttempts.topicId, topicId)))
       .orderBy(desc(sessionAttempts.startedAt))
       .limit(1);
     return attempt;
