@@ -37,7 +37,7 @@ Preferred communication style: Simple, everyday language.
     - **Operations Agent**: AI-powered monitoring and anomaly detection.
     - **Admissions Agent**: Automates lead qualification and enrollment decisions with configurable autonomy.
     - **Academic Quality Agent**: Monitors student progress, identifies at-risk students, and recommends interventions with configurable autonomy.
-    - **Question Variant Generation**: AI-generates ephemeral numeric question variants to prevent memorization.
+    - **Mentora Variant Engine**: Rule-driven AI variant generation system for Mathematics questions with per-difficulty constraints, structural validation, and answer verification.
 
 ### Core Features
 - **Curriculum System**: Comprehensive, ACARA-aligned curriculum for Years 6-12 Mathematics and English.
