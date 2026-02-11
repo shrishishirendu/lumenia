@@ -245,6 +245,9 @@ export async function runAutoSeed() {
     const { seedIndexLaws } = await import("./indexLaws");
     await seedIndexLaws();
 
+    const { seedExpandingBrackets } = await import("./expandingBrackets");
+    await seedExpandingBrackets();
+
     console.log("Auto-seed: complete.");
   } catch (error) {
     console.error("Auto-seed error (non-fatal):", error);

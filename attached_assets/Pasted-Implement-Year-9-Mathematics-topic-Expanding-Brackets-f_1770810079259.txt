@@ -1,0 +1,150 @@
+Implement Year 9 Mathematics topic: "Expanding Brackets" fully in Lumenia (DB + UI + notes + lessons + pools + variant rules). Follow the same standard as Index Laws and Linear Equations. Must be idempotent.
+
+Context:
+- Subject: Mathematics
+- Year: 9
+- Topic: Expanding Brackets
+- Placement: after "Index Laws", before "Linear Equations"
+- In scope: distributive law a(b±c), negative multipliers −a(b±c), simplify after expansion, expand 2(3x−4) style.
+- Out of scope: two brackets (FOIL), quadratics, fractional coefficients, factorising.
+- Pools: default pool sizes
+- Variants: coefficients 1–9, constants −20..20, powers not relevant, avoid two brackets, single variable x.
+
+------------------------------------------------------------
+A) TOPIC + ORDERING
+1) Find Mathematics subjectId.
+2) Upsert topic in topics table:
+   - title: "Expanding Brackets"
+   - subjectId: Mathematics
+   - gradeLevel: 9
+   - prerequisiteTopicId: set to "Index Laws" if it exists; else null.
+3) Ordering:
+   - Ensure orderIndex places it after "Index Laws" and before "Linear Equations".
+   - Shift nearby orderIndex values minimally if needed.
+
+Return: expandingTopicId and final orderIndex.
+
+------------------------------------------------------------
+B) TOPIC NOTES (topic_notes)
+4) Upsert topic_notes for expandingTopicId:
+- summary:
+  "Expanding brackets uses the distributive law: multiply every term inside the bracket, then simplify."
+- notesMarkdown with sections:
+  1) Core idea
+  2) Key rules:
+     - a(b + c) = ab + ac
+     - a(b − c) = ab − ac
+     - −(b + c) = −b − c
+     - −(b − c) = −b + c
+  3) Steps:
+     - Multiply each term
+     - Watch signs
+     - Combine like terms
+  4) Common mistakes (bullets)
+- keyFormulas (json array)
+- commonMistakes (json array)
+Verify notes open from Subject Tree and SessionFlow.
+
+------------------------------------------------------------
+C) LESSONS + SEGMENTS
+5) Create 3 lessons (15 min each) under Expanding Brackets, idempotent:
+
+Lesson 1: "Distributive Law Basics"
+Objectives:
+- Expand a(b + c) and a(b − c)
+- Multiply every term inside the bracket
+- Simplify simple results
+
+Lesson 2: "Negatives and Subtraction in Brackets"
+Objectives:
+- Expand −a(b ± c) correctly
+- Handle subtraction inside brackets without sign errors
+- Check reasonableness of signs
+
+Lesson 3: "Expanding with Variables and Simplifying"
+Objectives:
+- Expand 2(3x − 4), −3(2x + 5), etc.
+- Combine like terms after expansion
+- Produce fully simplified expressions
+
+6) For each lesson create 3 lesson_segments (explanation/example/practice), idempotent:
+- explanation: short, Year 9 language
+- example: 2 worked examples with step-by-step whiteboardContent
+- practice: 6 prompts + tutorScript hints
+
+Constraints:
+- One bracket only.
+- No FOIL / two brackets.
+- No quadratic outcomes.
+- Use integer coefficients (1–9) and constants (−20..20).
+
+Return: lessonIds and segmentIds.
+
+------------------------------------------------------------
+D) QUESTION BANK POOLS (quiz_questions)
+7) Seed canonical quiz_questions for Expanding Brackets, idempotent, minimum pool sizes:
+- Easy (difficulty=1): 15  [numeric-only distributive law]
+- Medium (difficulty=2): 30 [single variable x inside bracket, simple simplify]
+- High (difficulty=3): 25  [negative multipliers and internal subtraction]
+- Challenge (difficulty=4): 20 [multi-step simplify but still one bracket expansion]
+- Word prompts (difficulty=3, optional): 10 ["Expand and simplify: ..."]
+
+Rules:
+- All questions must be original.
+- questionType="short_answer"
+- correctAnswer: simplified expression in standard form (define consistent formatting, e.g., "6x-8" not " -8+6x ")
+- explanation: step-by-step, 2–5 lines
+- Link some questions to lessonId where relevant:
+  - L1: easy+some medium
+  - L2: high
+  - L3: medium+high+challenge
+
+Return: counts per difficulty and total.
+
+------------------------------------------------------------
+E) DYNAMIC WARM-UP + EXIT TICKET (POOL-BASED)
+8) Warm-up (when starting a session for Expanding Brackets):
+- randomly sample 3 from difficulty=1 (topicId=expandingTopicId)
+- avoid repeats from last session if possible
+Exit ticket:
+- 1 from difficulty=2
+- 1 from difficulty=3
+- 1 from difficulty=4
+- optional 1 from word pool
+- avoid repeats from same session / last exit ticket
+Fallback gracefully if pool insufficient.
+
+------------------------------------------------------------
+F) VARIANT RULES (Mentora Variant Engine)
+9) Add variant rules config for "Expanding Brackets":
+- Allowed structures:
+  - a(b±c), a(x±c), a(bx±c), a(3x±4) (one bracket)
+  - negative multipliers allowed
+- Constraints:
+  - integer coefficients 1–9
+  - constants −20..20
+  - single variable x only
+  - must simplify to linear expression (no x^2)
+- Forbidden:
+  - two brackets
+  - fractional coefficients
+  - quadratics
+Ensure output format matches canonical correctAnswer formatting.
+
+------------------------------------------------------------
+G) QA
+10) Verify:
+- Topic appears in Year 9 Maths Subject Tree in correct order.
+- Notes open.
+- SessionFlow renders 3 lessons/segments.
+- Practice bank shows non-zero counts.
+- Warm-up varies across sessions.
+- Exit ticket varies across attempts.
+- No two-bracket expansions appear anywhere.
+
+Output:
+- expandingTopicId
+- lessonIds
+- question counts
+- files changed
+- quick verification notes

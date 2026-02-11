@@ -232,9 +232,120 @@ const indexLawsRules: TopicVariantRules = {
   ],
 };
 
+const expandingBracketsRules: TopicVariantRules = {
+  topicSlug: "expanding_brackets",
+  topicTitle: "Expanding Brackets",
+  difficulties: [
+    {
+      difficulty: 1,
+      allowedForms: [
+        "a(b + c) numeric only",
+        "a(b − c) numeric only",
+      ],
+      formDescriptions: [
+        "Numeric distributive law — no variables",
+        "Coefficients 1–9, constants 1–20",
+        "Answer is a single number",
+      ],
+      coefficientRange: [1, 9],
+      constantRange: [1, 20],
+      answerRange: [0, 200],
+      allowFractions: false,
+      allowNegativeAnswers: false,
+      allowVariablesOnBothSides: false,
+      forbiddenPatterns: [
+        /x/i,
+        /\)\s*\(/,
+      ],
+      maxTerms: 3,
+    },
+    {
+      difficulty: 2,
+      allowedForms: [
+        "a(x + c)",
+        "a(x − c)",
+        "a(bx + c)",
+        "a(bx − c)",
+      ],
+      formDescriptions: [
+        "Single bracket with variable x",
+        "Positive multiplier only",
+        "Result is a linear expression (no x²)",
+        "Coefficients 1–9, constants 1–20",
+      ],
+      coefficientRange: [1, 9],
+      constantRange: [-20, 20],
+      answerRange: [-200, 200],
+      allowFractions: false,
+      allowNegativeAnswers: true,
+      allowVariablesOnBothSides: false,
+      forbiddenPatterns: [
+        /\)\s*\(/,
+        /x\^2|x²/,
+      ],
+      maxTerms: 4,
+    },
+    {
+      difficulty: 3,
+      allowedForms: [
+        "−a(x + c)",
+        "−a(x − c)",
+        "−a(bx + c)",
+        "−a(bx − c)",
+        "−(x + c)",
+        "−(x − c)",
+      ],
+      formDescriptions: [
+        "Negative multiplier with single bracket",
+        "Sign-change awareness required",
+        "Result is a linear expression",
+        "Coefficients 1–9, constants −20 to 20",
+      ],
+      coefficientRange: [1, 9],
+      constantRange: [-20, 20],
+      answerRange: [-200, 200],
+      allowFractions: false,
+      allowNegativeAnswers: true,
+      allowVariablesOnBothSides: false,
+      forbiddenPatterns: [
+        /\)\s*\(/,
+        /x\^2|x²/,
+      ],
+      maxTerms: 4,
+    },
+    {
+      difficulty: 4,
+      allowedForms: [
+        "a(bx + c) + dx",
+        "a(bx − c) + d",
+        "−a(bx + c) + ex",
+        "a(bx + c) − ex + f",
+      ],
+      formDescriptions: [
+        "Multi-step: expand then combine like terms",
+        "May have extra terms outside the bracket",
+        "Result is a fully simplified linear expression",
+        "No two-bracket multiplication (FOIL)",
+      ],
+      coefficientRange: [1, 9],
+      constantRange: [-20, 20],
+      answerRange: [-200, 200],
+      allowFractions: false,
+      allowNegativeAnswers: true,
+      allowVariablesOnBothSides: false,
+      forbiddenPatterns: [
+        /\)\s*\(/,
+        /x\^2|x²/,
+      ],
+      maxTerms: 6,
+    },
+  ],
+};
+
 const rulesRegistry: Record<string, TopicVariantRules> = {
   linear_equations: linearEquationsRules,
   index_laws: indexLawsRules,
+  expanding_brackets: expandingBracketsRules,
 };
 
 export function getVariantRules(topicSlug: string): TopicVariantRules | null {
