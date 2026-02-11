@@ -20,7 +20,8 @@ import {
   HelpCircle,
   Trophy,
   Clock,
-  Star
+  Star,
+  RotateCcw
 } from "lucide-react";
 import { TOPIC_CATALOG, getTopic } from "@shared/topicCatalog";
 import { apiRequest } from "@/lib/queryClient";
@@ -378,6 +379,39 @@ export default function SessionFlow() {
     setState(prev => ({ ...prev, hintsUsed: prev.hintsUsed + 1 }));
   };
 
+  const regenerateQuestions = async (section: "warmup" | "exit_ticket") => {
+    try {
+      const endpoint = section === "warmup" 
+        ? `/api/question-engine/warmup?seed=${Date.now()}`
+        : `/api/question-engine/exit-ticket?seed=${Date.now()}`;
+      const res = await fetch(endpoint, { credentials: "include" });
+      if (!res.ok) return;
+      const data = await res.json();
+      const mapped: Question[] = data.questions.map((g: any) => ({
+        id: g.id,
+        text: g.prompt,
+        options: [],
+        correctAnswer: g.answer,
+        explanation: g.worked_solution?.join(" ") || "",
+        difficulty: g.difficulty === "easy" ? 1 : g.difficulty === "medium" ? 2 : g.difficulty === "hard" ? 3 : 4,
+        questionType: "short_answer",
+      }));
+      if (section === "warmup") {
+        setState(prev => ({
+          ...prev,
+          warmupResults: { questions: mapped, answers: {}, score: 0 }
+        }));
+      } else {
+        setState(prev => ({
+          ...prev,
+          exitTicketResults: { questions: mapped, answers: {}, passed: false }
+        }));
+      }
+    } catch (err) {
+      console.error("Failed to regenerate questions:", err);
+    }
+  };
+
   const renderQuestionInput = (q: Question, section: "warmup" | "practice" | "exit_ticket", answers: Record<string, string>) => {
     if (q.questionType === "short_answer" || q.options.length === 0) {
       const currentAnswer = answers[q.id] || "";
@@ -432,6 +466,18 @@ export default function SessionFlow() {
         <Zap className="h-12 w-12 text-amber-500 mx-auto mb-2" />
         <h2 className="text-2xl font-bold">Quick Warm-up</h2>
         <p className="text-muted-foreground">Let's review some concepts from your last session</p>
+      </div>
+
+      <div className="flex justify-end">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => regenerateQuestions("warmup")}
+          className="gap-1"
+          data-testid="regenerate-warmup-btn"
+        >
+          <RotateCcw className="h-3.5 w-3.5" /> New Questions
+        </Button>
       </div>
       
       {state.warmupResults.questions.map((q, idx) => (
@@ -701,6 +747,18 @@ export default function SessionFlow() {
         <CheckCircle className="h-12 w-12 text-teal-500 mx-auto mb-2" />
         <h2 className="text-2xl font-bold">Exit Ticket</h2>
         <p className="text-muted-foreground">Show what you've learned</p>
+      </div>
+
+      <div className="flex justify-end">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => regenerateQuestions("exit_ticket")}
+          className="gap-1"
+          data-testid="regenerate-exit-btn"
+        >
+          <RotateCcw className="h-3.5 w-3.5" /> New Questions
+        </Button>
       </div>
       
       {state.exitTicketResults.questions.map((q, idx) => (

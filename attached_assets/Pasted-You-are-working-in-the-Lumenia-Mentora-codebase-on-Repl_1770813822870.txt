@@ -1,0 +1,91 @@
+You are working in the Lumenia (Mentora) codebase on Replit.
+
+GOAL
+Implement a template-based question generator for the chapter “Linear Equations (one variable)” with four difficulty buckets (Easy/Medium/Hard/Challenge). This generator will be used by Warm-up and Exit Ticket to pull random questions each time without repeating too frequently.
+
+REQUIREMENTS
+1) Add a new module:
+   - Path: src/question_engine/linear_equations.py (create folders if missing)
+   - Export functions:
+     - generate_question(difficulty: str, seed: Optional[int] = None) -> dict
+     - generate_pool(difficulty: str, n: int, seed: Optional[int] = None, ensure_unique: bool = True) -> list[dict]
+
+2) Question format (dict)
+Return a dict with:
+{
+  "id": "<stable hash or uuid-like short id>",
+  "topic": "linear_equations",
+  "difficulty": "easy|medium|hard|challenge",
+  "archetype": "<string>",
+  "prompt": "<question text>",
+  "answer": "<final answer>",
+  "worked_solution": ["step 1", "step 2", ...],
+  "metadata": {
+      "params": {...},            # template parameters
+      "skills": ["...", "..."],   # e.g., "balance_terms", "expand_brackets", "clear_fractions", "model_word_problem"
+      "estimated_time_sec": 45
+  }
+}
+
+3) Implement archetypes & constraints
+EASY (8 variants)
+- ax + b = c with integer solution
+- x/k = m with integer solution
+Constraints: a in [2..9], keep solutions in [-10..10], avoid messy negatives for easy.
+
+MEDIUM (8 variants)
+- ax + b = cx + d (variables on both sides)
+- a(x + b) = c (single bracket)
+Constraints: integer solution, a,c in [2..9]
+
+HARD (7 variants)
+- (ax + b)/k = m
+- (ax + b)/k = (cx + d)/t
+Constraints: allow fractional answers sometimes but keep denominators <= 10; prefer reducible to simplest form.
+
+CHALLENGE (7 variants)
+Word problems that map to linear equations:
+- perimeter rectangle (length = 2w + p)
+- consecutive integers sum
+- taxi fare (fixed + per_km)
+- percentage reverse (after increase/decrease)
+Constraints: integers where possible; return full worked_solution.
+
+4) Randomness / uniqueness
+- Use Python’s random.Random(seed) so tests are deterministic.
+- “id” should be a deterministic short hash based on (difficulty, archetype, params) so duplicates can be detected.
+- In generate_pool(... ensure_unique=True), do not return duplicate ids; if collision, regenerate up to 50 attempts then return what you have.
+
+5) Integrate into UI
+Find the Warm-up and Exit Ticket logic (search for “warm-up”, “exit ticket”, “question bank”, or “poolsize”).
+- Replace any fixed question selection with generate_pool(difficulty, n, seed)
+- Warm-up default: 2 easy + 2 medium
+- Exit ticket default: 1 medium + 1 hard (or 2 medium if hard is disabled)
+Add a small “Regenerate” button to refresh the pool (new seed).
+
+6) Tests
+Add tests:
+- Path: tests/test_linear_equations_generator.py
+Test that:
+- generate_question returns required keys
+- generate_pool returns n unique questions when ensure_unique=True
+- seeded runs produce identical outputs
+
+7) Documentation
+Update README or a short doc:
+- Path: docs/question_engine.md
+Explain how to add new topics and archetypes.
+
+DELIVERABLES
+- New generator module implemented
+- Warm-up + Exit ticket pulling from generator
+- Tests passing
+
+DO NOT
+- Do not change database schema
+- Do not introduce new dependencies
+- Keep changes minimal and well-contained
+
+After changes, provide:
+- File list changed
+- Short explanation of how to use generator in other chapters

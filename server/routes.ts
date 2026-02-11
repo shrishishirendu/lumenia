@@ -11,6 +11,7 @@ import { tutoringStorage } from "./storage";
 import marketingAgentRoutes from "./routes/marketingAgent";
 import { leadStatusEnum, leadEventTypeEnum } from "@shared/schema";
 import { generateVariantsForTopic, generateVariants, type VariantQuestion } from "./services/variantGenerator";
+import { generatePool, generateMixedPool, type GeneratedQuestion } from "./services/questionEngine/linearEquations";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -1527,12 +1528,54 @@ export async function registerRoutes(
         console.error("[session-questions] Variant generation failed, using canonical only:", variantErr);
       }
 
-      const finalWarmup = shuffle([...warmupQuestions, ...warmupVariants]);
-      const finalExit = shuffle([...exitTicketQuestions, ...exitVariants]);
+      let engineWarmup: any[] = [];
+      let engineExit: any[] = [];
+      if (topicSlug === "linear_equations") {
+        try {
+          const seed = Date.now();
+          const warmupGen = generateMixedPool([{ difficulty: "easy", count: 2 }, { difficulty: "medium", count: 2 }], seed);
+          engineWarmup = warmupGen.map(g => ({
+            id: g.id,
+            questionText: g.prompt,
+            questionType: "short_answer",
+            options: null,
+            correctAnswer: g.answer,
+            explanation: g.worked_solution.join(" "),
+            difficulty: g.difficulty === "easy" ? 1 : g.difficulty === "medium" ? 2 : g.difficulty === "hard" ? 3 : 4,
+            points: g.difficulty === "easy" ? 1 : g.difficulty === "medium" ? 2 : g.difficulty === "hard" ? 3 : 4,
+            isVariant: true,
+            sourceQuestionId: null,
+            topicId,
+            subjectId: null,
+            lessonId: null,
+          }));
+          const exitGen = generateMixedPool([{ difficulty: "medium", count: 1 }, { difficulty: "hard", count: 1 }], seed + 1);
+          engineExit = exitGen.map(g => ({
+            id: g.id,
+            questionText: g.prompt,
+            questionType: "short_answer",
+            options: null,
+            correctAnswer: g.answer,
+            explanation: g.worked_solution.join(" "),
+            difficulty: g.difficulty === "easy" ? 1 : g.difficulty === "medium" ? 2 : g.difficulty === "hard" ? 3 : 4,
+            points: g.difficulty === "easy" ? 1 : g.difficulty === "medium" ? 2 : g.difficulty === "hard" ? 3 : 4,
+            isVariant: true,
+            sourceQuestionId: null,
+            topicId,
+            subjectId: null,
+            lessonId: null,
+          }));
+        } catch (engineErr) {
+          console.error("[session-questions] Question engine failed:", engineErr);
+        }
+      }
+
+      const finalWarmup = shuffle([...warmupQuestions, ...warmupVariants, ...engineWarmup]);
+      const finalExit = shuffle([...exitTicketQuestions, ...exitVariants, ...engineExit]);
       const finalPractice = shuffle([...practiceCanonical, ...practiceVariants]);
 
       console.log(
-        `[session-questions] topicId=${topicId} slug=${topicSlug} | warmup=${warmupQuestions.length}+${warmupVariants.length}v exit=${exitTicketQuestions.length}+${exitVariants.length}v practice=${practiceCanonical.length}+${practiceVariants.length}v`
+        `[session-questions] topicId=${topicId} slug=${topicSlug} | warmup=${warmupQuestions.length}+${warmupVariants.length}v+${engineWarmup.length}e exit=${exitTicketQuestions.length}+${exitVariants.length}v+${engineExit.length}e practice=${practiceCanonical.length}+${practiceVariants.length}v`
       );
 
       res.json({
@@ -1543,6 +1586,70 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error fetching session questions:", error);
       res.status(500).json({ error: "Failed to fetch session questions" });
+    }
+  });
+
+  app.get("/api/question-engine/generate", async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+
+      const difficulty = req.query.difficulty as string;
+      const n = parseInt(req.query.n as string) || 4;
+      const seed = req.query.seed ? parseInt(req.query.seed as string) : undefined;
+
+      const validDiffs = ["easy", "medium", "hard", "challenge"] as const;
+      if (difficulty && !validDiffs.includes(difficulty as any)) {
+        return res.status(400).json({ error: "Invalid difficulty. Must be: easy, medium, hard, challenge" });
+      }
+
+      if (difficulty) {
+        const questions = generatePool(difficulty as any, Math.min(n, 20), seed, true);
+        return res.json({ questions, count: questions.length, difficulty, seed });
+      }
+
+      const config = JSON.parse((req.query.config as string) || '[{"difficulty":"easy","count":2},{"difficulty":"medium","count":2}]');
+      const questions = generateMixedPool(config, seed);
+      res.json({ questions, count: questions.length, seed });
+    } catch (error) {
+      console.error("Error generating questions:", error);
+      res.status(500).json({ error: "Failed to generate questions" });
+    }
+  });
+
+  app.get("/api/question-engine/warmup", async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+
+      const seed = req.query.seed ? parseInt(req.query.seed as string) : undefined;
+      const questions = generateMixedPool([
+        { difficulty: "easy", count: 2 },
+        { difficulty: "medium", count: 2 },
+      ], seed);
+
+      res.json({ questions, count: questions.length, seed, type: "warmup" });
+    } catch (error) {
+      console.error("Error generating warmup:", error);
+      res.status(500).json({ error: "Failed to generate warmup questions" });
+    }
+  });
+
+  app.get("/api/question-engine/exit-ticket", async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+
+      const seed = req.query.seed ? parseInt(req.query.seed as string) : undefined;
+      const questions = generateMixedPool([
+        { difficulty: "medium", count: 1 },
+        { difficulty: "hard", count: 1 },
+      ], seed);
+
+      res.json({ questions, count: questions.length, seed, type: "exit_ticket" });
+    } catch (error) {
+      console.error("Error generating exit ticket:", error);
+      res.status(500).json({ error: "Failed to generate exit ticket questions" });
     }
   });
 
