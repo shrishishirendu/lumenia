@@ -1,0 +1,48 @@
+Fix Practice page topic selection bug: Practice always shows “Index Laws” even when other topics exist.
+
+GOAL
+Make Practice open the correct topic from the Interactive Topics selection, and make the system robust with URL-based routing + validation + persistence.
+
+IMPLEMENTATION REQUIREMENTS
+
+1) Central topic registry
+- Ensure interactive topics are driven by a single config/registry (e.g., src/content/topics.ts or config/topics.json).
+- Each topic must have:
+  { id, slug, title, subject, hasInteractive, hasPractice, questionSource }
+
+2) Update Interactive Topics “Start” button navigation
+- When user clicks Start on a topic card, navigate to Practice with that topic slug.
+Use either:
+  a) /practice/:topicSlug  (preferred)
+  or
+  b) /practice?topic=:topicSlug
+- Also store last selected topic:
+  localStorage.setItem("lastPracticeTopic", topicSlug)
+
+3) Practice page: dynamic topic resolution
+- Read topicSlug from route params or query param.
+- If missing, use localStorage lastPracticeTopic.
+- If still missing, show topic picker (do not default silently).
+- Validate topicSlug exists in topic registry; if invalid, show “Topic not found” + topic picker.
+
+4) Practice header + question loading
+- Replace any hardcoded “Index Laws” label with the selected topic title.
+- Load questions/variants using the selected topic’s generator/source.
+- Ensure it updates when topicSlug changes (e.g., user selects a different topic).
+
+5) Optional UX improvement (recommended)
+- Add a “Change topic” dropdown/button on Practice page that returns to topic picker or switches topics.
+
+6) Tests / sanity checks
+- Clicking Start on each interactive topic must open practice for that topic.
+- Refreshing the Practice page should keep same topic (via URL/localStorage).
+- Invalid topic in URL should not crash; show fallback UI.
+
+DELIVERABLES
+- Files changed list
+- Confirmation of routing pattern used (/practice/:topicSlug or query param)
+- Quick note on how to add new topics in registry without touching Practice code.
+
+DO NOT
+- Do not hardcode any topic to Index Laws
+- Do not break existing Index Laws practice

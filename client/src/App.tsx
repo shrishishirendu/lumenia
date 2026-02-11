@@ -256,6 +256,7 @@ function Router() {
       <Route path="/student/classroom" component={StudentClassroomPage} />
       <Route path="/student/subjects" component={StudentSubjectsPage} />
       <Route path="/student/course/:subject" component={StudentCoursePage} />
+      <Route path="/student/practice/:topicId" component={StudentPracticePage} />
       <Route path="/student/practice" component={StudentPracticePage} />
       <Route path="/student/session/:subject/:topic" component={StudentSessionPage} />
       
