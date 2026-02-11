@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useLocation, useParams } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   ArrowLeft,
   BookOpen,
@@ -10,6 +11,7 @@ import {
   ChevronRight,
   Clock,
   GraduationCap,
+  Lock,
   Play,
   Target,
   Calculator,
@@ -71,10 +73,37 @@ export default function StudentCourse() {
     return "english";
   };
 
+  const curriculumMapping = useMemo(() => {
+    const map = new Map<string, DBTopic>();
+    const topics = data?.dbTopics || [];
+    if (!data?.curriculum || topics.length === 0) return map;
+
+    const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+    const topicIndex = new Map(topics.map(t => [normalize(t.title), t]));
+
+    for (const unit of data.curriculum.units) {
+      const unitNorm = normalize(unit.title);
+      const unitMatch = topicIndex.get(unitNorm);
+
+      for (const lesson of unit.lessons) {
+        const lessonNorm = normalize(lesson.title);
+        const exactMatch = topicIndex.get(lessonNorm);
+        if (exactMatch) {
+          map.set(lesson.id, exactMatch);
+        } else if (unitMatch) {
+          map.set(lesson.id, unitMatch);
+        }
+      }
+    }
+    return map;
+  }, [data?.curriculum, data?.dbTopics]);
+
   const handleStartLesson = (lesson: Lesson) => {
+    const mapped = curriculumMapping.get(lesson.id);
+    if (!mapped) return;
     const slug = getSubjectSlug();
-    const topicParam = encodeURIComponent(lesson.title);
-    setLocation(`/student/session/${slug}/${topicParam}?year=${data?.grade}`);
+    const topicParam = encodeURIComponent(mapped.title);
+    setLocation(`/student/session/${slug}/${topicParam}?year=${data?.grade}&topicId=${mapped.id}`);
   };
 
   const handleStartDBTopic = (topic: DBTopic) => {
@@ -95,15 +124,6 @@ export default function StudentCourse() {
       return;
     }
 
-    const curriculum = data.curriculum;
-    if (curriculum && curriculum.units.length > 0) {
-      const firstLesson = curriculum.units[0].lessons[0];
-      if (firstLesson) {
-        const topicParam = encodeURIComponent(firstLesson.title);
-        setLocation(`/student/session/${slug}/${topicParam}?year=${data.grade}`);
-        return;
-      }
-    }
     setLocation(`/student/session/${slug}/warmup?year=${data.grade}`);
   };
 
@@ -333,6 +353,7 @@ export default function StudentCourse() {
                                     </div>
                                   </div>
                                 </div>
+                                {curriculumMapping.has(lesson.id) ? (
                                 <Button
                                   variant="ghost"
                                   size="sm"
@@ -343,6 +364,12 @@ export default function StudentCourse() {
                                   <BookOpen className="w-3 h-3" />
                                   Open
                                 </Button>
+                              ) : (
+                                <Badge variant="secondary" className="gap-1 text-xs font-normal" data-testid={`coming-soon-${lesson.id}`}>
+                                  <Lock className="w-3 h-3" />
+                                  Coming Soon
+                                </Badge>
+                              )}
                               </div>
                             ))}
                           </div>

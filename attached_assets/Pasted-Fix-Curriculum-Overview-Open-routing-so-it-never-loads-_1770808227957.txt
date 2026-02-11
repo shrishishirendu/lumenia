@@ -1,0 +1,39 @@
+Fix Curriculum Overview “Open” routing so it never loads the wrong topic/questions.
+
+Problem:
+Curriculum Overview items (e.g., “Fractional Indices” under “Indices and Surds”) currently open SessionFlow but incorrectly load Linear Equations questions (topicId fallback). This creates cross-topic leakage.
+
+Goal:
+- Interactive Topics (DB-backed) continue to open SessionFlow normally.
+- Curriculum Overview lessons open SessionFlow ONLY if they have a valid mapping to a DB topic/lesson.
+- If not mapped, show “Coming Soon” (or disable Open) instead of falling back to another topic.
+
+Tasks:
+1) Identify where Curriculum Overview “Open” button routes the user.
+   - If it routes to /student/session/:subject/:topicId with a default topicId, remove that fallback behavior.
+
+2) Add a mapping layer for Curriculum Overview items:
+   - For each curriculum lesson item, attempt to resolve a mapped DB topicId (and optionally lessonId).
+   - Example mappings (Year 9):
+     - “Index Laws” related curriculum items can map to DB topic “Index Laws”
+     - “Fractional Indices” should be UNMAPPED (out of scope) and therefore Coming Soon.
+
+3) UI behavior:
+   - If mappedTopicId exists:
+       route to /student/session/mathematics/{mappedTopicId}?year=9
+   - If no mapping exists:
+       disable the Open button and show label “Coming Soon”
+       OR show a modal: “This lesson is coming soon in Lumenia.”
+
+4) Safety:
+   - Ensure SessionFlow data loading ALWAYS filters by the route topicId.
+   - Remove any logic that silently falls back to the first topic if the topicId is missing/invalid.
+   - If topicId is invalid, show an error state: “Topic not found.”
+
+5) Verification:
+   - Clicking “Fractional Indices” must NOT show Linear Equations questions.
+   - Clicking Index Laws interactive card must still work normally.
+   - No curriculum overview item should load content from a different topic.
+Return:
+- Files changed
+- Confirm which items are mapped vs Coming Soon

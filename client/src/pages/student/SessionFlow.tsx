@@ -159,7 +159,9 @@ export default function SessionFlow() {
   const topicConfig = getTopic(subject, topicId);
   const fallbackTopicName = isWarmupMode ? "Quick Review" : (topicConfig?.name || decodeURIComponent(topicId));
 
-  const { data: topicContent, isLoading: contentLoading } = useQuery<TopicContent>({
+  const missingTopic = !isWarmupMode && !dbTopicIdParam;
+
+  const { data: topicContent, isLoading: contentLoading, error: contentError } = useQuery<TopicContent>({
     queryKey: ["/api/topics/content", dbTopicIdParam],
     queryFn: async () => {
       const res = await fetch(`/api/topics/${dbTopicIdParam}/content`, { credentials: "include" });
@@ -209,15 +211,16 @@ export default function SessionFlow() {
 
   const activeSteps = isWarmupMode ? WARMUP_ONLY_STEPS : STEPS;
 
+  const mockFallback = isWarmupMode;
   const [state, setState] = useState<SessionState>({
     currentStep: "warmup",
     sessionId: null,
-    warmupResults: { questions: warmupQuestions || generateMockQuestions(subject, topicId, 3, 1), answers: {}, score: 0 },
+    warmupResults: { questions: warmupQuestions || (mockFallback ? generateMockQuestions(subject, topicId, 3, 1) : []), answers: {}, score: 0 },
     lessonCompleted: false,
     explanationStyle: "step_by_step",
-    practiceResults: { questions: practiceQuestions || generateMockQuestions(subject, topicId, 4, 2), answers: {}, hintsUsed: 0 },
+    practiceResults: { questions: practiceQuestions || (mockFallback ? generateMockQuestions(subject, topicId, 4, 2) : []), answers: {}, hintsUsed: 0 },
     reflectionText: "",
-    exitTicketResults: { questions: exitQuestions || generateMockQuestions(subject, topicId, 2, 2), answers: {}, passed: false },
+    exitTicketResults: { questions: exitQuestions || (mockFallback ? generateMockQuestions(subject, topicId, 2, 2) : []), answers: {}, passed: false },
     hintsUsed: 0,
     startTime: Date.now(),
     currentLessonIndex: 0,
@@ -225,9 +228,9 @@ export default function SessionFlow() {
 
   useEffect(() => {
     if (hasDBContent || sessionQuestions) {
-      const wu = warmupQuestions && warmupQuestions.length > 0 ? warmupQuestions : generateMockQuestions(subject, topicId, 3, 1);
-      const pr = practiceQuestions && practiceQuestions.length > 0 ? practiceQuestions : generateMockQuestions(subject, topicId, 4, 2);
-      const et = exitQuestions && exitQuestions.length > 0 ? exitQuestions : generateMockQuestions(subject, topicId, 2, 2);
+      const wu = warmupQuestions && warmupQuestions.length > 0 ? warmupQuestions : (mockFallback ? generateMockQuestions(subject, topicId, 3, 1) : []);
+      const pr = practiceQuestions && practiceQuestions.length > 0 ? practiceQuestions : (mockFallback ? generateMockQuestions(subject, topicId, 4, 2) : []);
+      const et = exitQuestions && exitQuestions.length > 0 ? exitQuestions : (mockFallback ? generateMockQuestions(subject, topicId, 2, 2) : []);
       setState((prev) => ({
         ...prev,
         warmupResults: { ...prev.warmupResults, questions: wu },
@@ -256,7 +259,9 @@ export default function SessionFlow() {
   });
 
   useEffect(() => {
-    createSessionMutation.mutate();
+    if (!missingTopic) {
+      createSessionMutation.mutate();
+    }
   }, []);
 
   const currentStepIndex = activeSteps.findIndex(s => s.id === state.currentStep);
@@ -818,6 +823,27 @@ export default function SessionFlow() {
     return (
       <div className="max-w-3xl mx-auto p-6 flex items-center justify-center min-h-[50vh]">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  if (missingTopic || contentError) {
+    return (
+      <div className="max-w-3xl mx-auto p-6" data-testid="topic-not-found">
+        <Card>
+          <CardContent className="p-8 text-center space-y-4">
+            <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto">
+              <HelpCircle className="w-8 h-8 text-muted-foreground" />
+            </div>
+            <h2 className="text-xl font-semibold">Topic Not Found</h2>
+            <p className="text-muted-foreground">
+              This lesson isn't available yet. It may be coming soon to Lumenia.
+            </p>
+            <Button onClick={() => window.history.back()} className="gap-2" data-testid="go-back-btn">
+              <ArrowLeft className="w-4 h-4" /> Go Back
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     );
   }
