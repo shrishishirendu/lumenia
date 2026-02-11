@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useParams, useLocation } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,6 +16,9 @@ import {
   Zap,
   Star,
   GraduationCap,
+  RefreshCw,
+  Sparkles,
+  Play,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -61,8 +65,13 @@ const DIFFICULTY_CONFIG: Record<number, { label: string; color: string; bg: stri
   5: { label: "Level 5 — Challenge", color: "text-red-600", bg: "bg-red-100", icon: Star, description: "Mixed challenge" },
 };
 
+const LAST_PRACTICE_TOPIC_KEY = "lastPracticeTopic";
+
 export default function Practice() {
   const { grade, isLoading: profileLoading } = useStudentProfile();
+  const params = useParams<{ topicId?: string }>();
+  const [, setLocation] = useLocation();
+
   const [selectedDifficulty, setSelectedDifficulty] = useState<number | null>(null);
   const [quizState, setQuizState] = useState<"browse" | "quiz" | "results">("browse");
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -82,9 +91,24 @@ export default function Practice() {
     enabled: !profileLoading,
   });
 
-  const activeTopic = topicsData?.topics?.[0] || null;
+  const urlTopicId = params.topicId ? parseInt(params.topicId, 10) : null;
+  const storedTopicId = typeof window !== "undefined" ? parseInt(localStorage.getItem(LAST_PRACTICE_TOPIC_KEY) || "", 10) : null;
+  const resolvedTopicId = urlTopicId || (storedTopicId && !isNaN(storedTopicId) ? storedTopicId : null);
+
+  const allTopics = topicsData?.topics || [];
+  const activeTopic = resolvedTopicId
+    ? allTopics.find(t => t.id === resolvedTopicId) || null
+    : null;
   const topicId = activeTopic?.id;
   const topicTitle = activeTopic?.title || "Practice";
+
+  const showTopicPicker = !topicsLoading && !profileLoading && allTopics.length > 0 && !activeTopic && !resolvedTopicId;
+
+  useEffect(() => {
+    if (activeTopic) {
+      localStorage.setItem(LAST_PRACTICE_TOPIC_KEY, String(activeTopic.id));
+    }
+  }, [activeTopic]);
 
   const { data: questionsData, isLoading: questionsLoading } = useQuery<QuestionsResponse>({
     queryKey: ["/api/topics", topicId, "questions"],
@@ -96,7 +120,7 @@ export default function Practice() {
     enabled: !!topicId,
   });
 
-  const isLoading = profileLoading || topicsLoading || questionsLoading;
+  const isLoading = profileLoading || topicsLoading || (!!topicId && questionsLoading);
   const distribution = questionsData?.distribution || {};
   const questions = questionsData?.questions || [];
 
@@ -148,6 +172,17 @@ export default function Practice() {
     setUserAnswer("");
     setShowExplanation(false);
     setAnswered(false);
+  };
+
+  const selectTopic = (topic: TopicInfo) => {
+    localStorage.setItem(LAST_PRACTICE_TOPIC_KEY, String(topic.id));
+    setLocation(`/student/practice/${topic.id}`);
+  };
+
+  const changeTopic = () => {
+    resetQuiz();
+    localStorage.removeItem(LAST_PRACTICE_TOPIC_KEY);
+    setLocation("/student/practice");
   };
 
   const score = results.filter(r => r.correct).length;
@@ -302,6 +337,76 @@ export default function Practice() {
     );
   }
 
+  if (showTopicPicker) {
+    return (
+      <div className="max-w-4xl mx-auto p-6 space-y-6" data-testid="topic-picker">
+        <div className="text-center mb-6">
+          <h1 className="text-3xl font-bold text-foreground mb-2" data-testid="picker-title">Practice Question Bank</h1>
+          <div className="flex items-center justify-center gap-2 text-muted-foreground">
+            <GraduationCap className="w-4 h-4" />
+            <span data-testid="picker-year">Year {grade} Mathematics</span>
+          </div>
+          <p className="text-sm text-muted-foreground mt-1">Choose a topic to practise</p>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          {allTopics.map((topic, idx) => (
+            <motion.div
+              key={topic.id}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: idx * 0.05 }}
+            >
+              <Card
+                className="hover:shadow-md transition-shadow cursor-pointer border-blue-200 bg-blue-50/30"
+                onClick={() => selectTopic(topic)}
+                data-testid={`topic-picker-card-${topic.id}`}
+              >
+                <CardContent className="p-5">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 flex-1">
+                      <div className="w-10 h-10 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center shrink-0">
+                        <Sparkles className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-base" data-testid={`topic-picker-title-${topic.id}`}>{topic.title}</h3>
+                        {topic.description && (
+                          <p className="text-sm text-muted-foreground mt-0.5 line-clamp-1">{topic.description}</p>
+                        )}
+                      </div>
+                    </div>
+                    <Button size="sm" className="gap-1 shrink-0" data-testid={`topic-picker-start-${topic.id}`}>
+                      <Play className="w-3 h-3" /> Start
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (resolvedTopicId && !activeTopic && !topicsLoading && !profileLoading) {
+    return (
+      <div className="max-w-4xl mx-auto p-6 space-y-6" data-testid="topic-not-found">
+        <div className="text-center">
+          <Card>
+            <CardContent className="p-8 space-y-4">
+              <Target className="w-12 h-12 text-muted-foreground mx-auto" />
+              <h2 className="text-xl font-semibold">Topic Not Found</h2>
+              <p className="text-muted-foreground">The requested practice topic could not be found.</p>
+              <Button onClick={changeTopic} className="gap-2" data-testid="pick-topic-btn">
+                <RefreshCw className="w-4 h-4" /> Choose a Topic
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-6" data-testid="practice-page">
       <div className="text-center mb-6">
@@ -314,6 +419,11 @@ export default function Practice() {
         <p className="text-sm text-muted-foreground mt-1">
           {questionsData?.total || 0} questions across 5 difficulty levels
         </p>
+        {allTopics.length > 1 && (
+          <Button variant="outline" size="sm" onClick={changeTopic} className="mt-3 gap-2" data-testid="change-topic-btn">
+            <RefreshCw className="w-3 h-3" /> Change Topic
+          </Button>
+        )}
       </div>
 
       {isLoading ? (

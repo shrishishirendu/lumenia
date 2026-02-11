@@ -247,6 +247,15 @@ export default function StudentCourse() {
                       <div className="flex items-center gap-2 shrink-0">
                         <TopicNotesDrawer topicId={topic.id} topicTitle={topic.title} triggerVariant="icon" />
                         <Button
+                          variant="outline"
+                          size="sm"
+                          className="gap-1"
+                          onClick={(e) => { e.stopPropagation(); setLocation(`/student/practice/${topic.id}`); }}
+                          data-testid={`practice-topic-${topic.id}`}
+                        >
+                          <Target className="w-3 h-3" /> Practice
+                        </Button>
+                        <Button
                           size="sm"
                           className="gap-1"
                           data-testid={`start-topic-${topic.id}`}
