@@ -169,7 +169,7 @@ export default function SessionFlow() {
     enabled: !!dbTopicIdParam && !isWarmupMode,
   });
 
-  const { data: sessionQuestions } = useQuery<{ warmupQuestions: DBQuestion[]; exitTicketQuestions: DBQuestion[] }>({
+  const { data: sessionQuestions } = useQuery<{ warmupQuestions: DBQuestion[]; exitTicketQuestions: DBQuestion[]; practiceQuestions?: DBQuestion[] }>({
     queryKey: ["/api/topics/session-questions", dbTopicIdParam],
     queryFn: async () => {
       const res = await fetch(`/api/topics/${dbTopicIdParam}/session-questions`, { credentials: "include" });
@@ -191,9 +191,11 @@ export default function SessionFlow() {
     : (hasDBContent
       ? topicContent.lessons[0]?.questions?.filter((q) => q.difficulty <= 1).slice(0, 3).map(dbQuestionToQuestion) || []
       : null);
-  const practiceQuestions = hasDBContent
-    ? topicContent.lessons.flatMap((l) => l.questions).filter((q) => q.difficulty >= 2 && q.difficulty <= 3).slice(0, 4).map(dbQuestionToQuestion)
-    : null;
+  const practiceQuestions = sessionQuestions?.practiceQuestions && sessionQuestions.practiceQuestions.length > 0
+    ? sessionQuestions.practiceQuestions.map(dbQuestionToQuestion)
+    : (hasDBContent
+      ? topicContent.lessons.flatMap((l) => l.questions).filter((q) => q.difficulty >= 2 && q.difficulty <= 3).slice(0, 4).map(dbQuestionToQuestion)
+      : null);
   const exitQuestions = sessionQuestions?.exitTicketQuestions
     ? sessionQuestions.exitTicketQuestions.map(dbQuestionToQuestion)
     : (hasDBContent

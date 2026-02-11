@@ -10,7 +10,7 @@ import { registerImageRoutes } from "./replit_integrations/image";
 import { tutoringStorage } from "./storage";
 import marketingAgentRoutes from "./routes/marketingAgent";
 import { leadStatusEnum, leadEventTypeEnum } from "@shared/schema";
-import { generateVariants, type VariantQuestion } from "./services/variantGenerator";
+import { generateVariantsForTopic, generateVariants, type VariantQuestion } from "./services/variantGenerator";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -1404,19 +1404,26 @@ export async function registerRoutes(
 
       const topic = await tutoringStorage.getTopic(topicId);
       const topicName = topic?.title || "";
+      const topicSlug = topicName.toLowerCase().replace(/\s+/g, "_");
 
       const previousIds: string[] = [];
+      const previousSourceIds = new Set<number>();
       try {
         const allAttempts = await tutoringStorage.getSessionAttemptsByStudent(profile.id);
-        const topicAttempt = allAttempts.find(a => a.topicName === topicName && a.endedAt);
-        if (topicAttempt) {
-          if (topicAttempt.warmupResults) {
-            const wr = JSON.parse(topicAttempt.warmupResults);
-            (wr.questions || []).forEach((q: any) => previousIds.push(String(q.id)));
-          }
-          if (topicAttempt.exitTicketResults) {
-            const er = JSON.parse(topicAttempt.exitTicketResults);
-            (er.questions || []).forEach((q: any) => previousIds.push(String(q.id)));
+        const topicAttempts = allAttempts.filter(a => a.topicName === topicName && a.endedAt);
+        for (const topicAttempt of topicAttempts.slice(0, 3)) {
+          for (const field of ["warmupResults", "exitTicketResults", "practiceResults"] as const) {
+            const raw = (topicAttempt as any)[field];
+            if (raw) {
+              try {
+                const parsed = JSON.parse(raw);
+                (parsed.questions || []).forEach((q: any) => {
+                  previousIds.push(String(q.id));
+                  if (q.sourceQuestionId) previousSourceIds.add(q.sourceQuestionId);
+                  if (typeof q.id === "number") previousSourceIds.add(q.id);
+                });
+              } catch {}
+            }
           }
         }
       } catch {}
@@ -1477,25 +1484,61 @@ export async function registerRoutes(
 
       const exitTicketQuestions = [...exit1, ...exit2, ...exit3, ...exit4];
 
+      const practiceCanonical = pickRandom(
+        allQuestions.filter(q => q.difficulty >= 2 && q.difficulty <= 3),
+        3,
+        exitExclude
+      );
+
       let warmupVariants: VariantQuestion[] = [];
       let exitVariants: VariantQuestion[] = [];
+      let practiceVariants: VariantQuestion[] = [];
       try {
-        const [wv, ev] = await Promise.all([
-          generateVariants(warmupQuestions, 1),
-          generateVariants(exitTicketQuestions, 1),
+        const [wv, ev, pv] = await Promise.all([
+          generateVariantsForTopic({
+            topicId,
+            topicSlug,
+            difficulty: 1,
+            count: 2,
+            sourceQuestions: allDiff1,
+            excludeSourceIds: previousSourceIds,
+          }),
+          generateVariantsForTopic({
+            topicId,
+            topicSlug,
+            difficulty: 3,
+            count: 2,
+            sourceQuestions: [...diff2, ...diff3],
+            excludeSourceIds: previousSourceIds,
+          }),
+          generateVariantsForTopic({
+            topicId,
+            topicSlug,
+            difficulty: 2,
+            count: 2,
+            sourceQuestions: [...diff2, ...diff3],
+            excludeSourceIds: previousSourceIds,
+          }),
         ]);
         warmupVariants = wv;
         exitVariants = ev;
+        practiceVariants = pv;
       } catch (variantErr) {
         console.error("[session-questions] Variant generation failed, using canonical only:", variantErr);
       }
 
       const finalWarmup = shuffle([...warmupQuestions, ...warmupVariants]);
       const finalExit = shuffle([...exitTicketQuestions, ...exitVariants]);
+      const finalPractice = shuffle([...practiceCanonical, ...practiceVariants]);
+
+      console.log(
+        `[session-questions] topicId=${topicId} slug=${topicSlug} | warmup=${warmupQuestions.length}+${warmupVariants.length}v exit=${exitTicketQuestions.length}+${exitVariants.length}v practice=${practiceCanonical.length}+${practiceVariants.length}v`
+      );
 
       res.json({
         warmupQuestions: finalWarmup,
         exitTicketQuestions: finalExit,
+        practiceQuestions: finalPractice,
       });
     } catch (error) {
       console.error("Error fetching session questions:", error);
