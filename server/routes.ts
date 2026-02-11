@@ -10,6 +10,7 @@ import { registerImageRoutes } from "./replit_integrations/image";
 import { tutoringStorage } from "./storage";
 import marketingAgentRoutes from "./routes/marketingAgent";
 import { leadStatusEnum, leadEventTypeEnum } from "@shared/schema";
+import { generateVariants, type VariantQuestion } from "./services/variantGenerator";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -1476,9 +1477,25 @@ export async function registerRoutes(
 
       const exitTicketQuestions = [...exit1, ...exit2, ...exit3, ...exit4];
 
+      let warmupVariants: VariantQuestion[] = [];
+      let exitVariants: VariantQuestion[] = [];
+      try {
+        const [wv, ev] = await Promise.all([
+          generateVariants(warmupQuestions, 1),
+          generateVariants(exitTicketQuestions, 1),
+        ]);
+        warmupVariants = wv;
+        exitVariants = ev;
+      } catch (variantErr) {
+        console.error("[session-questions] Variant generation failed, using canonical only:", variantErr);
+      }
+
+      const finalWarmup = shuffle([...warmupQuestions, ...warmupVariants]);
+      const finalExit = shuffle([...exitTicketQuestions, ...exitVariants]);
+
       res.json({
-        warmupQuestions,
-        exitTicketQuestions: shuffle(exitTicketQuestions),
+        warmupQuestions: finalWarmup,
+        exitTicketQuestions: finalExit,
       });
     } catch (error) {
       console.error("Error fetching session questions:", error);

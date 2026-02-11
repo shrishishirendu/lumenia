@@ -62,7 +62,7 @@ interface DBLesson {
 }
 
 interface DBQuestion {
-  id: number;
+  id: number | string;
   questionText: string;
   questionType: string;
   options: string[] | null;
@@ -70,6 +70,8 @@ interface DBQuestion {
   explanation: string | null;
   difficulty: number;
   points: number;
+  isVariant?: boolean;
+  sourceQuestionId?: number;
 }
 
 interface TopicContent {

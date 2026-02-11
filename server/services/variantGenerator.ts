@@ -32,6 +32,56 @@ interface RawVariant {
   explanation: string;
 }
 
+function extractStructure(text: string): string {
+  return text
+    .replace(/"[^"]*"/g, "WORD_PROBLEM")
+    .replace(/-?\d+(\.\d+)?/g, "N")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function verifyAnswer(questionText: string, claimedAnswer: string): boolean {
+  const answerMatch = claimedAnswer.match(/x\s*=\s*(-?\d+)/);
+  if (!answerMatch) return true;
+
+  const x = parseInt(answerMatch[1]);
+  const eqMatch = questionText.match(/^Solve:\s*(.+)$/i);
+  if (!eqMatch) return true;
+
+  const equation = eqMatch[1].trim();
+  const sides = equation.split("=");
+  if (sides.length !== 2) return true;
+
+  try {
+    const evalSide = (expr: string): number | null => {
+      let s = expr.trim();
+      s = s.replace(/(\d)\(/g, "$1*(");
+      s = s.replace(/\)(\d)/g, ")*$1");
+      s = s.replace(/\)\(/g, ")*(");
+      s = s.replace(/−/g, "-");
+      s = s.replace(/x/gi, `(${x})`);
+      s = s.replace(/÷/g, "/");
+      s = s.replace(/×/g, "*");
+      s = s.replace(/[^0-9+\-*/().]/g, "");
+      if (!s || s.length > 100) return null;
+      try {
+        const result = Function(`"use strict"; return (${s})`)();
+        return typeof result === "number" && isFinite(result) ? result : null;
+      } catch {
+        return null;
+      }
+    };
+
+    const left = evalSide(sides[0]);
+    const right = evalSide(sides[1]);
+    if (left !== null && right !== null) {
+      return Math.abs(left - right) < 0.001;
+    }
+  } catch {}
+
+  return true;
+}
+
 function validateVariant(
   source: QuizQuestion,
   variant: RawVariant
@@ -68,6 +118,32 @@ function validateVariant(
     sourceNums.join(",") === variantNums.join(",")
   ) {
     return false;
+  }
+
+  const sourceStruct = extractStructure(source.questionText);
+  const variantStruct = extractStructure(variant.questionText);
+  const isEquation = source.questionText.startsWith("Solve:");
+  if (isEquation) {
+    const sourceOps = sourceStruct.match(/[+\-*/()=]/g) || [];
+    const variantOps = variantStruct.match(/[+\-*/()=]/g) || [];
+    if (Math.abs(sourceOps.length - variantOps.length) > 2) {
+      return false;
+    }
+  }
+
+  if (isEquation && !verifyAnswer(variant.questionText, variant.correctAnswer)) {
+    console.log(
+      `[VariantGenerator] Answer verification failed for variant: "${variant.questionText}" claimed=${variant.correctAnswer}`
+    );
+    return false;
+  }
+
+  const answerMatch = variant.correctAnswer.match(/x\s*=\s*(-?\d+)/);
+  if (answerMatch) {
+    const val = parseInt(answerMatch[1]);
+    if (Math.abs(val) > 1000) {
+      return false;
+    }
   }
 
   return true;
