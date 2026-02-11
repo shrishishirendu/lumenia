@@ -1,0 +1,168 @@
+Implement Year 9 Mathematics topic: "Index Laws" fully in Lumenia (DB + UI + practice pools + notes + variant rules). Follow the same standard as Linear Equations.
+
+Context / requirements:
+- Subject: Mathematics
+- Year: 9
+- Topic: Index Laws
+- Place after: "Algebraic Expressions", before: "Linear Equations"
+- In scope: product rule, quotient rule, power of a power, power of product/quotient, simplify expressions with indices
+- Out of scope: negative indices, fractional indices, scientific notation
+- Lessons: 3 (titles proposed below)
+- Pools: default pool sizes
+- Notes: yes (include key laws)
+- Variants: bases 2–9, powers 0–5, avoid negative numbers and negative indices
+
+--------------------------------------------------------------------------------
+A) TOPIC + ORDERING
+1) Ensure subjectId for Mathematics exists.
+2) Ensure topic exists in topics table:
+   - title: "Index Laws"
+   - subjectId: Mathematics
+   - gradeLevel: 9
+   - prerequisiteTopicId: set to "Algebraic Expressions" if it exists; else null.
+3) Ordering:
+   - Find existing topic "Linear Equations" (it exists, topicId=1 in our environment).
+   - Set Index Laws orderIndex to be immediately before Linear Equations.
+   - If "Algebraic Expressions" exists, ensure Index Laws comes after it.
+   - If orderIndex collisions exist, shift other Year 9 Maths orderIndex values minimally to keep logical order.
+
+Deliver: indexTopicId and final orderIndex.
+
+--------------------------------------------------------------------------------
+B) TOPIC NOTES (LIGHTWEIGHT NOTES LAYER)
+4) Ensure topic_notes exists for this topic (one per topicId). Upsert:
+- summary:
+  "Index laws help you simplify powers by using consistent rules for multiplying, dividing, and raising powers."
+- notesMarkdown (concise, Year 9 friendly) with sections:
+  1) Core idea (what an index means)
+  2) Key laws (state as formulas)
+     - a^m × a^n = a^(m+n)
+     - a^m ÷ a^n = a^(m−n)  (assume m ≥ n so no negative indices appear)
+     - (a^m)^n = a^(m×n)
+     - (ab)^n = a^n b^n
+     - (a/b)^n = a^n / b^n
+     - a^0 = 1 (for a ≠ 0)
+  3) Common mistakes (bullets):
+     - adding bases instead of indices
+     - multiplying indices when multiplying terms
+     - forgetting brackets change the meaning
+     - applying quotient rule when bases differ
+- keyFormulas (json array of the above formulas)
+- commonMistakes (json array)
+
+Ensure notes can be viewed from Subject Tree and SessionFlow Notes button.
+
+--------------------------------------------------------------------------------
+C) LESSONS (3) + SEGMENTS (3 per lesson)
+5) Create 3 lessons (15 min each) under Index Laws topic, idempotent:
+
+Lesson 1: "Understanding Indices + Product & Quotient Rules"
+- Objectives:
+  - Interpret a^n as repeated multiplication
+  - Simplify expressions using product rule (same base)
+  - Simplify expressions using quotient rule (same base, m ≥ n)
+
+Lesson 2: "Power Rules: Power of a Power, Product, and Quotient"
+- Objectives:
+  - Simplify (a^m)^n
+  - Expand/simplify (ab)^n and (a/b)^n
+  - Keep results within Year 9 scope (no negative indices)
+
+Lesson 3: "Zero Index + Mixed Simplification"
+- Objectives:
+  - Apply a^0 = 1 (a ≠ 0)
+  - Simplify multi-step index expressions
+  - Check reasonableness (keep bases 2–9)
+
+6) For each lesson create 3 lesson_segments: explanation, example, practice (idempotent).
+Include:
+- explanation: short concept explanation (student friendly, Year 9)
+- example: 2 worked examples with step-by-step whiteboardContent
+- practice: 6 quick questions (no answers shown in content, just prompts) + tutorScript hints
+
+Guidance:
+- Keep bases 2–9 and powers 0–5 in examples and practice.
+- Avoid negative indices entirely; for quotient rule, choose exponents m ≥ n.
+- Avoid fractional indices and scientific notation.
+
+Deliver: lessonIds and segmentIds.
+
+--------------------------------------------------------------------------------
+D) QUESTION BANK POOLS (CANONICAL, DB-STORED)
+7) Seed canonical quiz_questions for Index Laws, idempotent, with the following MINIMUM pool sizes:
+- Easy (difficulty=1): 15
+- Medium (difficulty=2): 30
+- High (difficulty=3): 25
+- Challenge (difficulty=4): 20
+- Word problems (optional; if you can do cleanly, difficulty=3): 10
+
+Rules:
+- All questions must be original.
+- Use bases 2–9, powers 0–5.
+- No negative indices; ensure any quotient tasks have m ≥ n.
+- Keep answers as simplified index form (e.g., 2^3, 5^2) or expanded simplified form if required, but prefer index form.
+- questionType = "short_answer" unless the UI needs MCQ.
+- correctAnswer must match expected format consistently (choose a standard: "2^3" not "8"; and document it).
+- explanation: 2–4 lines, stepwise.
+
+Suggested distribution patterns:
+Easy:
+- Evaluate simple powers (2^3, 5^0)
+- Apply one rule once (a^m * a^n)
+Medium:
+- Two-step simplifications, still same base or bracketed product rule
+High:
+- Mix of power-of-power + product/quotient
+Challenge:
+- Multi-step expressions requiring careful order and bracket handling
+
+Link questions:
+- If your UI supports lesson-specific practice, link a portion by lessonId:
+  - Lesson 1: easy + some medium
+  - Lesson 2: medium + high
+  - Lesson 3: high + challenge + zero index
+
+Deliver: counts created per difficulty and total.
+
+--------------------------------------------------------------------------------
+E) DYNAMIC WARM-UP + EXIT TICKET (POOL-BASED)
+8) Ensure warm-up and exit ticket selection uses the question pool dynamically (no repetition):
+Warm-up for Index Laws sessions:
+- randomly sample 3 from difficulty=1 (topicId=indexTopicId)
+- exclude recently used questions if possible (last session)
+Exit ticket:
+- 1 from difficulty=2
+- 1 from difficulty=3
+- 1 from difficulty=4
+- optional 1 from word pool (if implemented)
+- avoid repeats from current session and recent exit ticket
+
+Fallback rules:
+- if pool is insufficient in a category, fallback to nearest difficulty.
+
+--------------------------------------------------------------------------------
+F) VARIANT RULES (MENTORA VARIANT ENGINE)
+9) Add/extend variant rules config for topic "Index Laws":
+- Allowed: same structures as canonical; mutate bases (2–9) and exponents (0–5)
+- Disallow: negative bases, negative indices, fractional indices, scientific notation
+- Ensure quotient tasks use m ≥ n
+- Return format must match canonical answer format (e.g., "2^3")
+
+Integrate with the existing Variant Engine so that practice/warm-up can optionally request variants for Index Laws.
+
+--------------------------------------------------------------------------------
+G) QA CHECKS (MUST PASS)
+10) Verify end-to-end:
+- Topic appears in Year 9 Maths Subject Tree in correct order.
+- Notes open for Index Laws.
+- SessionFlow renders 3 lessons and segments.
+- Practice page shows non-zero question counts for Index Laws.
+- Warm-up questions vary across sessions.
+- Exit ticket varies across attempts.
+- No negative indices appear anywhere.
+
+Output:
+- indexTopicId, lessonIds
+- question counts by difficulty
+- files changed
+- quick verification notes

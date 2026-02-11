@@ -120,8 +120,121 @@ const linearEquationsRules: TopicVariantRules = {
   ],
 };
 
+const indexLawsRules: TopicVariantRules = {
+  topicSlug: "index_laws",
+  topicTitle: "Index Laws",
+  difficulties: [
+    {
+      difficulty: 1,
+      allowedForms: [
+        "a^m × a^n (product rule, single step)",
+        "a^m ÷ a^n (quotient rule, single step, m ≥ n)",
+        "Evaluate a^n",
+        "a^0 = 1",
+      ],
+      formDescriptions: [
+        "Single index law application",
+        "Bases 2–9, powers 0–5",
+        "No negative indices or fractional indices",
+        "Answer in index form (e.g. 2^7) or numeric for evaluation",
+      ],
+      coefficientRange: [2, 9],
+      constantRange: [0, 5],
+      answerRange: [0, 100000],
+      allowFractions: false,
+      allowNegativeAnswers: false,
+      allowVariablesOnBothSides: false,
+      forbiddenPatterns: [
+        /\^-/,
+        /\^0\./,
+        /\^\d+\/\d+/,
+      ],
+      maxTerms: 3,
+    },
+    {
+      difficulty: 2,
+      allowedForms: [
+        "a^m × a^n (product rule)",
+        "a^m ÷ a^n (quotient rule, m ≥ n)",
+        "(a^m)^n (power of a power)",
+      ],
+      formDescriptions: [
+        "Two-step simplification using one or two rules",
+        "Bases 2–9, powers 0–5",
+        "No negative indices, no fractions",
+      ],
+      coefficientRange: [2, 9],
+      constantRange: [0, 5],
+      answerRange: [0, 100000],
+      allowFractions: false,
+      allowNegativeAnswers: false,
+      allowVariablesOnBothSides: false,
+      forbiddenPatterns: [
+        /\^-/,
+        /\^0\./,
+        /\^\d+\/\d+/,
+      ],
+      maxTerms: 4,
+    },
+    {
+      difficulty: 3,
+      allowedForms: [
+        "Multi-step: product + quotient combined",
+        "Power of a power + product/quotient",
+        "Expressions with zero index",
+        "Word problems using index laws",
+      ],
+      formDescriptions: [
+        "2–3 index laws combined in one expression",
+        "Bases 2–9, powers 0–5",
+        "May include zero index (a^0 = 1)",
+        "No negative indices",
+      ],
+      coefficientRange: [2, 9],
+      constantRange: [0, 5],
+      answerRange: [0, 100000],
+      allowFractions: false,
+      allowNegativeAnswers: false,
+      allowVariablesOnBothSides: false,
+      forbiddenPatterns: [
+        /\^-/,
+        /\^0\./,
+        /\^\d+\/\d+/,
+      ],
+      maxTerms: 6,
+    },
+    {
+      difficulty: 4,
+      allowedForms: [
+        "Multi-step with nested power-of-power + products + quotients",
+        "Multiple bracketed expressions combined",
+        "Complex simplification requiring 4+ steps",
+      ],
+      formDescriptions: [
+        "3+ index laws combined",
+        "Nested brackets e.g. (a^m)^n × a^p ÷ a^q",
+        "Bases 2–9, powers 0–5",
+        "No negative indices",
+      ],
+      coefficientRange: [2, 9],
+      constantRange: [0, 5],
+      answerRange: [0, 100000],
+      allowFractions: false,
+      allowNegativeAnswers: false,
+      allowVariablesOnBothSides: false,
+      forbiddenPatterns: [
+        /\^-/,
+        /\^0\./,
+        /\^\d+\/\d+/,
+      ],
+      maxTerms: 8,
+    },
+  ],
+};
+
 const rulesRegistry: Record<string, TopicVariantRules> = {
   linear_equations: linearEquationsRules,
+  index_laws: indexLawsRules,
 };
 
 export function getVariantRules(topicSlug: string): TopicVariantRules | null {
