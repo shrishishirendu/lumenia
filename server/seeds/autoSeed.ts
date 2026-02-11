@@ -241,6 +241,10 @@ export async function runAutoSeed() {
       await ensurePracticeQuestions(topicId);
       await ensureTopicNotes(topicId);
     }
+
+    const { seedIndexLaws } = await import("./indexLaws");
+    await seedIndexLaws();
+
     console.log("Auto-seed: complete.");
   } catch (error) {
     console.error("Auto-seed error (non-fatal):", error);
