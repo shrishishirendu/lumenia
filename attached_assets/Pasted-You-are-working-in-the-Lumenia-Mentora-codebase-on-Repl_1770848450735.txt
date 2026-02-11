@@ -1,0 +1,153 @@
+You are working in the Lumenia (Mentora) codebase on Replit.
+
+GOAL
+Add a new interactive + practice topic: “Inequalities (One Variable)” using the SAME template-based generator architecture as linear_equations. Do not redesign the engine. Follow the established pattern exactly.
+
+--------------------------------------------------------------------
+
+QUESTION FORMAT (MUST MATCH EXISTING SCHEMA)
+
+Every generated question MUST return a dict structured EXACTLY as follows:
+
+{
+  "id": "<deterministic short hash based on difficulty + archetype + params>",
+  "topic": "inequalities",
+  "difficulty": "easy|medium|hard|challenge",
+  "archetype": "<string>",
+  "prompt": "<question text>",
+  "answer": "<solution set string, e.g. 'x > 3', 'x ≤ -2'>",
+  "worked_solution": [
+      "Step 1 explanation",
+      "Step 2 explanation",
+      "...",
+      "Final inequality with correct sign"
+  ],
+  "metadata": {
+      "params": {...},                # template parameters used
+      "skills": [...],                # e.g. ["balance_terms", "flip_inequality_sign"]
+      "estimated_time_sec": <int>
+  }
+}
+
+This schema must be identical in structure to linear_equations generator output.
+
+--------------------------------------------------------------------
+
+IMPLEMENTATION STEPS
+
+1) Create generator module
+Path:
+  src/question_engine/inequalities.py
+(or follow same language structure if project uses TypeScript)
+
+Export:
+  - generate_question(difficulty: str, seed: Optional[int] = None) -> dict
+  - generate_pool(difficulty: str, n: int, seed: Optional[int] = None, ensure_unique: bool = True) -> list[dict]
+
+Use random.Random(seed) for deterministic generation.
+
+--------------------------------------------------------------------
+
+ARCHETYPES & DIFFICULTY DESIGN (Cambridge-style progression)
+
+EASY (8 variants)
+- x + b > c
+- ax > c   (a positive)
+- x/k ≤ m
+Constraints:
+- Integer boundary
+- Avoid sign flip
+- Keep solutions clean integers
+
+MEDIUM (8 variants)
+- ax + b ≥ c
+- ax + b < cx + d   (variables both sides)
+- a(x + b) ≤ c
+Constraints:
+- Integer boundary
+- Include negative constants
+- No required sign flip yet
+
+HARD (7 variants)
+Must include sign-flip logic:
+- -ax + b > c
+- (ax + b)/(-k) ≤ m
+- Multiply/divide both sides by negative
+Constraints:
+- At least 50% require inequality sign reversal
+- Allow fractional boundaries but denominators ≤ 10
+
+CHALLENGE (7 variants)
+Word problems mapping to inequalities:
+- “At least”
+- “No more than”
+- Budget cap
+- Minimum score eligibility
+Return:
+- Final inequality
+- Short interpretation line in worked_solution
+Example:
+  "This means x must be at least 12."
+
+--------------------------------------------------------------------
+
+ID GENERATION
+
+The "id" field must be deterministic and derived from:
+(difficulty + archetype + sorted params)
+Use a short hash (e.g., first 8 chars of md5 or sha1).
+
+No duplicate IDs within a generated pool.
+
+--------------------------------------------------------------------
+
+PRACTICE INTEGRATION
+
+1) Add topic entry to central topic registry/config:
+   {
+     id: "inequalities",
+     slug: "inequalities",
+     title: "Inequalities (One Variable)",
+     subject: "math",
+     hasInteractive: true,
+     hasPractice: true
+   }
+
+2) Ensure Practice page:
+   - Loads generator based on topic slug
+   - Does NOT hardcode Index Laws
+   - Regenerate button refreshes pool with new seed
+   - Difficulty mix default:
+        3 easy
+        3 medium
+        2 hard
+
+--------------------------------------------------------------------
+
+TESTS
+
+Add tests:
+tests/test_inequalities_generator.py
+
+Verify:
+- Required keys exist
+- Seeded output deterministic
+- No duplicate IDs in pool
+- Sign flip correctly applied in hard category
+
+--------------------------------------------------------------------
+
+DO NOT
+- Do not modify linear_equations module
+- Do not change schema structure
+- Do not introduce new dependencies
+- Do not hardcode topic anywhere
+
+--------------------------------------------------------------------
+
+DELIVERABLES
+- Generator module
+- Topic registry entry
+- Practice works end-to-end
+- Tests passing
+- Short note explaining how to replicate pattern for next topics

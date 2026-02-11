@@ -38,7 +38,7 @@ Preferred communication style: Simple, everyday language.
     - **Admissions Agent**: Automates lead qualification and enrollment decisions with configurable autonomy.
     - **Academic Quality Agent**: Monitors student progress, identifies at-risk students, and recommends interventions with configurable autonomy.
     - **Mentora Variant Engine**: Rule-driven AI variant generation system for Mathematics questions with per-difficulty constraints, structural validation, and answer verification.
-    - **Question Engine**: Template-based algorithmic question generator (`server/services/questionEngine/`) for deterministic, parameterised question generation without AI calls. Currently supports Linear Equations (30 archetypes across 4 difficulty levels). Integrated into Warm-up and Exit Ticket flows with a "Regenerate" button.
+    - **Question Engine**: Template-based algorithmic question generator (`server/services/questionEngine/`) for deterministic, parameterised question generation without AI calls. Currently supports Linear Equations and Inequalities (30 archetypes each across 4 difficulty levels, with sign-flip logic for inequalities). Integrated into Warm-up and Exit Ticket flows with a "Regenerate" button.
 
 ### Core Features
 - **Curriculum System**: Comprehensive, ACARA-aligned curriculum for Years 6-12 Mathematics and English.
