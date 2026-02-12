@@ -1,0 +1,188 @@
+You are working in the Lumenia (Mentora) codebase on Replit.
+
+GOAL
+Add a new interactive + practice topic: “Simplifying Surds” using the existing topic-aware template-based question engine. Do not redesign the engine. Follow the same schema and integration pattern as previous topics.
+
+--------------------------------------------------------------------
+1) TOPIC REGISTRY ENTRY (SINGLE SOURCE OF TRUTH)
+
+Add to the central topic registry/config used by Interactive Topics, Practice, Warm-up and Exit Ticket:
+
+{
+  id: "simplifying_surds",
+  slug: "simplifying-surds",
+  title: "Simplifying Surds",
+  subject: "math",
+  hasInteractive: true,
+  hasPractice: true,
+  generatorKey: "simplifying_surds"
+}
+
+--------------------------------------------------------------------
+2) GENERATOR MODULE
+
+Create:
+  src/question_engine/simplifying_surds.py
+
+Export:
+  - generate_question(difficulty: str, seed: Optional[int] = None) -> dict
+  - generate_pool(difficulty: str, n: int, seed: Optional[int] = None, ensure_unique: bool = True) -> list[dict]
+
+Use random.Random(seed) for deterministic generation.
+
+--------------------------------------------------------------------
+3) QUESTION SCHEMA (MUST MATCH EXISTING GENERATORS)
+
+Every generated question MUST follow EXACT schema:
+
+{
+  "id": "<deterministic short hash based on difficulty + archetype + params>",
+  "topic": "simplifying_surds",
+  "difficulty": "easy|medium|hard|challenge",
+  "archetype": "<string>",
+  "prompt": "<question text>",
+  "answer": "<final simplified answer as a string>",
+  "worked_solution": ["Step 1", "Step 2", "...", "Final simplified form"],
+  "metadata": {
+      "params": {...},
+      "skills": [...],
+      "estimated_time_sec": <int>
+  }
+}
+
+ID rules:
+- Deterministic from (difficulty + archetype + sorted params)
+- No duplicates in a pool; retry up to 50 attempts when ensure_unique=True
+
+Output formatting:
+- Use a consistent surd format aligned to the app:
+  Prefer "sqrt(n)" if the app uses that, otherwise use "√n".
+- Do NOT output decimals.
+
+--------------------------------------------------------------------
+4) CONTENT SCOPE: SIMPLIFYING SURDS (Cambridge-style)
+
+This topic is focused on simplifying expressions of the form:
+sqrt(k * n) = sqrt(k) * sqrt(n), extracting perfect square factors.
+
+Include BOTH:
+- Numerical surds (sqrt(72))
+- Expressions with coefficients (3*sqrt(50))
+- Add/subtract after simplifying (like terms) in higher tiers
+
+--------------------------------------------------------------------
+5) ARCHETYPES & DIFFICULTY BANDS
+
+EASY (8)
+Archetypes:
+- simplify_single: Simplify sqrt(N) where N has one clear square factor (N up to 200)
+Examples:
+- sqrt(8), sqrt(12), sqrt(18), sqrt(20), sqrt(27), sqrt(45), sqrt(50), sqrt(75)
+Constraints:
+- Answers should be of the form a*sqrt(b) with b square-free
+- Keep numbers friendly (single dominant square factor)
+Skills tags:
+- ["extract_square_factor", "simplify_surd"]
+
+MEDIUM (8)
+Archetypes:
+- simplify_larger: sqrt(N) with larger square factors (N up to 500) requiring more thought
+- coefficient_surd: k*sqrt(N) simplified (e.g., 3*sqrt(48))
+Constraints:
+- Answers simplified fully
+- Include at least 3 coefficient_surd questions
+Skills tags:
+- ["extract_square_factor", "simplify_surd", "simplify_coefficient"]
+
+HARD (7)
+Archetypes:
+- add_like_after_simplify: Expressions like 3*sqrt(8) + 2*sqrt(18)
+- subtract_like_after_simplify: 5*sqrt(12) - sqrt(75)
+- mixed_not_like: include 1–2 where terms do NOT combine, to test recognition
+Constraints:
+- At least 4 questions must require simplifying BOTH terms before combining
+- Final answer must be exact and simplified
+Skills tags:
+- ["extract_square_factor", "combine_like_surds", "recognise_unlike_surds"]
+
+CHALLENGE (7)
+Archetypes:
+- multi_term_simplify: a*sqrt(N) + b*sqrt(M) - c*sqrt(P) (3 terms)
+- expand_then_simplify_light: (sqrt(a) + sqrt(b))^2 where a,b include square factors (keep light)
+- simplify_under_root_fraction (optional if app supports): sqrt(p/q) -> sqrt(p)/sqrt(q) then simplify
+Constraints:
+- Ensure final answer can be expressed as a sum of simplified surd terms
+- Provide worked_solution with clear steps and final simplified form
+Skills tags:
+- ["extract_square_factor", "combine_like_surds", "expand_brackets", "simplify_expression"]
+
+--------------------------------------------------------------------
+6) WORKED SOLUTION QUALITY RULES
+
+worked_solution must show a canonical method:
+- Step: factor N into (perfect square) * (square-free remainder)
+- Step: sqrt(N) = sqrt(square) * sqrt(remainder)
+- Step: simplify sqrt(square) to integer
+- Step: combine like terms (if applicable)
+
+Example style (no decimals):
+- "72 = 36 × 2"
+- "sqrt(72) = sqrt(36) × sqrt(2)"
+- "sqrt(36) = 6"
+- "So sqrt(72) = 6sqrt(2)"
+
+--------------------------------------------------------------------
+7) PRACTICE + WARM-UP + EXIT INTEGRATION
+
+Do NOT hardcode topics.
+Assume Warm-up and Exit Ticket are already topic-aware via the central registry + generator resolver.
+
+Ensure:
+- Practice page loads this topic using generatorKey "simplifying_surds"
+- Header shows "Math – Simplifying Surds"
+- Regenerate works (new seed)
+
+Default difficulty mix for Practice:
+- 3 easy + 3 medium + 2 hard
+Optional: Challenge toggle off by default
+
+Warm-up default:
+- 2 easy + 2 medium
+
+Exit ticket default:
+- 1 medium + 1 hard
+
+--------------------------------------------------------------------
+8) TESTS
+
+Add:
+  tests/test_simplifying_surds_generator.py
+
+Verify:
+- required keys exist
+- seeded determinism
+- uniqueness in pool
+- answers are exact (no decimals)
+- at least one hard/challenge question combines like surds after simplification
+
+--------------------------------------------------------------------
+9) DOCUMENTATION
+
+Update:
+  docs/question_engine.md
+Add entry for "Simplifying Surds" and note exact formatting rules used ("sqrt(n)" vs "√n").
+
+--------------------------------------------------------------------
+DO NOT
+
+- Do not change DB schema
+- Do not introduce new dependencies
+- Do not output decimal approximations
+- Do not change engine design; follow existing generator conventions exactly
+
+DELIVERABLES
+- Topic registry entry
+- Generator module for simplifying_surds
+- Practice works end-to-end
+- Tests passing
+- Docs updated

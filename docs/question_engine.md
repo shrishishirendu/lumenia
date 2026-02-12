@@ -10,6 +10,7 @@ A template-based question generator for Mathematics topics. Generates unique, pa
 | Inequalities | `inequalities` | `server/services/questionEngine/inequalities.ts` | 30 (8 easy, 8 medium, 7 hard, 7 challenge) |
 | Fractional Indices | `fractional_indices` | `server/services/questionEngine/fractionalIndices.ts` | 30 (8 easy, 8 medium, 7 hard, 7 challenge) |
 | Introduction to Surds | `introduction_to_surds` | `server/services/questionEngine/surdsIntro.ts` | 30 (8 easy, 8 medium, 7 hard, 7 challenge) |
+| Simplifying Surds | `simplifying_surds` | `server/services/questionEngine/simplifyingSurds.ts` | 30 (8 easy, 8 medium, 7 hard, 7 challenge) |
 
 ## Architecture
 
@@ -77,6 +78,7 @@ const mixed = generateMixedPool([
 | `GET /api/question-engine/inequalities/generate?difficulty=easy&n=4` | Inequalities-specific pool |
 | `GET /api/question-engine/fractional-indices/generate?difficulty=easy&n=4` | Fractional indices-specific pool |
 | `GET /api/question-engine/surds-intro/generate?difficulty=easy&n=4` | Surds intro-specific pool |
+| `GET /api/question-engine/simplifying-surds/generate?difficulty=easy&n=4` | Simplifying surds-specific pool |
 
 The `topic` query parameter on `/warmup` and `/exit-ticket` accepts any registered generator key.
 
@@ -196,6 +198,7 @@ npx tsx tests/test_linear_equations_generator.ts
 npx tsx tests/test_inequalities_generator.ts
 npx tsx tests/test_fractional_indices_generator.ts
 npx tsx tests/test_surds_intro_generator.ts
+npx tsx tests/test_simplifying_surds_generator.ts
 ```
 
 ## Formatting Conventions

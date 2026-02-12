@@ -257,6 +257,9 @@ export async function runAutoSeed() {
     const { seedSurdsIntro } = await import("./surdsIntro");
     await seedSurdsIntro();
 
+    const { seedSimplifyingSurds } = await import("./simplifyingSurds");
+    await seedSimplifyingSurds();
+
     console.log("Auto-seed: complete.");
   } catch (error) {
     console.error("Auto-seed error (non-fatal):", error);
