@@ -21,11 +21,12 @@ import {
   Play,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { motion, AnimatePresence } from "framer-motion";
 import TopicNotesDrawer from "@/components/TopicNotesDrawer";
 import { useStudentProfile } from "@/hooks/useStudentProfile";
+import MathAnswerInput from "@/components/MathAnswerInput";
+import { normalizeMathInput } from "@/lib/mathNormalize";
 
 interface PracticeQuestion {
   id: number;
@@ -146,7 +147,7 @@ export default function Practice() {
   const checkAnswer = () => {
     if (!userAnswer.trim()) return;
     const current = quizQuestions[currentIndex];
-    const normalise = (s: string) => s.replace(/\s+/g, "").replace(/^x=/i, "").toLowerCase();
+    const normalise = (s: string) => normalizeMathInput(s).replace(/^x=/i, "");
     const isCorrect = normalise(userAnswer) === normalise(current.correctAnswer);
     setResults(prev => [...prev, { questionId: current.id, correct: isCorrect, userAnswer: userAnswer.trim() }]);
     setAnswered(true);
@@ -277,13 +278,12 @@ export default function Practice() {
 
               <div className="space-y-3">
                 <label className="text-sm font-medium text-muted-foreground">Your answer:</label>
-                <Input
+                <MathAnswerInput
                   value={userAnswer}
-                  onChange={e => setUserAnswer(e.target.value)}
+                  onChange={setUserAnswer}
                   placeholder="e.g. x = 5"
                   disabled={answered}
-                  onKeyDown={e => { if (e.key === "Enter" && !answered) checkAnswer(); }}
-                  className="text-lg"
+                  onSubmit={() => { if (!answered) checkAnswer(); }}
                   autoFocus
                   data-testid="answer-input"
                 />

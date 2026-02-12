@@ -8,6 +8,8 @@ import { Progress } from "@/components/ui/progress";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import MathAnswerInput from "@/components/MathAnswerInput";
+import { normalizeMathInput } from "@/lib/mathNormalize";
 import { 
   Zap, 
   BookOpen, 
@@ -370,7 +372,7 @@ export default function SessionFlow() {
     const correct = questions.filter(q => {
       const ans = answers[q.id];
       if (!ans) return false;
-      return ans.toLowerCase().trim() === q.correctAnswer.toLowerCase().trim();
+      return normalizeMathInput(ans) === normalizeMathInput(q.correctAnswer);
     }).length;
     return Math.round((correct / questions.length) * 100);
   };
@@ -424,16 +426,14 @@ export default function SessionFlow() {
     if (q.questionType === "short_answer" || q.options.length === 0) {
       const currentAnswer = answers[q.id] || "";
       const isSubmitted = !!currentAnswer;
-      const isCorrect = isSubmitted && currentAnswer.toLowerCase().trim() === q.correctAnswer.toLowerCase().trim();
+      const isCorrect = isSubmitted && normalizeMathInput(currentAnswer) === normalizeMathInput(q.correctAnswer);
       return (
         <div>
-          <div className="flex gap-2 items-center">
-            <Input
-              type="text"
-              placeholder="Type your answer..."
+          <div className="max-w-xs">
+            <MathAnswerInput
               value={currentAnswer}
-              onChange={(e) => handleAnswer(q.id, e.target.value, section)}
-              className="max-w-xs"
+              onChange={(v) => handleAnswer(q.id, v, section)}
+              placeholder="Type your answer..."
               data-testid={`input-${q.id}`}
             />
           </div>
@@ -460,8 +460,8 @@ export default function SessionFlow() {
           ))}
         </RadioGroup>
         {answers[q.id] && section !== "exit_ticket" && (
-          <div className={`mt-2 p-2 rounded text-sm ${answers[q.id] === q.correctAnswer ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>
-            {answers[q.id] === q.correctAnswer ? "Correct!" : `The answer is ${q.correctAnswer}. ${q.explanation}`}
+          <div className={`mt-2 p-2 rounded text-sm ${normalizeMathInput(answers[q.id] || "") === normalizeMathInput(q.correctAnswer) ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>
+            {normalizeMathInput(answers[q.id] || "") === normalizeMathInput(q.correctAnswer) ? "Correct!" : `The answer is ${q.correctAnswer}. ${q.explanation}`}
           </div>
         )}
       </div>
