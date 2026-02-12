@@ -156,6 +156,18 @@ export const TOPIC_CATALOG: Record<string, SubjectConfig> = {
         generatorKey: "operations_with_surds",
       },
       {
+        id: "expanding_binomial_products",
+        slug: "expanding-binomial-products",
+        name: "Expanding Binomial Products",
+        description: "Expand products of two binomials using FOIL, perfect squares, and difference of squares",
+        gradeRange: [9, 11],
+        prerequisites: ["expanding_brackets"],
+        estimatedMinutes: 35,
+        hasInteractive: true,
+        hasPractice: true,
+        generatorKey: "expanding_binomial_products",
+      },
+      {
         id: "geometry_basics",
         slug: "geometry-basics",
         name: "Geometry Basics",

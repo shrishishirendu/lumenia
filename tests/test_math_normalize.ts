@@ -83,6 +83,21 @@ console.log("\n10. Answer comparison scenarios");
   assert(norm("(x+1)(x-1)") === norm("(x+1)*(x-1)"), "implicit mult");
 }
 
+console.log("\n11. Binomial product answer normalization");
+{
+  const norm = normalizeMathInput;
+  assertEq(norm("x^2 + 5x + 6"), "x^2+5x+6", "polynomial with spaces");
+  assertEq(norm("x^2+5x+6"), "x^2+5x+6", "polynomial no spaces");
+  assertEq(norm("X^2 + 5X + 6"), "x^2+5x+6", "uppercase polynomial");
+  assert(norm("x^2 + 5x + 6") === norm("x^2+5x+6"), "spaces irrelevant in polynomial");
+  assertEq(norm("2x^2 - 3x - 10"), "2x^2-3x-10", "negative terms in polynomial");
+  assertEq(norm("x^2 - 16"), "x^2-16", "diff of squares answer");
+  assertEq(norm("4x^2 - 9"), "4x^2-9", "non-monic diff of squares");
+  assert(norm("(x+2)(x+3)") === norm("(x+2)*(x+3)"), "binomial implicit mult");
+  assertEq(norm("x^2 + 2x + 1"), "x^2+2x+1", "perfect square result");
+  assertEq(norm("9x^2 + 12x + 4"), "9x^2+12x+4", "non-monic perfect square");
+}
+
 console.log(`\n=== Results: ${passed} passed, ${failed} failed ===`);
 if (failed === 0) {
   console.log("All tests passed!");

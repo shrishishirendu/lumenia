@@ -4,6 +4,7 @@ import { generateMixedPool as generateFracIdxPool } from "./fractionalIndices";
 import { generateMixedPool as generateSurdsIntroPool } from "./surdsIntro";
 import { generateMixedPool as generateSimplifyingSurdsPool } from "./simplifyingSurds";
 import { generateMixedPool as generateOpsWithSurdsPool } from "./operationsWithSurds";
+import { generateMixedPool as generateExpandBinomialPool } from "./expandingBinomialProducts";
 
 export type DifficultyConfig = { difficulty: "easy" | "medium" | "hard" | "challenge"; count: number };
 export type GeneratorFn = (config: DifficultyConfig[], seed?: number) => any[];
@@ -15,6 +16,7 @@ const GENERATOR_REGISTRY: Record<string, GeneratorFn> = {
   introduction_to_surds: generateSurdsIntroPool,
   simplifying_surds: generateSimplifyingSurdsPool,
   operations_with_surds: generateOpsWithSurdsPool,
+  expanding_binomial_products: generateExpandBinomialPool,
 };
 
 export function getGenerator(topicKey: string): GeneratorFn | null {

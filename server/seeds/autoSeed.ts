@@ -263,6 +263,9 @@ export async function runAutoSeed() {
     const { seedOperationsWithSurds } = await import("./operationsWithSurds");
     await seedOperationsWithSurds();
 
+    const { seedExpandingBinomialProducts } = await import("./expandingBinomialProducts");
+    await seedExpandingBinomialProducts();
+
     console.log("Auto-seed: complete.");
   } catch (error) {
     console.error("Auto-seed error (non-fatal):", error);

@@ -1,0 +1,114 @@
+You are working in the Lumenia (Mentora) codebase on Replit.
+
+GOAL
+Add a new interactive + practice topic: “Expanding Binomial Products” using the existing topic-aware template-based question engine AND ensure it fully integrates with the global MathAnswerInput + normalization engine (sqrt, >=, <=, ^, etc.).
+
+Do not redesign the engine. Follow existing schema and routing patterns.
+
+--------------------------------------------------------------------
+1) ENSURE GLOBAL MATH INPUT ENGINE IS USED
+
+All answer input fields for this topic MUST use the shared MathAnswerInput component (with symbol toolbar).
+
+Answer checking MUST pass through:
+  normalize_math_input()
+
+This ensures:
+- x^2 equals x²
+- x>=3 equals x ≥ 3
+- 2sqrt(3) equals 2*sqrt(3)
+- (x+1)(x-1) equals (x+1)*(x-1)
+
+Do NOT implement any local topic-specific parsing.
+
+--------------------------------------------------------------------
+2) TOPIC REGISTRY ENTRY
+
+Add:
+
+{
+  id: "expanding_binomial_products",
+  slug: "expanding-binomial-products",
+  title: "Expanding Binomial Products",
+  subject: "math",
+  hasInteractive: true,
+  hasPractice: true,
+  generatorKey: "expanding_binomial_products"
+}
+
+--------------------------------------------------------------------
+3) GENERATOR MODULE
+
+Create:
+  src/question_engine/expanding_binomial_products.py
+
+Export:
+  - generate_question(...)
+  - generate_pool(...)
+
+Schema MUST match existing:
+
+{
+  "id": "...",
+  "topic": "expanding_binomial_products",
+  "difficulty": "easy|medium|hard|challenge",
+  "archetype": "...",
+  "prompt": "...",
+  "answer": "...",
+  "worked_solution": [...],
+  "metadata": {...}
+}
+
+--------------------------------------------------------------------
+4) ANSWER FORMAT RULES (Important for normalization compatibility)
+
+All answers must be returned in canonical normalized form:
+
+- Use ^ for exponents (x^2)
+- No unicode superscripts
+- Use standard polynomial order:
+    Ax^2 + Bx + C
+- No spaces required but acceptable (normalizer will clean)
+
+Example valid answers:
+- x^2 + 5x + 6
+- 2x^2 - 3x - 10
+
+Do NOT return:
+- x²
+- extra formatting symbols
+- LaTeX
+
+--------------------------------------------------------------------
+5) DIFFICULTY ARCHETYPES (same as earlier structure)
+[Include same Easy/Medium/Hard/Challenge design]
+
+--------------------------------------------------------------------
+6) TESTS
+
+Add tests verifying:
+
+- Normalized input comparison works
+  Example:
+    Student types "(x+2)(x+3)"
+    System expects "x^2 + 5x + 6"
+    After expansion question, answer checking works only if normalized properly.
+
+- "^" parsing works
+- Implicit multiplication (2x(x+3)) normalization works if supported
+
+--------------------------------------------------------------------
+7) DO NOT
+
+- Do not bypass normalize_math_input
+- Do not create per-topic symbol handlers
+- Do not introduce heavy equation editors
+
+--------------------------------------------------------------------
+DELIVERABLES
+
+- Topic registry entry
+- Generator module
+- Fully integrated with global MathAnswerInput
+- Answer checking uses normalization
+- Tests passing
