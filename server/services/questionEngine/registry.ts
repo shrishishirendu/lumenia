@@ -1,6 +1,7 @@
 import { generateMixedPool as generateLinearEqPool } from "./linearEquations";
 import { generateMixedPool as generateIneqPool } from "./inequalities";
 import { generateMixedPool as generateFracIdxPool } from "./fractionalIndices";
+import { generateMixedPool as generateSurdsIntroPool } from "./surdsIntro";
 
 export type DifficultyConfig = { difficulty: "easy" | "medium" | "hard" | "challenge"; count: number };
 export type GeneratorFn = (config: DifficultyConfig[], seed?: number) => any[];
@@ -9,6 +10,7 @@ const GENERATOR_REGISTRY: Record<string, GeneratorFn> = {
   linear_equations: generateLinearEqPool,
   inequalities: generateIneqPool,
   fractional_indices: generateFracIdxPool,
+  surds_intro: generateSurdsIntroPool,
 };
 
 export function getGenerator(topicKey: string): GeneratorFn | null {

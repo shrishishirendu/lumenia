@@ -1,0 +1,120 @@
+You are working in the Lumenia (Mentora) codebase on Replit.
+
+GOAL
+Add a new interactive + practice topic: “Introduction to Surds” using the existing topic-aware template-based question engine. Do not change the engine design. Follow the same schema and integration pattern as previous topics.
+
+1) Topic Registry Entry (Single Source of Truth)
+Add this topic to the central topic registry/config used by Interactive Topics, Practice, Warm-up and Exit Ticket:
+
+{
+  id: "surds_intro",
+  slug: "introduction-to-surds",
+  title: "Introduction to Surds",
+  subject: "math",
+  hasInteractive: true,
+  hasPractice: true,
+  generatorKey: "surds_intro"
+}
+
+2) Generator Module
+Create a generator module at:
+  src/question_engine/surds_intro.py
+
+Export:
+  - generate_question(difficulty: str, seed: Optional[int] = None) -> dict
+  - generate_pool(difficulty: str, n: int, seed: Optional[int] = None, ensure_unique: bool = True) -> list[dict]
+
+3) Question Schema (MUST MATCH EXISTING GENERATORS)
+Every generated question MUST follow EXACT schema:
+
+{
+  "id": "<deterministic short hash based on difficulty + archetype + params>",
+  "topic": "surds_intro",
+  "difficulty": "easy|medium|hard|challenge",
+  "archetype": "<string>",
+  "prompt": "<question text>",
+  "answer": "<final simplified answer as a string>",
+  "worked_solution": ["Step 1", "Step 2", "...", "Final simplified form"],
+  "metadata": {
+      "params": {...},
+      "skills": [...],
+      "estimated_time_sec": <int>
+  }
+}
+
+Use random.Random(seed) for deterministic generation.
+ID must be deterministic from (difficulty + archetype + sorted params). No duplicates in a pool.
+
+4) Content Coverage & Archetypes (Cambridge-style)
+Implement the following archetypes across difficulty bands:
+
+EASY (8)
+- Identify surd vs not a surd (e.g., √16, √3, √49, √11)
+- Simplify basic surds with perfect-square factor:
+  √8, √12, √18, √20, √27, √45, √50, √75 (choose clean ones)
+Constraints:
+- Answers must be exact and simplified (e.g., √12 -> 2√3)
+
+MEDIUM (8)
+- Add/subtract like surds (must simplify first):
+  3√8 + 2√18, 4√12 − √27, 5√20 + 2√45, etc.
+- Multiply surds in simple form:
+  √a * √b, k√a * m√b
+Constraints:
+- Ensure "like surds combine" is tested
+- Keep results in simplest surd form
+
+HARD (7)
+- Expand and simplify expressions involving surds:
+  (√a + √b)(√a − √b), (c + √d)(c − √d), (√a + √b)^2
+- Rationalise denominators (intro level):
+  1/√a, k/√a, 2/(3√a)
+Constraints:
+- Keep denominators small
+- Keep exact forms; no decimals
+
+CHALLENGE (7)
+- Multi-step simplify combining operations:
+  3√12 + 2√27 − √3
+- Rationalise expressions like:
+  1/(2 + √3) (multiply by conjugate)
+- "Show that" style but autogradable:
+  Simplify (√5 + √2)^2 to exact form
+Constraints:
+- Provide worked_solution with clear steps and final simplified answer
+
+5) Skills Tags (metadata.skills)
+Use tags like:
+- identify_surd
+- simplify_surd
+- combine_like_surds
+- multiply_surds
+- expand_brackets
+- difference_of_squares
+- rationalise_denominator
+- conjugate_rationalisation
+
+6) Integration
+Do NOT edit Warm-up/Exit logic if already topic-aware.
+Just ensure Practice + Warm-up + Exit work automatically for this new topic via registry + generatorKey.
+
+7) Tests
+Add:
+  tests/test_surds_intro_generator.py
+
+Verify:
+- required keys exist
+- seeded determinism
+- pool uniqueness
+- at least one rationalisation question exists in hard/challenge
+
+8) Documentation
+Update:
+  docs/question_engine.md
+Add "Introduction to Surds" and note formatting conventions (e.g., use "sqrt(2)" or "√2" consistently with existing app).
+
+DO NOT
+- Do not change DB schema
+- Do not introduce new dependencies
+- Do not output decimal approximations (keep exact surd forms)
+- Do not hardcode fallback topic

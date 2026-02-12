@@ -120,6 +120,18 @@ export const TOPIC_CATALOG: Record<string, SubjectConfig> = {
         generatorKey: "fractional_indices",
       },
       {
+        id: "surds_intro",
+        slug: "introduction-to-surds",
+        name: "Introduction to Surds",
+        description: "Simplifying, combining, multiplying surds and rationalising denominators",
+        gradeRange: [9, 11],
+        prerequisites: ["index_laws"],
+        estimatedMinutes: 35,
+        hasInteractive: true,
+        hasPractice: true,
+        generatorKey: "surds_intro",
+      },
+      {
         id: "geometry_basics",
         slug: "geometry-basics",
         name: "Geometry Basics",
