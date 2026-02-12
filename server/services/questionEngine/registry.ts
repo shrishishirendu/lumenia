@@ -6,6 +6,7 @@ import { generateMixedPool as generateSimplifyingSurdsPool } from "./simplifying
 import { generateMixedPool as generateOpsWithSurdsPool } from "./operationsWithSurds";
 import { generateMixedPool as generateExpandBinomialPool } from "./expandingBinomialProducts";
 import { generateMixedPool as generatePerfectDiffSqPool } from "./perfectAndDifferenceOfSquares";
+import { generateMixedPool as generateGradientParallelPool } from "./gradientAndParallelLines";
 
 export type DifficultyConfig = { difficulty: "easy" | "medium" | "hard" | "challenge"; count: number };
 export type GeneratorFn = (config: DifficultyConfig[], seed?: number) => any[];
@@ -19,6 +20,7 @@ const GENERATOR_REGISTRY: Record<string, GeneratorFn> = {
   operations_with_surds: generateOpsWithSurdsPool,
   expanding_binomial_products: generateExpandBinomialPool,
   perfect_and_difference_of_squares: generatePerfectDiffSqPool,
+  gradient_and_parallel_lines: generateGradientParallelPool,
 };
 
 export function getGenerator(topicKey: string): GeneratorFn | null {

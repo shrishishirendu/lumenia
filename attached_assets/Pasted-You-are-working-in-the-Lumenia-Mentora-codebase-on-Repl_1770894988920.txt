@@ -1,0 +1,244 @@
+You are working in the Lumenia (Mentora) codebase on Replit.
+
+GOAL
+Add a new interactive + practice chapter: “Gradient and Parallel Lines”.
+This must use the existing topic-aware template-based question engine (registry + generatorKey + resolver) AND it must include “visual questions” where students interpret or use parallel lines from a simple diagram.
+
+Important: Do not redesign the engine. Follow the existing schema and integration pattern used by other math chapters.
+
+--------------------------------------------------------------------
+1) TOPIC REGISTRY ENTRY (SINGLE SOURCE OF TRUTH)
+
+Add to the central topic registry/config used by Interactive Topics, Practice, Warm-up, Exit Ticket:
+
+{
+  id: "gradient_and_parallel_lines",
+  slug: "gradient-and-parallel-lines",
+  title: "Gradient and Parallel Lines",
+  subject: "math",
+  hasInteractive: true,
+  hasPractice: true,
+  generatorKey: "gradient_and_parallel_lines"
+}
+
+--------------------------------------------------------------------
+2) GLOBAL MATH INPUT ENGINE INTEGRATION (MUST)
+
+All answer inputs for this chapter must use the shared MathAnswerInput component and normalize_math_input() before checking.
+
+- Accept "m = 2", "2", "-3/4", "3/2" as valid slope formats
+- Normalize common variants (spaces, leading "m=", fractions)
+
+Do NOT implement topic-specific symbol parsing.
+
+--------------------------------------------------------------------
+3) GENERATOR MODULE
+
+Create:
+  src/question_engine/gradient_and_parallel_lines.py
+
+Export:
+  - generate_question(difficulty: str, seed: Optional[int] = None) -> dict
+  - generate_pool(difficulty: str, n: int, seed: Optional[int] = None, ensure_unique: bool = True) -> list[dict]
+
+Use random.Random(seed) for deterministic generation.
+IDs must be deterministic from (difficulty + archetype + sorted params). Avoid duplicates in a pool.
+
+--------------------------------------------------------------------
+4) QUESTION SCHEMA (MUST MATCH EXISTING GENERATORS)
+
+Return dict:
+
+{
+  "id": "<deterministic short hash>",
+  "topic": "gradient_and_parallel_lines",
+  "difficulty": "easy|medium|hard|challenge",
+  "archetype": "<string>",
+  "prompt": "<question text>",
+  "answer": "<final answer string>",
+  "worked_solution": ["Step 1", "Step 2", "...", "Final answer"],
+  "metadata": {
+      "params": {...},
+      "skills": [...],
+      "estimated_time_sec": <int>,
+
+      # OPTIONAL but REQUIRED for visual questions:
+      "visual": {
+          "type": "svg",
+          "svg": "<inline SVG string>",
+          "alt": "<short accessible description>",
+          "width": 420,
+          "height": 280
+      }
+  }
+}
+
+If a question is not visual, omit metadata.visual.
+
+--------------------------------------------------------------------
+5) CONTENT SCOPE (Cambridge-style)
+
+This chapter covers:
+- Gradient (slope) of a line from two points
+- Gradient from equation y = mx + c
+- Parallel lines have equal gradients
+- Perpendicular lines (optional challenge only): m1*m2 = -1 (only if you want)
+- Recognising parallel lines from a simple diagram or coordinate grid (visual questions)
+
+Avoid full coordinate geometry proofs; keep it skill-based.
+
+--------------------------------------------------------------------
+6) ARCHETYPES & DIFFICULTY BANDS
+
+EASY (8)
+Archetypes:
+- slope_from_points_easy: Find gradient between two integer points (small values)
+- slope_from_equation_easy: Identify m from y = mx + c
+Constraints:
+- Use gradients like -3, -2, -1, 0, 1, 2, 3, 1/2, 2/3
+Answer format:
+- Return as integer or simplified fraction string (e.g., "-3/2")
+Skills tags:
+- ["gradient_from_points", "gradient_from_equation"]
+
+MEDIUM (8)
+Archetypes:
+- parallel_from_equations: Decide if two lines are parallel given their equations
+- find_missing_m_for_parallel: Find k so that y = kx + b is parallel to y = mx + c
+- slope_from_table: Provide two points in a small table, compute gradient
+Constraints:
+- Simplified fractions required
+Skills tags:
+- ["parallel_lines", "compare_gradients", "solve_for_parameter"]
+
+HARD (7)
+Archetypes:
+- equation_given_point_and_gradient: Find equation y = mx + c given m and one point
+- parallel_through_point: Find equation of line parallel to given line passing through a given point
+- identify_parallel_in_set: Given 3–4 line equations, select which are parallel
+Constraints:
+- Keep c integer when possible; allow simple fraction m
+Skills tags:
+- ["line_equation", "parallel_lines", "solve_for_c", "select_parallel"]
+
+CHALLENGE (7)
+Archetypes:
+- perpendicular_optional: Find gradient or equation of perpendicular line through a point (only in challenge)
+- multi_step_parallel: Given two points on a line and a point to pass through, create a parallel line equation
+- visual_parallel_reasoning: Use a diagram with parallel lines to infer equal gradients or missing value
+Skills tags:
+- ["multi_step", "parallel_lines", "perpendicular_lines", "interpret_diagram"]
+
+--------------------------------------------------------------------
+7) VISUAL QUESTIONS (REQUIRED)
+
+Add at least:
+- 2 MEDIUM visual questions
+- 2 HARD visual questions
+- 2 CHALLENGE visual questions
+
+Visual question types (use simple inline SVG; no external images):
+A) Coordinate grid with two lines labelled L1 and L2; ask:
+   - “Are L1 and L2 parallel? Give reason based on gradients.”
+   - “Find the gradient of L1.”
+B) A set of 3 lines drawn with different slopes; ask:
+   - “Which line is parallel to L?”
+C) A line and a point; show intended parallel line; ask:
+   - “Write equation of the line parallel to L through point P.”
+
+Implementation detail:
+- Embed SVG directly into metadata.visual.svg
+- Keep SVG simple (axes, ticks optional, but label points and lines clearly)
+- Provide accessible alt text in metadata.visual.alt
+- Ensure consistent scaling and visibility on mobile
+
+Example SVG guidance:
+- width ~ 420, height ~ 280
+- use a light grid (optional), axes, and thick lines for L1/L2
+- label points like A(1,2), B(5,6), etc.
+
+--------------------------------------------------------------------
+8) ANSWER CHECKING RULES (Important)
+
+For slope answers:
+- Accept equivalent fractions: "2/4" should be considered correct as "1/2" IF you already support fraction equivalence.
+If not supported yet:
+- Always output simplified fraction answers in generator
+- Add a minimal fraction simplifier in normalization for this topic OR globally (recommended):
+  - normalize "-2/4" -> "-1/2"
+
+For equation answers:
+- Prefer canonical output:
+  y = mx + c   (no LaTeX)
+Allow student input variations:
+  "y=2x+3", "y = 2x + 3"
+Normalize spaces and optional "y=" prefix.
+
+--------------------------------------------------------------------
+9) PRACTICE + WARM-UP + EXIT INTEGRATION
+
+Assume Warm-up and Exit Ticket are already topic-aware via registry + resolver.
+
+Ensure:
+- Practice loads via generatorKey "gradient_and_parallel_lines"
+- Header shows "Math – Gradient and Parallel Lines"
+- Regenerate changes seed and refreshes
+Default Practice mix:
+- 3 easy + 3 medium + 2 hard
+Challenge toggle off by default
+
+Warm-up default:
+- 2 easy + 2 medium
+
+Exit ticket default:
+- 1 medium + 1 hard
+
+--------------------------------------------------------------------
+10) UI RENDERING FOR VISUAL QUESTIONS
+
+Update the question rendering component (shared) so that:
+- If question.metadata.visual exists and type=="svg":
+  - Render the SVG inline above the prompt
+  - Use alt text for accessibility
+  - Make it responsive (max-width: 100%)
+
+Do not break non-visual questions.
+
+--------------------------------------------------------------------
+11) TESTS
+
+Add:
+  tests/test_gradient_and_parallel_lines_generator.py
+
+Verify:
+- required keys exist
+- deterministic with seed
+- uniqueness in pool
+- at least 6 questions produced across all difficulties include metadata.visual with valid SVG string
+- slope answers are simplified fractions when needed
+- parallel logic correct (same gradient => parallel)
+
+--------------------------------------------------------------------
+12) DOCUMENTATION
+
+Update:
+  docs/question_engine.md
+Add entry for "Gradient and Parallel Lines", including:
+- expected answer formats for slopes and equations
+- visual question schema (metadata.visual)
+
+--------------------------------------------------------------------
+DO NOT
+
+- Do not introduce new heavy math editor dependencies
+- Do not redesign routing/engine
+- Do not use external image URLs; use inline SVG only
+- Do not output decimals for slopes unless explicitly requested
+
+DELIVERABLES
+- Topic registry entry
+- Generator module implemented
+- Visual rendering supported
+- Practice works end-to-end
+- Tests passing
+- Docs updated

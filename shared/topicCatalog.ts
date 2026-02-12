@@ -180,6 +180,18 @@ export const TOPIC_CATALOG: Record<string, SubjectConfig> = {
         generatorKey: "perfect_and_difference_of_squares",
       },
       {
+        id: "gradient_and_parallel_lines",
+        slug: "gradient-and-parallel-lines",
+        name: "Gradient and Parallel Lines",
+        description: "Find gradients from points and equations, identify parallel lines, and solve problems with perpendicular lines",
+        gradeRange: [9, 11],
+        prerequisites: ["linear_equations"],
+        estimatedMinutes: 35,
+        hasInteractive: true,
+        hasPractice: true,
+        generatorKey: "gradient_and_parallel_lines",
+      },
+      {
         id: "geometry_basics",
         slug: "geometry-basics",
         name: "Geometry Basics",

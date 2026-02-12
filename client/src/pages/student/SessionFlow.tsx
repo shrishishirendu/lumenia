@@ -30,6 +30,14 @@ import TopicNotesDrawer from "@/components/TopicNotesDrawer";
 
 type SessionStep = "warmup" | "lesson" | "practice" | "reflection" | "exit_ticket" | "next_step";
 
+interface QuestionVisual {
+  type: "svg";
+  svg: string;
+  alt: string;
+  width: number;
+  height: number;
+}
+
 interface Question {
   id: string;
   text: string;
@@ -38,6 +46,7 @@ interface Question {
   explanation: string;
   difficulty: number;
   questionType?: string;
+  visual?: QuestionVisual;
 }
 
 interface DBSegment {
@@ -124,6 +133,7 @@ const generateMockQuestions = (subject: string, topic: string, count: number, di
 };
 
 function dbQuestionToQuestion(q: DBQuestion): Question {
+  const visual = (q as any).visual || undefined;
   if (q.questionType === "short_answer") {
     return {
       id: String(q.id),
@@ -133,6 +143,7 @@ function dbQuestionToQuestion(q: DBQuestion): Question {
       explanation: q.explanation || "",
       difficulty: q.difficulty,
       questionType: "short_answer",
+      visual,
     };
   }
   return {
@@ -143,6 +154,7 @@ function dbQuestionToQuestion(q: DBQuestion): Question {
     explanation: q.explanation || "",
     difficulty: q.difficulty,
     questionType: q.questionType,
+    visual,
   };
 }
 
@@ -404,6 +416,7 @@ export default function SessionFlow() {
         explanation: g.worked_solution?.join(" ") || "",
         difficulty: g.difficulty === "easy" ? 1 : g.difficulty === "medium" ? 2 : g.difficulty === "hard" ? 3 : 4,
         questionType: "short_answer",
+        visual: g.metadata?.visual || undefined,
       }));
       if (section === "warmup") {
         setState(prev => ({
@@ -491,6 +504,9 @@ export default function SessionFlow() {
       
       {state.warmupResults.questions.map((q, idx) => (
         <Card key={q.id} className="p-4" data-testid={`warmup-question-${idx}`}>
+          {q.visual?.type === "svg" && (
+            <div className="mb-3 flex justify-center" data-testid={`svg-question-${q.id}`} role="img" aria-label={q.visual.alt} dangerouslySetInnerHTML={{ __html: q.visual.svg }} style={{ maxWidth: "100%" }} />
+          )}
           <p className="font-medium mb-3">Q{idx + 1}: {q.text}</p>
           {renderQuestionInput(q, "warmup", state.warmupResults.answers)}
         </Card>
@@ -700,6 +716,9 @@ export default function SessionFlow() {
       
       {state.practiceResults.questions.map((q, idx) => (
         <Card key={q.id} className="p-4" data-testid={`practice-question-${idx}`}>
+          {q.visual?.type === "svg" && (
+            <div className="mb-3 flex justify-center" data-testid={`svg-question-${q.id}`} role="img" aria-label={q.visual.alt} dangerouslySetInnerHTML={{ __html: q.visual.svg }} style={{ maxWidth: "100%" }} />
+          )}
           <div className="flex justify-between items-start mb-3">
             <p className="font-medium">Q{idx + 1}: {q.text}</p>
             <Button variant="ghost" size="sm" onClick={requestHint}>
@@ -774,6 +793,9 @@ export default function SessionFlow() {
       
       {state.exitTicketResults.questions.map((q, idx) => (
         <Card key={q.id} className="p-4" data-testid={`exit-question-${idx}`}>
+          {q.visual?.type === "svg" && (
+            <div className="mb-3 flex justify-center" data-testid={`svg-question-${q.id}`} role="img" aria-label={q.visual.alt} dangerouslySetInnerHTML={{ __html: q.visual.svg }} style={{ maxWidth: "100%" }} />
+          )}
           <p className="font-medium mb-3">Q{idx + 1}: {q.text}</p>
           {renderQuestionInput(q, "exit_ticket", state.exitTicketResults.answers)}
         </Card>

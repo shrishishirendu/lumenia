@@ -1,3 +1,25 @@
+function gcd(a: number, b: number): number {
+  a = Math.abs(a);
+  b = Math.abs(b);
+  while (b) { [a, b] = [b, a % b]; }
+  return a;
+}
+
+function simplifyFractionStr(s: string): string {
+  const m = s.match(/^(-?\d+)\/(\d+)$/);
+  if (!m) return s;
+  let num = parseInt(m[1], 10);
+  let den = parseInt(m[2], 10);
+  if (den === 0) return s;
+  const sign = (num < 0) ? -1 : 1;
+  num = Math.abs(num);
+  const g = gcd(num, den);
+  num = sign * (num / g);
+  den = den / g;
+  if (den === 1) return `${num}`;
+  return `${num}/${den}`;
+}
+
 export function normalizeMathInput(s: string): string {
   let r = s.trim();
 
@@ -18,6 +40,10 @@ export function normalizeMathInput(s: string): string {
   r = r.replace(/\)\(/g, ")*(");
 
   r = r.toLowerCase();
+
+  r = r.replace(/^m=/i, "");
+
+  r = simplifyFractionStr(r);
 
   return r;
 }

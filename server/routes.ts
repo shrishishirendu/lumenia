@@ -1556,6 +1556,7 @@ export async function registerRoutes(
             topicId,
             subjectId: null,
             lessonId: null,
+            visual: g.metadata?.visual || undefined,
           }));
           const exitGen = engineFn([{ difficulty: "medium", count: 1 }, { difficulty: "hard", count: 1 }], seed + 1);
           engineExit = exitGen.map(g => ({
@@ -1572,6 +1573,7 @@ export async function registerRoutes(
             topicId,
             subjectId: null,
             lessonId: null,
+            visual: g.metadata?.visual || undefined,
           }));
         } catch (engineErr) {
           console.error("[session-questions] Question engine failed:", engineErr);

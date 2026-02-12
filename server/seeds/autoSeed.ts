@@ -269,6 +269,9 @@ export async function runAutoSeed() {
     const { seedPerfectAndDifferenceOfSquares } = await import("./perfectAndDifferenceOfSquares");
     await seedPerfectAndDifferenceOfSquares();
 
+    const { seedGradientAndParallelLines } = await import("./gradientAndParallelLines");
+    await seedGradientAndParallelLines();
+
     console.log("Auto-seed: complete.");
   } catch (error) {
     console.error("Auto-seed error (non-fatal):", error);

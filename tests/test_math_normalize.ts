@@ -114,6 +114,38 @@ console.log("\n12. Perfect squares and difference of squares normalization");
   assert(norm("2x^2 + 4x - 5") === norm("2x^2+4x-5"), "combined result spacing");
 }
 
+console.log("\n13. Fraction simplification");
+{
+  const norm = normalizeMathInput;
+  assertEq(norm("2/4"), "1/2", "simplify 2/4 -> 1/2");
+  assertEq(norm("-2/4"), "-1/2", "simplify -2/4 -> -1/2");
+  assertEq(norm("6/3"), "2", "simplify 6/3 -> 2");
+  assertEq(norm("-6/2"), "-3", "simplify -6/2 -> -3");
+  assertEq(norm("3/7"), "3/7", "already simplified 3/7");
+  assertEq(norm("1/2"), "1/2", "already simplified 1/2");
+  assertEq(norm("-1/3"), "-1/3", "already simplified -1/3");
+  assertEq(norm("4/6"), "2/3", "simplify 4/6 -> 2/3");
+  assertEq(norm("0/5"), "0", "zero numerator -> 0");
+}
+
+console.log("\n14. Slope/equation prefix stripping");
+{
+  const norm = normalizeMathInput;
+  assertEq(norm("m = 2"), "2", "strip m= prefix with spaces");
+  assertEq(norm("m=3"), "3", "strip m= prefix no spaces");
+  assertEq(norm("m = -3/4"), "-3/4", "strip m= with fraction");
+  assertEq(norm("m = 1/2"), "1/2", "strip m= with simple fraction");
+}
+
+console.log("\n15. Equation normalization for gradient topic");
+{
+  const norm = normalizeMathInput;
+  assertEq(norm("y = 2x + 3"), "y=2x+3", "equation spaces removed");
+  assertEq(norm("y = -x + 5"), "y=-x+5", "equation with -x");
+  assertEq(norm("y = 3x - 1"), "y=3x-1", "equation with subtraction");
+  assert(norm("y = 2x + 3") === norm("y=2x+3"), "equation equivalence");
+}
+
 console.log(`\n=== Results: ${passed} passed, ${failed} failed ===`);
 if (failed === 0) {
   console.log("All tests passed!");
