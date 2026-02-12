@@ -394,46 +394,66 @@ export default function SessionFlow() {
 
   const currentGeneratorKey = topicContent?.topic?.title
     ? topicContent.topic.title.toLowerCase().replace(/\s+/g, "_")
-    : (topicId || "");
+    : (topicId ? topicId.toLowerCase().replace(/\s+/g, "_") : "");
 
-  const hasGenerator = !!currentGeneratorKey;
+  const hasGenerator = !!currentGeneratorKey || !!dbTopicIdParam;
+
+  const [regenerating, setRegenerating] = useState(false);
 
   const regenerateQuestions = async (section: "warmup" | "exit_ticket") => {
-    if (!currentGeneratorKey) return;
+    setRegenerating(true);
     try {
-      const topicParam = `&topic=${encodeURIComponent(currentGeneratorKey)}`;
-      const endpoint = section === "warmup" 
-        ? `/api/question-engine/warmup?seed=${Date.now()}${topicParam}`
-        : `/api/question-engine/exit-ticket?seed=${Date.now()}${topicParam}`;
-      const res = await fetch(endpoint, { credentials: "include" });
-      if (!res.ok) {
-        console.error(`[regenerate] ${section} failed: ${res.status} for key="${currentGeneratorKey}"`);
-        return;
+      let mapped: Question[] = [];
+
+      if (currentGeneratorKey) {
+        const topicParam = `&topic=${encodeURIComponent(currentGeneratorKey)}`;
+        const endpoint = section === "warmup" 
+          ? `/api/question-engine/warmup?seed=${Date.now()}${topicParam}`
+          : `/api/question-engine/exit-ticket?seed=${Date.now()}${topicParam}`;
+        const res = await fetch(endpoint, { credentials: "include" });
+        if (res.ok) {
+          const data = await res.json();
+          mapped = data.questions.map((g: any) => ({
+            id: g.id,
+            text: g.prompt,
+            options: [],
+            correctAnswer: g.answer,
+            explanation: g.worked_solution?.join(" ") || "",
+            difficulty: g.difficulty === "easy" ? 1 : g.difficulty === "medium" ? 2 : g.difficulty === "hard" ? 3 : 4,
+            questionType: "short_answer",
+            visual: g.metadata?.visual || undefined,
+          }));
+        }
       }
-      const data = await res.json();
-      const mapped: Question[] = data.questions.map((g: any) => ({
-        id: g.id,
-        text: g.prompt,
-        options: [],
-        correctAnswer: g.answer,
-        explanation: g.worked_solution?.join(" ") || "",
-        difficulty: g.difficulty === "easy" ? 1 : g.difficulty === "medium" ? 2 : g.difficulty === "hard" ? 3 : 4,
-        questionType: "short_answer",
-        visual: g.metadata?.visual || undefined,
-      }));
-      if (section === "warmup") {
-        setState(prev => ({
-          ...prev,
-          warmupResults: { questions: mapped, answers: {}, score: 0 }
-        }));
-      } else {
-        setState(prev => ({
-          ...prev,
-          exitTicketResults: { questions: mapped, answers: {}, passed: false }
-        }));
+
+      if (mapped.length === 0 && dbTopicIdParam) {
+        const fallbackRes = await fetch(`/api/topics/${dbTopicIdParam}/session-questions`, { credentials: "include" });
+        if (fallbackRes.ok) {
+          const fallbackData = await fallbackRes.json();
+          const pool = section === "warmup" ? fallbackData.warmupQuestions : fallbackData.exitTicketQuestions;
+          if (pool && pool.length > 0) {
+            mapped = pool.map(dbQuestionToQuestion);
+          }
+        }
+      }
+
+      if (mapped.length > 0) {
+        if (section === "warmup") {
+          setState(prev => ({
+            ...prev,
+            warmupResults: { questions: mapped, answers: {}, score: 0 }
+          }));
+        } else {
+          setState(prev => ({
+            ...prev,
+            exitTicketResults: { questions: mapped, answers: {}, passed: false }
+          }));
+        }
       }
     } catch (err) {
       console.error("Failed to regenerate questions:", err);
+    } finally {
+      setRegenerating(false);
     }
   };
 
@@ -498,9 +518,10 @@ export default function SessionFlow() {
             size="sm"
             onClick={() => regenerateQuestions("warmup")}
             className="gap-1"
+            disabled={regenerating}
             data-testid="regenerate-warmup-btn"
           >
-            <RotateCcw className="h-3.5 w-3.5" /> New Questions
+            <RotateCcw className={`h-3.5 w-3.5 ${regenerating ? "animate-spin" : ""}`} /> {regenerating ? "Loading..." : "New Questions"}
           </Button>
         </div>
       )}
@@ -787,9 +808,10 @@ export default function SessionFlow() {
             size="sm"
             onClick={() => regenerateQuestions("exit_ticket")}
             className="gap-1"
+            disabled={regenerating}
             data-testid="regenerate-exit-btn"
           >
-            <RotateCcw className="h-3.5 w-3.5" /> New Questions
+            <RotateCcw className={`h-3.5 w-3.5 ${regenerating ? "animate-spin" : ""}`} /> {regenerating ? "Loading..." : "New Questions"}
           </Button>
         </div>
       )}
