@@ -248,6 +248,9 @@ export async function runAutoSeed() {
     const { seedExpandingBrackets } = await import("./expandingBrackets");
     await seedExpandingBrackets();
 
+    const { seedInequalities } = await import("./inequalities");
+    await seedInequalities();
+
     console.log("Auto-seed: complete.");
   } catch (error) {
     console.error("Auto-seed error (non-fatal):", error);
