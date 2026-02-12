@@ -1,0 +1,84 @@
+You are working in the Lumenia (Mentora) codebase.
+
+GOAL
+Make math answer input easy for students by supporting keyboard-friendly syntax + normalization + a small symbol toolbar. This must work across ALL topics (inequalities, surds, indices, etc.) without per-topic hacks.
+
+FEATURES TO ADD
+
+A) Create a shared Math Input component
+- Add a reusable UI component used anywhere students type answers (Practice, Warm-up, Exit Ticket).
+- Name: MathAnswerInput (or similar)
+- Props:
+  - value: string
+  - onChange: (v: string) => void
+  - placeholder?: string
+  - disabled?: boolean
+
+B) Add a small symbol toolbar above the input
+Buttons:
+- √ (inserts "sqrt()" and places cursor inside)
+- ^ (inserts "^")
+- ≤ (inserts "<=" or "≤" but store as "<=" in the raw input)
+- ≥ (inserts ">=" or "≥" but store as ">=" in the raw input)
+- (  )
+- /
+- · (inserts "*")
+Also add a small hint text:
+"Tip: type sqrt(2), >=, <=, ^"
+
+Implementation details:
+- The toolbar should insert text at the cursor position in the input.
+- If inserting "sqrt()", place cursor between the parentheses.
+
+C) Add a normalization function used before answer checking
+Create:
+  src/utils/math_normalize.py  (or .ts depending on codebase)
+
+Function:
+  normalize_math_input(s: str) -> str
+
+Normalization rules (minimum viable):
+1) Trim and collapse whitespace
+2) Replace unicode symbols with ascii:
+   - "√" -> "sqrt"
+   - "≤" -> "<="
+   - "≥" -> ">="
+   - "×" "·" -> "*"
+3) Make "sqrt2" -> "sqrt(2)" ONLY when it's exactly sqrt + integer (optional). Otherwise keep.
+4) Convert "2sqrt(3)" -> "2*sqrt(3)" (insert * between a number and sqrt)
+5) Convert ")(" -> ")*(" (implicit multiplication)
+6) Remove redundant spaces around operators
+Return a canonical string.
+
+D) Update answer checking to use normalization
+Wherever student input is checked vs expected answer:
+- Normalize student input AND normalize expected answer before comparing.
+- Keep existing strict string compare for now, but with normalized forms.
+- Ensure inequalities compare correctly:
+  "x>=3" equals "x ≥ 3" equals "x >= 3"
+
+E) Update all answer entry points
+Replace plain input boxes in:
+- Practice
+- Warm-up
+- Exit Ticket
+with the new MathAnswerInput component.
+
+F) Tests
+Add tests for normalize_math_input:
+- " √2 " -> "sqrt(2)" OR "sqrt2" depending on your chosen rule (be consistent)
+- "x ≥ 3" -> "x>=3"
+- "2sqrt(3)" -> "2*sqrt(3)"
+- " (x+1)(x-1) " -> "(x+1)*(x-1)"
+
+DO NOT
+- Do not add heavy math editors (MathQuill/MathLive) for now
+- Do not introduce new dependencies unless already present
+- Do not change DB schema
+
+DELIVERABLES
+- New MathAnswerInput component with toolbar
+- normalize_math_input utility
+- All practice/warm-up/exit use the component
+- Answer checking uses normalization
+- Tests passing
