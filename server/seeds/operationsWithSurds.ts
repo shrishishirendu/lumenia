@@ -21,8 +21,28 @@ export async function seedOperationsWithSurds() {
     );
 
   if (existing.length > 0) {
-    console.log("Operations with Surds topic already exists (id=" + existing[0].id + "). Skipping seed.");
-    return existing[0].id;
+    const topicId = existing[0].id;
+    console.log("Operations with Surds topic already exists (id=" + topicId + "). Checking for missing data...");
+
+    const existingQuestions = await db.select().from(quizQuestions).where(eq(quizQuestions.topicId, topicId));
+    const existingNotes = await db.select().from(topicNotes).where(eq(topicNotes.topicId, topicId));
+
+    if (existingQuestions.length > 0 && existingNotes.length > 0) {
+      console.log("  All data present. Skipping seed.");
+      return topicId;
+    }
+
+    if (existingQuestions.length === 0) {
+      console.log("  Missing quiz questions — inserting...");
+      await insertQuizQuestions(topicId, SUBJECT_ID);
+    }
+
+    if (existingNotes.length === 0) {
+      console.log("  Missing topic notes — inserting...");
+      await insertTopicNotes(topicId);
+    }
+
+    return topicId;
   }
 
   const [topic] = await db
@@ -162,6 +182,13 @@ export async function seedOperationsWithSurds() {
 
   console.log(`  Created ${lessonData.length} lessons with segments for topic ${topic.id}`);
 
+  await insertQuizQuestions(topic.id, SUBJECT_ID);
+  await insertTopicNotes(topic.id);
+
+  return topic.id;
+}
+
+async function insertQuizQuestions(topicId: number, subjectId: number) {
   const practiceQuestions = [
     { questionText: "Simplify 3√2 + 5√2", correctAnswer: "8√2", explanation: "Like surds: 3√2 + 5√2 = (3+5)√2 = 8√2", difficulty: 1, points: 1 },
     { questionText: "Simplify 7√3 − 2√3", correctAnswer: "5√3", explanation: "Like surds: 7√3 − 2√3 = (7−2)√3 = 5√3", difficulty: 1, points: 1 },
@@ -186,8 +213,8 @@ export async function seedOperationsWithSurds() {
   ];
 
   const rows = practiceQuestions.map(q => ({
-    topicId: topic.id,
-    subjectId: SUBJECT_ID,
+    topicId,
+    subjectId,
     lessonId: null as number | null,
     questionText: q.questionText,
     questionType: "short_answer" as const,
@@ -200,9 +227,11 @@ export async function seedOperationsWithSurds() {
 
   await db.insert(quizQuestions).values(rows);
   console.log(`  Inserted ${rows.length} practice questions for Operations with Surds`);
+}
 
+async function insertTopicNotes(topicId: number) {
   await db.insert(topicNotes).values({
-    topicId: topic.id,
+    topicId,
     summary: "Operations with surds covers adding, subtracting, multiplying surds, expanding brackets, and applying difference of squares.",
     notesMarkdown: `## Adding and Subtracting Surds
 
@@ -262,6 +291,4 @@ Use FOIL: (a + b√n)(c + d√n)
   });
 
   console.log(`  Created topic notes for Operations with Surds`);
-
-  return topic.id;
 }
