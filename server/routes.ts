@@ -14,6 +14,8 @@ import { generateVariantsForTopic, generateVariants, type VariantQuestion } from
 import { generatePool, generateMixedPool, type GeneratedQuestion } from "./services/questionEngine/linearEquations";
 import { generatePool as generateIneqPool, generateMixedPool as generateIneqMixedPool } from "./services/questionEngine/inequalities";
 import { generatePool as generateFracIdxPool, generateMixedPool as generateFracIdxMixedPool } from "./services/questionEngine/fractionalIndices";
+import { getGenerator, resolveTopicSlug } from "./services/questionEngine/registry";
+import { getTopicBySlug } from "@shared/topicCatalog";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -910,8 +912,8 @@ export async function registerRoutes(
       const session = await tutoringStorage.createSessionAttempt({
         studentId: profile.id,
         subject: subject || "math",
-        topicId: topicId || "linear_equations",
-        topicName: topicName || "Linear Equations"
+        topicId: topicId || "unknown",
+        topicName: topicName || "Unknown Topic"
       });
       
       await tutoringStorage.upsertStudentMemory({
@@ -1532,16 +1534,11 @@ export async function registerRoutes(
 
       let engineWarmup: any[] = [];
       let engineExit: any[] = [];
-      const engineTopics: Record<string, { warmup: (config: any[], seed?: number) => any[]; exit: (config: any[], seed?: number) => any[] }> = {
-        linear_equations: { warmup: generateMixedPool, exit: generateMixedPool },
-        inequalities: { warmup: generateIneqMixedPool, exit: generateIneqMixedPool },
-        fractional_indices: { warmup: generateFracIdxMixedPool, exit: generateFracIdxMixedPool },
-      };
-      const engineFns = engineTopics[topicSlug];
-      if (engineFns) {
+      const engineFn = getGenerator(topicSlug);
+      if (engineFn) {
         try {
           const seed = Date.now();
-          const warmupGen = engineFns.warmup([{ difficulty: "easy", count: 2 }, { difficulty: "medium", count: 2 }], seed);
+          const warmupGen = engineFn([{ difficulty: "easy", count: 2 }, { difficulty: "medium", count: 2 }], seed);
           engineWarmup = warmupGen.map(g => ({
             id: g.id,
             questionText: g.prompt,
@@ -1557,7 +1554,7 @@ export async function registerRoutes(
             subjectId: null,
             lessonId: null,
           }));
-          const exitGen = engineFns.exit([{ difficulty: "medium", count: 1 }, { difficulty: "hard", count: 1 }], seed + 1);
+          const exitGen = engineFn([{ difficulty: "medium", count: 1 }, { difficulty: "hard", count: 1 }], seed + 1);
           engineExit = exitGen.map(g => ({
             id: g.id,
             questionText: g.prompt,
@@ -1631,12 +1628,20 @@ export async function registerRoutes(
       if (!userId) return res.status(401).json({ error: "Unauthorized" });
 
       const seed = req.query.seed ? parseInt(req.query.seed as string) : undefined;
-      const questions = generateMixedPool([
+      const topicParam = req.query.topic as string;
+      if (!topicParam) {
+        return res.status(400).json({ error: "Missing required query parameter: topic" });
+      }
+      const generator = getGenerator(topicParam);
+      if (!generator) {
+        return res.status(400).json({ error: `No generator found for topic: ${topicParam}` });
+      }
+      const questions = generator([
         { difficulty: "easy", count: 2 },
         { difficulty: "medium", count: 2 },
       ], seed);
 
-      res.json({ questions, count: questions.length, seed, type: "warmup" });
+      res.json({ questions, count: questions.length, seed, type: "warmup", topic: topicParam });
     } catch (error) {
       console.error("Error generating warmup:", error);
       res.status(500).json({ error: "Failed to generate warmup questions" });
@@ -1649,12 +1654,20 @@ export async function registerRoutes(
       if (!userId) return res.status(401).json({ error: "Unauthorized" });
 
       const seed = req.query.seed ? parseInt(req.query.seed as string) : undefined;
-      const questions = generateMixedPool([
+      const topicParam = req.query.topic as string;
+      if (!topicParam) {
+        return res.status(400).json({ error: "Missing required query parameter: topic" });
+      }
+      const generator = getGenerator(topicParam);
+      if (!generator) {
+        return res.status(400).json({ error: `No generator found for topic: ${topicParam}` });
+      }
+      const questions = generator([
         { difficulty: "medium", count: 1 },
         { difficulty: "hard", count: 1 },
       ], seed);
 
-      res.json({ questions, count: questions.length, seed, type: "exit_ticket" });
+      res.json({ questions, count: questions.length, seed, type: "exit_ticket", topic: topicParam });
     } catch (error) {
       console.error("Error generating exit ticket:", error);
       res.status(500).json({ error: "Failed to generate exit ticket questions" });

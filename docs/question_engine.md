@@ -4,9 +4,47 @@ A template-based question generator for Mathematics topics. Generates unique, pa
 
 ## Available Topics
 
-| Topic | Module | Archetypes |
-|-------|--------|------------|
-| Linear Equations | `server/services/questionEngine/linearEquations.ts` | 30 (8 easy, 8 medium, 7 hard, 7 challenge) |
+| Topic | Generator Key | Module | Archetypes |
+|-------|--------------|--------|------------|
+| Linear Equations | `linear_equations` | `server/services/questionEngine/linearEquations.ts` | 30 (8 easy, 8 medium, 7 hard, 7 challenge) |
+| Inequalities | `inequalities` | `server/services/questionEngine/inequalities.ts` | 30 (8 easy, 8 medium, 7 hard, 7 challenge) |
+| Fractional Indices | `fractional_indices` | `server/services/questionEngine/fractionalIndices.ts` | 30 (8 easy, 8 medium, 7 hard, 7 challenge) |
+
+## Architecture
+
+### Topic Registry (Single Source of Truth)
+
+All topics are defined in `shared/topicCatalog.ts`. Each topic entry includes:
+
+```typescript
+{
+  id: "fractional_indices",
+  slug: "fractional-indices",
+  name: "Fractional Indices",
+  subject: "math",
+  hasInteractive: true,
+  hasPractice: true,
+  generatorKey: "fractional_indices"  // null if no generator exists
+}
+```
+
+### Generator Registry
+
+`server/services/questionEngine/registry.ts` maps `generatorKey` values to generator modules:
+
+```typescript
+import { getGenerator } from "./services/questionEngine/registry";
+
+const gen = getGenerator("fractional_indices");
+if (gen) {
+  const questions = gen([
+    { difficulty: "easy", count: 2 },
+    { difficulty: "medium", count: 2 },
+  ], seed);
+}
+```
+
+The registry is the single place where generators are wired up. Warm-up, Exit Ticket, and Practice all resolve generators through it.
 
 ## API
 
@@ -32,57 +70,109 @@ const mixed = generateMixedPool([
 
 | Endpoint | Description |
 |----------|-------------|
-| `GET /api/question-engine/generate?difficulty=easy&n=4&seed=123` | Generate pool at one difficulty |
-| `GET /api/question-engine/warmup?seed=123` | Default warmup: 2 easy + 2 medium |
-| `GET /api/question-engine/exit-ticket?seed=123` | Default exit ticket: 1 medium + 1 hard |
+| `GET /api/question-engine/generate?difficulty=easy&n=4&seed=123` | Generate linear equations pool |
+| `GET /api/question-engine/warmup?seed=123&topic=fractional_indices` | Topic-aware warmup: 2 easy + 2 medium |
+| `GET /api/question-engine/exit-ticket?seed=123&topic=fractional_indices` | Topic-aware exit ticket: 1 medium + 1 hard |
+| `GET /api/question-engine/inequalities/generate?difficulty=easy&n=4` | Inequalities-specific pool |
+| `GET /api/question-engine/fractional-indices/generate?difficulty=easy&n=4` | Fractional indices-specific pool |
+
+The `topic` query parameter on `/warmup` and `/exit-ticket` accepts any registered generator key.
 
 ### Question Format
 
 ```json
 {
   "id": "a1b2c3d4e5f6",
-  "topic": "linear_equations",
+  "topic": "fractional_indices",
   "difficulty": "easy",
-  "archetype": "ax_plus_b_eq_c_pos",
-  "prompt": "Solve: 3x + 5 = 14",
-  "answer": "x = 3",
+  "archetype": "eval_half",
+  "prompt": "Evaluate 16^(1/2).",
+  "answer": "4",
   "worked_solution": [
-    "Subtract 5 from both sides: 3x = 14 − 5 = 9",
-    "Divide both sides by 3: x = 9 ÷ 3 = 3"
+    "16^(1/2) = √16",
+    "√16 = 4"
   ],
   "metadata": {
-    "params": { "a": 3, "b": 5, "c": 14, "x": 3 },
-    "skills": ["balance_terms", "isolate_variable"],
-    "estimated_time_sec": 30
+    "params": { "base": 16 },
+    "skills": ["convert_to_radical", "evaluate_perfect_power"],
+    "estimated_time_sec": 25
   }
 }
 ```
 
-## Difficulty Levels
+## Adding a New Topic (Step-by-Step)
 
-### Easy (8 archetypes)
-- `ax + b = c`, `ax − b = c`, `x ÷ k = m`, `b + ax = c`, `c = ax + b`, `ax = c`, `x + b = c`, `x − b = c`
-- Constraints: a in [2..9], solutions in [-10..10], no messy negatives
+To add a new topic to the question engine, you only need to touch **3 files** (plus a test):
 
-### Medium (8 archetypes)
-- Variables on both sides (positive and negative solutions)
-- Single bracket expansion: `a(x + b) = c`, `a(bx + c) = d`
-- Negative coefficient brackets: `−a(x + b) = c`
-- Constraints: integer solutions, a,c in [2..9]
+### 1. Create the generator module
 
-### Hard (7 archetypes)
-- Fraction equations: `(ax + b) ÷ k = m`
-- Cross-multiplication: `(ax + b)/k = (cx + d)/t`
-- Bracket on both sides, fractional answers
-- Constraints: denominators ≤ 10, answers in simplest form
+Create `server/services/questionEngine/<topicName>.ts` following the existing pattern:
 
-### Challenge (7 archetypes)
-- Perimeter rectangle word problems
-- Consecutive integers sum
-- Taxi fare (fixed + per km)
-- Percentage reverse (after increase)
-- Age problems, coin problems, distance-speed-time
-- Constraints: integers where possible, full worked solutions
+```typescript
+// Define archetypes grouped by difficulty
+const EASY_ARCHETYPES: Record<string, ArchetypeGenerator> = {
+  "archetype_name": (rng: SeededRandom) => {
+    // Generate random parameters using rng
+    // Build prompt, answer, worked_solution
+    // Return GeneratedQuestion object
+  },
+};
+
+// Export the three standard functions
+export function generateQuestion(difficulty, seed?) { ... }
+export function generatePool(difficulty, n, seed?, ensureUnique?) { ... }
+export function generateMixedPool(config, seed?) { ... }
+```
+
+### 2. Register in the generator registry
+
+Add one line to `server/services/questionEngine/registry.ts`:
+
+```typescript
+import { generateMixedPool as generateNewTopicPool } from "./<topicName>";
+
+const GENERATOR_REGISTRY: Record<string, GeneratorFn> = {
+  linear_equations: generateLinearEqPool,
+  inequalities: generateIneqPool,
+  fractional_indices: generateFracIdxPool,
+  new_topic: generateNewTopicPool,  // <-- add here
+};
+```
+
+### 3. Add to the topic catalog
+
+Add the topic entry to `shared/topicCatalog.ts` with `generatorKey` set:
+
+```typescript
+{
+  id: "new_topic",
+  slug: "new-topic",
+  name: "New Topic",
+  description: "...",
+  gradeRange: [8, 10],
+  estimatedMinutes: 35,
+  hasInteractive: true,
+  hasPractice: true,
+  generatorKey: "new_topic",
+}
+```
+
+### 4. Add tests
+
+Create `tests/test_<topicName>_generator.ts` with coverage for:
+- Required keys on every generated question
+- Seeded determinism (same seed → same output)
+- Uniqueness within pools
+- Difficulty-specific constraints
+
+### That's it!
+
+Once the `generatorKey` is registered, the following features **automatically work** without any additional code changes:
+
+- Warm-up questions use the topic's generator
+- Exit Ticket questions use the topic's generator
+- Session questions supplement DB questions with engine-generated ones
+- "Regenerate" buttons in Warm-up and Exit Ticket re-seed per topic
 
 ## Determinism and Uniqueness
 
@@ -90,32 +180,17 @@ const mixed = generateMixedPool([
 - `id` is a deterministic SHA-256 hash of `(difficulty, archetype, params)` — same parameters always produce the same ID.
 - `generatePool(..., ensureUnique=true)` retries up to 50×n attempts to avoid duplicate IDs.
 
-## Adding New Topics
-
-1. Create `server/services/questionEngine/<topicName>.ts`
-2. Define archetype generators grouped by difficulty using the same pattern:
-   ```typescript
-   const EASY_ARCHETYPES: Record<string, ArchetypeGenerator> = {
-     "archetype_name": (rng: SeededRandom) => {
-       // Generate random parameters using rng
-       // Build prompt, answer, worked_solution
-       // Return GeneratedQuestion object
-     },
-   };
-   ```
-3. Export `generateQuestion`, `generatePool`, and `generateMixedPool`.
-4. Add REST endpoints in `server/routes.ts`.
-5. Add tests in `tests/test_<topicName>_generator.ts`.
-
 ## Integration Points
 
-- **Session Questions**: For `linear_equations` topics, the engine supplements DB questions in `/api/topics/:id/session-questions`.
-- **Warm-up**: Default 2 easy + 2 medium from the engine.
-- **Exit Ticket**: Default 1 medium + 1 hard from the engine.
-- **Regenerate Button**: Students can click "New Questions" in warm-up and exit ticket steps to get a fresh set.
+- **Session Questions**: For topics with a registered generator, the engine supplements DB questions in `/api/topics/:id/session-questions`.
+- **Warm-up**: Default 2 easy + 2 medium from the engine, resolved per topic.
+- **Exit Ticket**: Default 1 medium + 1 hard from the engine, resolved per topic.
+- **Regenerate Button**: Students can click "New Questions" in warm-up and exit ticket steps to get a fresh topic-specific set.
 
 ## Running Tests
 
 ```bash
 npx tsx tests/test_linear_equations_generator.ts
+npx tsx tests/test_inequalities_generator.ts
+npx tsx tests/test_fractional_indices_generator.ts
 ```

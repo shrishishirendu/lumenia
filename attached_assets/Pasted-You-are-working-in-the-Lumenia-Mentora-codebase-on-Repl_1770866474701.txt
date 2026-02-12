@@ -1,0 +1,212 @@
+You are working in the Lumenia (Mentora) codebase on Replit.
+
+GOAL (ONE PASS)
+1) Add new topic: “Fractional Indices” as interactive + practice with template-based question generator.
+2) Fix Warm-up and Exit Ticket so they NEVER fall back to Linear Equations incorrectly.
+3) Make the fix future-proof for ALL forthcoming chapters/topics so we won’t revisit this again.
+
+--------------------------------------------------------------------
+A) QUESTION FORMAT (MUST MATCH EXISTING SCHEMA)
+
+Every generated question MUST return a dict structured EXACTLY as:
+
+{
+  "id": "<deterministic short hash based on difficulty + archetype + params>",
+  "topic": "fractional_indices",
+  "difficulty": "easy|medium|hard|challenge",
+  "archetype": "<string>",
+  "prompt": "<question text>",
+  "answer": "<final simplified answer as a string>",
+  "worked_solution": ["Step 1", "Step 2", "...", "Final simplified form"],
+  "metadata": {
+      "params": {...},
+      "skills": [...],
+      "estimated_time_sec": <int>
+  }
+}
+
+Use same structure as linear_equations generator.
+
+--------------------------------------------------------------------
+B) ADD GENERATOR MODULE: FRACTIONAL INDICES
+
+Create:
+  src/question_engine/fractional_indices.py
+
+Export:
+  - generate_question(difficulty: str, seed: Optional[int] = None) -> dict
+  - generate_pool(difficulty: str, n: int, seed: Optional[int] = None, ensure_unique: bool = True) -> list[dict]
+
+Deterministic randomness:
+- Use random.Random(seed)
+
+ID generation:
+- Deterministic short hash from (difficulty + archetype + sorted params)
+- Ensure no duplicates in a pool; retry up to 50 attempts.
+
+Difficulty archetypes & constraints:
+
+EASY (8)
+- Convert to radical / evaluate perfect powers:
+  16^(1/2), 27^(1/3), 81^(1/4), 8^(2/3), 16^(3/4)
+- Use bases that give exact integers
+- Final answers should be integers
+
+MEDIUM (8)
+- Apply index laws with same base:
+  a^(p/q) * a^(r/q) -> a^((p+r)/q)
+  (a^m)^(p/q) -> a^(m*p/q)
+- Keep exact forms; prefer a^(p/q) (not decimals)
+- Allow exact surds only if consistent with app (otherwise keep fractional index)
+
+HARD (7)
+- Negative fractional indices:
+  a^(-p/q) = 1 / a^(p/q)
+- Division / combine powers
+- Rationalise denominators only if the app already supports that representation
+- At least 3 questions must require negative index handling
+
+CHALLENGE (7)
+- Mixed expressions, simplify to single power:
+  (a^(1/2) * a^(1/3)) / a^(1/6)
+  8^(1/3) * 4^(1/2) / 2^(1/6)
+- Must simplify exactly
+- Worked solutions must show index-law steps
+
+Skills tags examples:
+- convert_to_radical
+- evaluate_perfect_power
+- apply_index_laws
+- handle_negative_index
+- rationalise_denominator
+- simplify_to_single_power
+
+--------------------------------------------------------------------
+C) CENTRAL TOPIC REGISTRY (SINGLE SOURCE OF TRUTH)
+
+Ensure there is ONE topic registry/config (JSON/TS/Python) used by:
+- Interactive Topics listing
+- Practice
+- Warm-up
+- Exit Ticket
+
+Each topic entry must include:
+{
+  id,
+  slug,
+  title,
+  subject,
+  hasInteractive,
+  hasPractice,
+  generatorKey   # key used to resolve the generator module
+}
+
+Add topic:
+{
+  id: "fractional_indices",
+  slug: "fractional-indices",
+  title: "Fractional Indices",
+  subject: "math",
+  hasInteractive: true,
+  hasPractice: true,
+  generatorKey: "fractional_indices"
+}
+
+--------------------------------------------------------------------
+D) GENERATOR RESOLVER (FUTURE-PROOF FOR ALL TOPICS)
+
+Create/Update a single resolver:
+  src/question_engine/registry.py  (or equivalent)
+
+It should expose:
+  get_generator(topic_id_or_slug: str) -> module/object
+
+Mapping examples:
+- "linear_equations" -> linear_equations generator
+- "index_laws" -> index_laws generator
+- "fractional_indices" -> fractional_indices generator
+- Add future topics by registering in one place only.
+
+No hardcoding Index Laws or Linear Equations anywhere else.
+
+--------------------------------------------------------------------
+E) FIX: WARM-UP + EXIT TICKET MUST BE TOPIC-AWARE (AND STAY THAT WAY)
+
+Problem to fix:
+Warm-up and Exit Ticket currently default back to Linear Equations.
+
+Implement the following robust behavior:
+
+1) The selected topic context must come from (in priority order):
+   a) URL route param or query param (preferred)
+   b) user session / state store
+   c) last selected topic in localStorage (e.g., "lastTopicSlug")
+   d) fallback: first topic in registry that is enabled for practice
+   IMPORTANT: never default to Linear Equations unless it is actually selected
+
+2) Warm-up and Exit Ticket must accept a topicSlug/topicId
+   - Warm-up generator call should use that topic’s generator
+   - Exit Ticket generator call should use that topic’s generator
+
+3) If the page is chapter-specific, always use that chapter’s topic slug.
+   Example:
+   - Fractional Indices chapter => warm-up and exit must use "fractional-indices"
+   - Linear Equations chapter => use "linear-equations"
+
+4) For future chapters:
+   - If a new topic is added to registry + generatorKey exists, Warm-up/Exit automatically works without code changes.
+
+Warm-up default mix:
+- 2 easy + 2 medium
+
+Exit ticket default mix:
+- 1 medium + 1 hard
+
+Add “Regenerate Warm-up” and “Regenerate Exit Ticket” buttons that re-seed per topic.
+
+--------------------------------------------------------------------
+F) PRACTICE PAGE INTEGRATION
+
+Practice must:
+- read topic slug from URL (e.g., /practice/:topicSlug or /practice?topic=...)
+- resolve generator via resolver
+- show header "Math – <Topic Title>"
+- default mix: 3 easy + 3 medium + 2 hard
+- optional Challenge toggle off by default
+- Regenerate button changes seed and refreshes
+
+Persist last selected topic:
+- localStorage.setItem("lastTopicSlug", topicSlug)
+
+--------------------------------------------------------------------
+G) TESTS
+
+Add tests similar to other generators:
+tests/test_fractional_indices_generator.py
+- required keys
+- seeded determinism
+- uniqueness
+- includes negative index in hard
+
+Add routing/context tests if codebase supports:
+- Warm-up uses topic from URL/session/localStorage, not hardcoded default
+- Exit ticket uses the same topic context
+
+--------------------------------------------------------------------
+H) DO NOT
+
+- Do not change DB schema
+- Do not introduce new dependencies
+- Do not output decimal approximations; keep exact forms
+- Do not hardcode Index Laws or Linear Equations in Warm-up/Exit/Practice
+
+--------------------------------------------------------------------
+DELIVERABLES
+
+- New generator module for Fractional Indices
+- Topic registry updated
+- Generator resolver implemented
+- Warm-up + Exit Ticket topic-awareness fixed (future-proof)
+- Practice works end-to-end for Fractional Indices
+- Tests passing
+- Short doc update: docs/question_engine.md (how to add new topics in one place)

@@ -23,7 +23,7 @@ import {
   Star,
   RotateCcw
 } from "lucide-react";
-import { TOPIC_CATALOG, getTopic } from "@shared/topicCatalog";
+import { TOPIC_CATALOG, getTopic, getTopicBySlug } from "@shared/topicCatalog";
 import { apiRequest } from "@/lib/queryClient";
 import TopicNotesDrawer from "@/components/TopicNotesDrawer";
 
@@ -151,9 +151,9 @@ export default function SessionFlow() {
   const searchString = useSearch();
   const searchParams = new URLSearchParams(searchString);
   const subject = params.subject || "math";
-  const rawTopicId = params.topic || "linear_equations";
+  const rawTopicId = params.topic || "";
   const isWarmupMode = rawTopicId === "warmup";
-  const topicId = isWarmupMode ? "linear_equations" : rawTopicId;
+  const topicId = isWarmupMode ? "" : rawTopicId;
   const yearParam = searchParams.get("year");
   const dbTopicIdParam = searchParams.get("topicId");
 
@@ -379,11 +379,19 @@ export default function SessionFlow() {
     setState(prev => ({ ...prev, hintsUsed: prev.hintsUsed + 1 }));
   };
 
+  const currentGeneratorKey = topicContent?.topic?.title
+    ? topicContent.topic.title.toLowerCase().replace(/\s+/g, "_")
+    : (topicId || "");
+
+  const hasGenerator = !!currentGeneratorKey;
+
   const regenerateQuestions = async (section: "warmup" | "exit_ticket") => {
+    if (!currentGeneratorKey) return;
     try {
+      const topicParam = `&topic=${encodeURIComponent(currentGeneratorKey)}`;
       const endpoint = section === "warmup" 
-        ? `/api/question-engine/warmup?seed=${Date.now()}`
-        : `/api/question-engine/exit-ticket?seed=${Date.now()}`;
+        ? `/api/question-engine/warmup?seed=${Date.now()}${topicParam}`
+        : `/api/question-engine/exit-ticket?seed=${Date.now()}${topicParam}`;
       const res = await fetch(endpoint, { credentials: "include" });
       if (!res.ok) return;
       const data = await res.json();
@@ -468,17 +476,19 @@ export default function SessionFlow() {
         <p className="text-muted-foreground">Let's review some concepts from your last session</p>
       </div>
 
-      <div className="flex justify-end">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => regenerateQuestions("warmup")}
-          className="gap-1"
-          data-testid="regenerate-warmup-btn"
-        >
-          <RotateCcw className="h-3.5 w-3.5" /> New Questions
-        </Button>
-      </div>
+      {hasGenerator && (
+        <div className="flex justify-end">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => regenerateQuestions("warmup")}
+            className="gap-1"
+            data-testid="regenerate-warmup-btn"
+          >
+            <RotateCcw className="h-3.5 w-3.5" /> New Questions
+          </Button>
+        </div>
+      )}
       
       {state.warmupResults.questions.map((q, idx) => (
         <Card key={q.id} className="p-4" data-testid={`warmup-question-${idx}`}>
@@ -749,17 +759,19 @@ export default function SessionFlow() {
         <p className="text-muted-foreground">Show what you've learned</p>
       </div>
 
-      <div className="flex justify-end">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => regenerateQuestions("exit_ticket")}
-          className="gap-1"
-          data-testid="regenerate-exit-btn"
-        >
-          <RotateCcw className="h-3.5 w-3.5" /> New Questions
-        </Button>
-      </div>
+      {hasGenerator && (
+        <div className="flex justify-end">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => regenerateQuestions("exit_ticket")}
+            className="gap-1"
+            data-testid="regenerate-exit-btn"
+          >
+            <RotateCcw className="h-3.5 w-3.5" /> New Questions
+          </Button>
+        </div>
+      )}
       
       {state.exitTicketResults.questions.map((q, idx) => (
         <Card key={q.id} className="p-4" data-testid={`exit-question-${idx}`}>
