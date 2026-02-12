@@ -1,0 +1,179 @@
+You are working in the Lumenia (Mentora) codebase on Replit.
+
+GOAL
+Add a new interactive + practice topic: “Perfect Squares and Difference of Squares” using the existing topic-aware template-based question engine.
+
+Ensure full integration with:
+- Central topic registry
+- Generator resolver
+- Global MathAnswerInput component
+- normalize_math_input() before answer checking
+
+Do NOT redesign engine. Follow established schema.
+
+--------------------------------------------------------------------
+1) TOPIC REGISTRY ENTRY
+
+Add:
+
+{
+  id: "perfect_and_difference_of_squares",
+  slug: "perfect-squares-and-difference-of-squares",
+  title: "Perfect Squares and Difference of Squares",
+  subject: "math",
+  hasInteractive: true,
+  hasPractice: true,
+  generatorKey: "perfect_and_difference_of_squares"
+}
+
+--------------------------------------------------------------------
+2) GENERATOR MODULE
+
+Create:
+  src/question_engine/perfect_and_difference_of_squares.py
+
+Export:
+  - generate_question(difficulty: str, seed: Optional[int] = None) -> dict
+  - generate_pool(difficulty: str, n: int, seed: Optional[int] = None, ensure_unique: bool = True) -> list[dict]
+
+Use deterministic randomness with random.Random(seed).
+
+--------------------------------------------------------------------
+3) QUESTION SCHEMA (MUST MATCH EXISTING GENERATORS)
+
+{
+  "id": "<deterministic short hash>",
+  "topic": "perfect_and_difference_of_squares",
+  "difficulty": "easy|medium|hard|challenge",
+  "archetype": "<string>",
+  "prompt": "<question text>",
+  "answer": "<final simplified polynomial>",
+  "worked_solution": ["Step 1", "Step 2", "...", "Final simplified expression"],
+  "metadata": {
+      "params": {...},
+      "skills": [...],
+      "estimated_time_sec": <int>
+  }
+}
+
+Answer formatting rules:
+- Use "^" for powers (x^2)
+- No unicode superscripts
+- Simplify fully
+- Order terms by descending power
+- No decimals
+
+--------------------------------------------------------------------
+4) CONTENT STRUCTURE (Cambridge-style progression)
+
+This topic focuses on recognizing and expanding special patterns:
+
+A) Perfect Square Identities
+(x + a)^2 = x^2 + 2ax + a^2
+(x - a)^2 = x^2 - 2ax + a^2
+
+B) Difference of Squares
+(x + a)(x - a) = x^2 - a^2
+
+--------------------------------------------------------------------
+5) DIFFICULTY ARCHETYPES
+
+EASY (8)
+Archetypes:
+- square_plus: (x + a)^2
+- square_minus: (x - a)^2
+Constraints:
+- a in [1..9]
+Skills:
+- ["perfect_square_identity", "expand_brackets"]
+
+MEDIUM (8)
+Archetypes:
+- coef_square: (mx + a)^2
+- square_expression: (x + a)^2 expanded fully
+- difference_simple: (x + a)(x - a)
+Constraints:
+- m in [2..5]
+- a small integers
+Skills:
+- ["perfect_square_identity", "difference_of_squares", "collect_like_terms"]
+
+HARD (7)
+Archetypes:
+- difference_coef: (mx + a)(mx - a)
+- square_large: (mx - a)^2
+- mixed_signs: (x - a)^2 + (x + b)^2
+Constraints:
+- Keep manageable arithmetic
+- Include at least 3 difference_of_squares cases
+Skills:
+- ["perfect_square_identity", "difference_of_squares", "expand_brackets", "simplify_expression"]
+
+CHALLENGE (7)
+Archetypes:
+- nested_simplify:
+  (x + a)^2 - (x - a)^2
+- multi_step:
+  (x + a)(x - a) + (x + b)^2
+- structural_pattern:
+  Recognize and simplify quickly without full FOIL (but still show steps)
+Constraints:
+- Degree must not exceed 2
+- Provide full worked_solution
+Skills:
+- ["structure_recognition", "difference_of_squares", "simplify_expression"]
+
+--------------------------------------------------------------------
+6) WORKED SOLUTION REQUIREMENTS
+
+Example (x + 4)^2:
+
+- Use identity: (x + a)^2 = x^2 + 2ax + a^2
+- Substitute a = 4
+- = x^2 + 8x + 16
+
+Example (x + 5)(x - 5):
+
+- Recognize difference of squares
+- (x + a)(x - a) = x^2 - a^2
+- = x^2 - 25
+
+Do NOT skip explanation of identity used.
+
+--------------------------------------------------------------------
+7) INTEGRATION REQUIREMENTS
+
+- Practice page must load generator via generatorKey.
+- Warm-up and Exit Ticket must use this topic automatically.
+- All answer inputs must use MathAnswerInput.
+- All comparisons must use normalize_math_input().
+
+--------------------------------------------------------------------
+8) TESTS
+
+Add:
+  tests/test_perfect_and_difference_of_squares_generator.py
+
+Verify:
+- Required keys exist
+- Deterministic seed
+- Pool uniqueness
+- At least 2 difference_of_squares questions in hard/challenge
+- Answers simplified and correctly ordered
+
+--------------------------------------------------------------------
+9) DO NOT
+
+- Do not introduce new dependencies
+- Do not bypass normalization engine
+- Do not output LaTeX or unicode superscripts
+- Do not redesign core architecture
+
+--------------------------------------------------------------------
+DELIVERABLES
+
+- Topic registry entry
+- Generator module
+- Full integration
+- Tests passing
+- Docs updated

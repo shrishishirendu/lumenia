@@ -98,6 +98,22 @@ console.log("\n11. Binomial product answer normalization");
   assertEq(norm("9x^2 + 12x + 4"), "9x^2+12x+4", "non-monic perfect square");
 }
 
+console.log("\n12. Perfect squares and difference of squares normalization");
+{
+  const norm = normalizeMathInput;
+  assertEq(norm("x^2 + 6x + 9"), "x^2+6x+9", "perfect square (x+3)^2");
+  assertEq(norm("x^2 - 10x + 25"), "x^2-10x+25", "perfect square (x-5)^2");
+  assertEq(norm("x^2 - 25"), "x^2-25", "diff of squares x^2-25");
+  assertEq(norm("9x^2 - 4"), "9x^2-4", "non-monic diff of squares 9x^2-4");
+  assertEq(norm("16x^2 - 25"), "16x^2-25", "non-monic diff of squares 16x^2-25");
+  assertEq(norm("4x^2 + 12x + 9"), "4x^2+12x+9", "non-monic perfect square (2x+3)^2");
+  assertEq(norm("2x^2 + 2x + 13"), "2x^2+2x+13", "combined expression result");
+  assertEq(norm("16x"), "16x", "linear result from nested simplify");
+  assertEq(norm("8x + 32"), "8x+32", "linear expression with constant");
+  assert(norm("x^2 - 36") === norm("x^2-36"), "diff of squares spacing irrelevant");
+  assert(norm("2x^2 + 4x - 5") === norm("2x^2+4x-5"), "combined result spacing");
+}
+
 console.log(`\n=== Results: ${passed} passed, ${failed} failed ===`);
 if (failed === 0) {
   console.log("All tests passed!");

@@ -168,6 +168,18 @@ export const TOPIC_CATALOG: Record<string, SubjectConfig> = {
         generatorKey: "expanding_binomial_products",
       },
       {
+        id: "perfect_and_difference_of_squares",
+        slug: "perfect-squares-and-difference-of-squares",
+        name: "Perfect Squares and Difference of Squares",
+        description: "Recognize and expand perfect square identities and difference of squares patterns",
+        gradeRange: [9, 11],
+        prerequisites: ["expanding_binomial_products"],
+        estimatedMinutes: 35,
+        hasInteractive: true,
+        hasPractice: true,
+        generatorKey: "perfect_and_difference_of_squares",
+      },
+      {
         id: "geometry_basics",
         slug: "geometry-basics",
         name: "Geometry Basics",
