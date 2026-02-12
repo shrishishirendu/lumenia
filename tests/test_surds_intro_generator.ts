@@ -27,7 +27,7 @@ for (const diff of DIFFICULTIES) {
   for (const key of METADATA_KEYS) {
     assert(key in q.metadata, `${diff} question metadata missing key: ${key}`);
   }
-  assert(q.topic === "surds_intro", `${diff} question topic should be 'surds_intro', got '${q.topic}'`);
+  assert(q.topic === "introduction_to_surds", `${diff} question topic should be 'introduction_to_surds', got '${q.topic}'`);
   assert(q.difficulty === diff, `expected difficulty '${diff}', got '${q.difficulty}'`);
   assert(typeof q.prompt === "string" && q.prompt.length > 0, `${diff} question prompt should be non-empty string`);
   assert(typeof q.answer === "string" && q.answer.length > 0, `${diff} question answer should be non-empty string`);

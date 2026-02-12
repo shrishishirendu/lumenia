@@ -9,7 +9,7 @@ A template-based question generator for Mathematics topics. Generates unique, pa
 | Linear Equations | `linear_equations` | `server/services/questionEngine/linearEquations.ts` | 30 (8 easy, 8 medium, 7 hard, 7 challenge) |
 | Inequalities | `inequalities` | `server/services/questionEngine/inequalities.ts` | 30 (8 easy, 8 medium, 7 hard, 7 challenge) |
 | Fractional Indices | `fractional_indices` | `server/services/questionEngine/fractionalIndices.ts` | 30 (8 easy, 8 medium, 7 hard, 7 challenge) |
-| Introduction to Surds | `surds_intro` | `server/services/questionEngine/surdsIntro.ts` | 30 (8 easy, 8 medium, 7 hard, 7 challenge) |
+| Introduction to Surds | `introduction_to_surds` | `server/services/questionEngine/surdsIntro.ts` | 30 (8 easy, 8 medium, 7 hard, 7 challenge) |
 
 ## Architecture
 

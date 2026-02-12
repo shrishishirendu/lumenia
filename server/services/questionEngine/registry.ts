@@ -10,7 +10,7 @@ const GENERATOR_REGISTRY: Record<string, GeneratorFn> = {
   linear_equations: generateLinearEqPool,
   inequalities: generateIneqPool,
   fractional_indices: generateFracIdxPool,
-  surds_intro: generateSurdsIntroPool,
+  introduction_to_surds: generateSurdsIntroPool,
 };
 
 export function getGenerator(topicKey: string): GeneratorFn | null {

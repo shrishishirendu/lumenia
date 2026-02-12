@@ -2,7 +2,7 @@ import { createHash } from "crypto";
 
 export interface GeneratedQuestion {
   id: string;
-  topic: "surds_intro";
+  topic: "introduction_to_surds";
   difficulty: "easy" | "medium" | "hard" | "challenge";
   archetype: string;
   prompt: string;
@@ -87,7 +87,7 @@ const EASY_ARCHETYPES: Record<string, ArchetypeGenerator> = {
     const params = { val };
     return {
       id: makeId("easy", "identify_surd_perfect", params),
-      topic: "surds_intro", difficulty: "easy", archetype: "identify_surd_perfect",
+      topic: "introduction_to_surds", difficulty: "easy", archetype: "identify_surd_perfect",
       prompt: `Is √${val} a surd? Evaluate if possible.`,
       answer: `Not a surd. √${val} = ${root}`,
       worked_solution: [
@@ -105,7 +105,7 @@ const EASY_ARCHETYPES: Record<string, ArchetypeGenerator> = {
     const params = { val };
     return {
       id: makeId("easy", "identify_surd_irrational", params),
-      topic: "surds_intro", difficulty: "easy", archetype: "identify_surd_irrational",
+      topic: "introduction_to_surds", difficulty: "easy", archetype: "identify_surd_irrational",
       prompt: `Is √${val} a surd? Explain.`,
       answer: `Yes, √${val} is a surd`,
       worked_solution: [
@@ -128,7 +128,7 @@ const EASY_ARCHETYPES: Record<string, ArchetypeGenerator> = {
     const params = { n: cfg.n };
     return {
       id: makeId("easy", "simplify_sqrt_8", params),
-      topic: "surds_intro", difficulty: "easy", archetype: "simplify_sqrt_8",
+      topic: "introduction_to_surds", difficulty: "easy", archetype: "simplify_sqrt_8",
       prompt: `Simplify √${cfg.n}.`,
       answer: surdStr(cfg.coeff, cfg.rad),
       worked_solution: [
@@ -151,7 +151,7 @@ const EASY_ARCHETYPES: Record<string, ArchetypeGenerator> = {
     const params = { n: cfg.n };
     return {
       id: makeId("easy", "simplify_sqrt_27", params),
-      topic: "surds_intro", difficulty: "easy", archetype: "simplify_sqrt_27",
+      topic: "introduction_to_surds", difficulty: "easy", archetype: "simplify_sqrt_27",
       prompt: `Simplify √${cfg.n}.`,
       answer: surdStr(cfg.coeff, cfg.rad),
       worked_solution: [
@@ -174,7 +174,7 @@ const EASY_ARCHETYPES: Record<string, ArchetypeGenerator> = {
     const params = { n: cfg.n };
     return {
       id: makeId("easy", "simplify_sqrt_48", params),
-      topic: "surds_intro", difficulty: "easy", archetype: "simplify_sqrt_48",
+      topic: "introduction_to_surds", difficulty: "easy", archetype: "simplify_sqrt_48",
       prompt: `Simplify √${cfg.n}.`,
       answer: surdStr(cfg.coeff, cfg.rad),
       worked_solution: [
@@ -197,7 +197,7 @@ const EASY_ARCHETYPES: Record<string, ArchetypeGenerator> = {
     const params = { n: cfg.n };
     return {
       id: makeId("easy", "simplify_sqrt_large", params),
-      topic: "surds_intro", difficulty: "easy", archetype: "simplify_sqrt_large",
+      topic: "introduction_to_surds", difficulty: "easy", archetype: "simplify_sqrt_large",
       prompt: `Simplify √${cfg.n}.`,
       answer: surdStr(cfg.coeff, cfg.rad),
       worked_solution: [
@@ -217,7 +217,7 @@ const EASY_ARCHETYPES: Record<string, ArchetypeGenerator> = {
     const params = { k, inner };
     return {
       id: makeId("easy", "simplify_sqrt_with_coeff", params),
-      topic: "surds_intro", difficulty: "easy", archetype: "simplify_sqrt_with_coeff",
+      topic: "introduction_to_surds", difficulty: "easy", archetype: "simplify_sqrt_with_coeff",
       prompt: `Simplify ${k}√${inner}.`,
       answer: surdStr(finalCoeff, radicand),
       worked_solution: [
@@ -239,7 +239,7 @@ const EASY_ARCHETYPES: Record<string, ArchetypeGenerator> = {
     const params = { expr: v.expr };
     return {
       id: makeId("easy", "evaluate_perfect_surd", params),
-      topic: "surds_intro", difficulty: "easy", archetype: "evaluate_perfect_surd",
+      topic: "introduction_to_surds", difficulty: "easy", archetype: "evaluate_perfect_surd",
       prompt: `Evaluate: ${v.expr}`,
       answer: v.answer,
       worked_solution: v.steps,
@@ -257,7 +257,7 @@ const MEDIUM_ARCHETYPES: Record<string, ArchetypeGenerator> = {
     const params = { a, b, rad };
     return {
       id: makeId("medium", "add_like_surds_simple", params),
-      topic: "surds_intro", difficulty: "medium", archetype: "add_like_surds_simple",
+      topic: "introduction_to_surds", difficulty: "medium", archetype: "add_like_surds_simple",
       prompt: `Simplify: ${a}√${rad} + ${b}√${rad}`,
       answer: surdStr(sum, rad),
       worked_solution: [
@@ -277,7 +277,7 @@ const MEDIUM_ARCHETYPES: Record<string, ArchetypeGenerator> = {
     const params = { a, b, rad };
     return {
       id: makeId("medium", "subtract_like_surds", params),
-      topic: "surds_intro", difficulty: "medium", archetype: "subtract_like_surds",
+      topic: "introduction_to_surds", difficulty: "medium", archetype: "subtract_like_surds",
       prompt: `Simplify: ${a}√${rad} − ${b}√${rad}`,
       answer: surdStr(diff, rad),
       worked_solution: [
@@ -300,7 +300,7 @@ const MEDIUM_ARCHETYPES: Record<string, ArchetypeGenerator> = {
     const params = { expr: cfg.expr };
     return {
       id: makeId("medium", "add_surds_simplify_first", params),
-      topic: "surds_intro", difficulty: "medium", archetype: "add_surds_simplify_first",
+      topic: "introduction_to_surds", difficulty: "medium", archetype: "add_surds_simplify_first",
       prompt: `Simplify: ${cfg.expr}`,
       answer: surdStr(cfg.total, cfg.rad),
       worked_solution: [
@@ -323,7 +323,7 @@ const MEDIUM_ARCHETYPES: Record<string, ArchetypeGenerator> = {
     const params = { expr: cfg.expr };
     return {
       id: makeId("medium", "subtract_surds_simplify_first", params),
-      topic: "surds_intro", difficulty: "medium", archetype: "subtract_surds_simplify_first",
+      topic: "introduction_to_surds", difficulty: "medium", archetype: "subtract_surds_simplify_first",
       prompt: `Simplify: ${cfg.expr}`,
       answer: surdStr(cfg.total, cfg.rad),
       worked_solution: [
@@ -343,7 +343,7 @@ const MEDIUM_ARCHETYPES: Record<string, ArchetypeGenerator> = {
     const params = { a, b };
     return {
       id: makeId("medium", "multiply_simple_surds", params),
-      topic: "surds_intro", difficulty: "medium", archetype: "multiply_simple_surds",
+      topic: "introduction_to_surds", difficulty: "medium", archetype: "multiply_simple_surds",
       prompt: `Simplify: √${a} × √${b}`,
       answer: isPerfectSquare(prod) ? `${Math.round(Math.sqrt(prod))}` : surdStr(coeff, radicand),
       worked_solution: [
@@ -366,7 +366,7 @@ const MEDIUM_ARCHETYPES: Record<string, ArchetypeGenerator> = {
     const params = { k1, k2, a, b };
     return {
       id: makeId("medium", "multiply_coeff_surds", params),
-      topic: "surds_intro", difficulty: "medium", archetype: "multiply_coeff_surds",
+      topic: "introduction_to_surds", difficulty: "medium", archetype: "multiply_coeff_surds",
       prompt: `Simplify: ${k1}√${a} × ${k2}√${b}`,
       answer: sr === 1 ? `${finalCoeff}` : surdStr(finalCoeff, sr),
       worked_solution: [
@@ -387,7 +387,7 @@ const MEDIUM_ARCHETYPES: Record<string, ArchetypeGenerator> = {
     const params = { a };
     return {
       id: makeId("medium", "multiply_surd_by_itself", params),
-      topic: "surds_intro", difficulty: "medium", archetype: "multiply_surd_by_itself",
+      topic: "introduction_to_surds", difficulty: "medium", archetype: "multiply_surd_by_itself",
       prompt: `Simplify: √${a} × √${a}`,
       answer: `${a}`,
       worked_solution: [
@@ -403,7 +403,7 @@ const MEDIUM_ARCHETYPES: Record<string, ArchetypeGenerator> = {
     const params = { k, a };
     return {
       id: makeId("medium", "multiply_surd_by_integer", params),
-      topic: "surds_intro", difficulty: "medium", archetype: "multiply_surd_by_integer",
+      topic: "introduction_to_surds", difficulty: "medium", archetype: "multiply_surd_by_integer",
       prompt: `Simplify: ${k} × √${a}`,
       answer: surdStr(k, a),
       worked_solution: [
@@ -422,7 +422,7 @@ const HARD_ARCHETYPES: Record<string, ArchetypeGenerator> = {
     const params = { a, b };
     return {
       id: makeId("hard", "expand_diff_of_squares", params),
-      topic: "surds_intro", difficulty: "hard", archetype: "expand_diff_of_squares",
+      topic: "introduction_to_surds", difficulty: "hard", archetype: "expand_diff_of_squares",
       prompt: `Expand and simplify: (√${a} + √${b})(√${a} − √${b})`,
       answer: `${answer}`,
       worked_solution: [
@@ -441,7 +441,7 @@ const HARD_ARCHETYPES: Record<string, ArchetypeGenerator> = {
     const params = { c, d };
     return {
       id: makeId("hard", "expand_conjugate_integer", params),
-      topic: "surds_intro", difficulty: "hard", archetype: "expand_conjugate_integer",
+      topic: "introduction_to_surds", difficulty: "hard", archetype: "expand_conjugate_integer",
       prompt: `Expand and simplify: (${c} + √${d})(${c} − √${d})`,
       answer: `${answer}`,
       worked_solution: [
@@ -465,7 +465,7 @@ const HARD_ARCHETYPES: Record<string, ArchetypeGenerator> = {
     const params = { a, b };
     return {
       id: makeId("hard", "expand_surd_squared", params),
-      topic: "surds_intro", difficulty: "hard", archetype: "expand_surd_squared",
+      topic: "introduction_to_surds", difficulty: "hard", archetype: "expand_surd_squared",
       prompt: `Expand and simplify: (√${a} + √${b})²`,
       answer: crossSimp === 1 ? `${constPart + finalCross}` : `${constPart} + ${surdStr(finalCross, crossSimp)}`,
       worked_solution: [
@@ -483,7 +483,7 @@ const HARD_ARCHETYPES: Record<string, ArchetypeGenerator> = {
     const params = { a };
     return {
       id: makeId("hard", "rationalise_one_over_sqrt", params),
-      topic: "surds_intro", difficulty: "hard", archetype: "rationalise_one_over_sqrt",
+      topic: "introduction_to_surds", difficulty: "hard", archetype: "rationalise_one_over_sqrt",
       prompt: `Rationalise the denominator: 1/√${a}`,
       answer: `√${a}/${a}`,
       worked_solution: [
@@ -504,7 +504,7 @@ const HARD_ARCHETYPES: Record<string, ArchetypeGenerator> = {
     const params = { k, a };
     return {
       id: makeId("hard", "rationalise_k_over_sqrt", params),
-      topic: "surds_intro", difficulty: "hard", archetype: "rationalise_k_over_sqrt",
+      topic: "introduction_to_surds", difficulty: "hard", archetype: "rationalise_k_over_sqrt",
       prompt: `Rationalise the denominator: ${k}/√${a}`,
       answer: denSimp === 1 ? `${numSimp}√${a}` : `${numSimp}√${a}/${denSimp}`,
       worked_solution: [
@@ -525,7 +525,7 @@ const HARD_ARCHETYPES: Record<string, ArchetypeGenerator> = {
     const params = { num, k, a };
     return {
       id: makeId("hard", "rationalise_frac_over_k_sqrt", params),
-      topic: "surds_intro", difficulty: "hard", archetype: "rationalise_frac_over_k_sqrt",
+      topic: "introduction_to_surds", difficulty: "hard", archetype: "rationalise_frac_over_k_sqrt",
       prompt: `Rationalise the denominator: ${num}/(${k}√${a})`,
       answer: g > 1 ? `${num / g}√${a}/${den / g}` : `${num}√${a}/${den}`,
       worked_solution: [
@@ -546,7 +546,7 @@ const HARD_ARCHETYPES: Record<string, ArchetypeGenerator> = {
     const params = { c, d };
     return {
       id: makeId("hard", "expand_integer_plus_surd_squared", params),
-      topic: "surds_intro", difficulty: "hard", archetype: "expand_integer_plus_surd_squared",
+      topic: "introduction_to_surds", difficulty: "hard", archetype: "expand_integer_plus_surd_squared",
       prompt: `Expand and simplify: (${c} + √${d})²`,
       answer: `${constPart} + ${surdStr(crossCoeff, d)}`,
       worked_solution: [
@@ -604,7 +604,7 @@ const CHALLENGE_ARCHETYPES: Record<string, ArchetypeGenerator> = {
     const params = { expr: cfg.expr };
     return {
       id: makeId("challenge", "multi_step_combine", params),
-      topic: "surds_intro", difficulty: "challenge", archetype: "multi_step_combine",
+      topic: "introduction_to_surds", difficulty: "challenge", archetype: "multi_step_combine",
       prompt: `Simplify: ${cfg.expr}`,
       answer: cfg.answer,
       worked_solution: cfg.steps,
@@ -626,7 +626,7 @@ const CHALLENGE_ARCHETYPES: Record<string, ArchetypeGenerator> = {
     const gSurd = gcd(1, absDen);
     return {
       id: makeId("challenge", "rationalise_conjugate_add", params),
-      topic: "surds_intro", difficulty: "challenge", archetype: "rationalise_conjugate_add",
+      topic: "introduction_to_surds", difficulty: "challenge", archetype: "rationalise_conjugate_add",
       prompt: `Rationalise the denominator: 1/(${a} + √${b})`,
       answer: absDen === 1 ? `${sign}(${a} − √${b})` : `(${a} − √${b})/${sign}${absDen}`,
       worked_solution: [
@@ -651,7 +651,7 @@ const CHALLENGE_ARCHETYPES: Record<string, ArchetypeGenerator> = {
       const newParams = { a: newA, b: newB };
       return {
         id: makeId("challenge", "rationalise_conjugate_sub", newParams),
-        topic: "surds_intro", difficulty: "challenge", archetype: "rationalise_conjugate_sub",
+        topic: "introduction_to_surds", difficulty: "challenge", archetype: "rationalise_conjugate_sub",
         prompt: `Rationalise the denominator: 1/(${newA} − √${newB})`,
         answer: `(${newA} + √${newB})/${newDen}`,
         worked_solution: [
@@ -665,7 +665,7 @@ const CHALLENGE_ARCHETYPES: Record<string, ArchetypeGenerator> = {
     }
     return {
       id: makeId("challenge", "rationalise_conjugate_sub", params),
-      topic: "surds_intro", difficulty: "challenge", archetype: "rationalise_conjugate_sub",
+      topic: "introduction_to_surds", difficulty: "challenge", archetype: "rationalise_conjugate_sub",
       prompt: `Rationalise the denominator: 1/(${a} − √${b})`,
       answer: `(${a} + √${b})/${conjDen}`,
       worked_solution: [
@@ -705,7 +705,7 @@ const CHALLENGE_ARCHETYPES: Record<string, ArchetypeGenerator> = {
     const params = { expr: cfg.expr };
     return {
       id: makeId("challenge", "show_that_expand", params),
-      topic: "surds_intro", difficulty: "challenge", archetype: "show_that_expand",
+      topic: "introduction_to_surds", difficulty: "challenge", archetype: "show_that_expand",
       prompt: `Simplify ${cfg.expr} to exact form.`,
       answer: cfg.answer,
       worked_solution: cfg.steps,
@@ -727,7 +727,7 @@ const CHALLENGE_ARCHETYPES: Record<string, ArchetypeGenerator> = {
     const simpDen = den / g;
     return {
       id: makeId("challenge", "rationalise_with_numerator", params),
-      topic: "surds_intro", difficulty: "challenge", archetype: "rationalise_with_numerator",
+      topic: "introduction_to_surds", difficulty: "challenge", archetype: "rationalise_with_numerator",
       prompt: `Rationalise the denominator: ${num}/(${a} + √${b})`,
       answer: simpDen === 1 ? `${simpNum}(${a} − √${b})` : `${simpNum}(${a} − √${b})/${simpDen}`,
       worked_solution: [
@@ -775,7 +775,7 @@ const CHALLENGE_ARCHETYPES: Record<string, ArchetypeGenerator> = {
     const params = { expr: cfg.expr };
     return {
       id: makeId("challenge", "mixed_operations", params),
-      topic: "surds_intro", difficulty: "challenge", archetype: "mixed_operations",
+      topic: "introduction_to_surds", difficulty: "challenge", archetype: "mixed_operations",
       prompt: `Simplify: ${cfg.expr}`,
       answer: cfg.answer,
       worked_solution: cfg.steps,
@@ -817,7 +817,7 @@ const CHALLENGE_ARCHETYPES: Record<string, ArchetypeGenerator> = {
     const params = { expr: cfg.expr };
     return {
       id: makeId("challenge", "simplify_surd_fraction", params),
-      topic: "surds_intro", difficulty: "challenge", archetype: "simplify_surd_fraction",
+      topic: "introduction_to_surds", difficulty: "challenge", archetype: "simplify_surd_fraction",
       prompt: `Simplify: ${cfg.expr}`,
       answer: cfg.answer,
       worked_solution: cfg.steps,

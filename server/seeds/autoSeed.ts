@@ -254,6 +254,9 @@ export async function runAutoSeed() {
     const { seedFractionalIndices } = await import("./fractionalIndices");
     await seedFractionalIndices();
 
+    const { seedSurdsIntro } = await import("./surdsIntro");
+    await seedSurdsIntro();
+
     console.log("Auto-seed: complete.");
   } catch (error) {
     console.error("Auto-seed error (non-fatal):", error);

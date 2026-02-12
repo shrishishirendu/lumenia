@@ -129,7 +129,7 @@ export const TOPIC_CATALOG: Record<string, SubjectConfig> = {
         estimatedMinutes: 35,
         hasInteractive: true,
         hasPractice: true,
-        generatorKey: "surds_intro",
+        generatorKey: "introduction_to_surds",
       },
       {
         id: "geometry_basics",
