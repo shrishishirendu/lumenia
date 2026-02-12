@@ -1,0 +1,190 @@
+You are working in the Lumenia (Mentora) codebase on Replit.
+
+GOAL
+Add a new interactive + practice topic: “Fractional Indices” using the SAME template-based generator architecture as the existing index_laws / linear_equations generators. Do not redesign the engine. Follow the established pattern exactly.
+
+--------------------------------------------------------------------
+
+QUESTION FORMAT (MUST MATCH EXISTING SCHEMA)
+
+Every generated question MUST return a dict structured EXACTLY as follows:
+
+{
+  "id": "<deterministic short hash based on difficulty + archetype + params>",
+  "topic": "fractional_indices",
+  "difficulty": "easy|medium|hard|challenge",
+  "archetype": "<string>",
+  "prompt": "<question text>",
+  "answer": "<final simplified answer as a string>",
+  "worked_solution": [
+      "Step 1 explanation",
+      "Step 2 explanation",
+      "...",
+      "Final simplified form"
+  ],
+  "metadata": {
+      "params": {...},                # template parameters used
+      "skills": [...],                # e.g. ["convert_to_radical", "simplify_exponent", "apply_index_laws", "rationalise_denominator"]
+      "estimated_time_sec": <int>
+  }
+}
+
+This schema must be identical in structure to other generators already used in Lumenia.
+
+--------------------------------------------------------------------
+
+IMPLEMENTATION STEPS
+
+1) Create generator module
+Path:
+  src/question_engine/fractional_indices.py
+(or follow same language structure if project uses TypeScript)
+
+Export:
+  - generate_question(difficulty: str, seed: Optional[int] = None) -> dict
+  - generate_pool(difficulty: str, n: int, seed: Optional[int] = None, ensure_unique: bool = True) -> list[dict]
+
+Use random.Random(seed) for deterministic generation.
+
+Also implement a tiny helper to format math nicely in plain text:
+- Use a^ (p/q) notation in prompts
+- In worked_solution, show equivalence to radicals: a^(1/n) = n√a
+
+Avoid Unicode that might break fonts unless the app already supports it. If supported, you may use √ and ∛.
+
+--------------------------------------------------------------------
+
+ARCHETYPES & DIFFICULTY DESIGN (Cambridge-style progression)
+
+EASY (8 variants) — concept + clean numbers
+Archetypes:
+- Convert fractional index to radical: a^(1/n)
+- Evaluate perfect powers: 16^(1/2), 27^(1/3), 81^(1/4)
+- Evaluate a^(m/n) where a is a perfect n-th power (e.g., 8^(2/3), 16^(3/4))
+Constraints:
+- Use bases that make exact integers (4, 8, 9, 16, 25, 27, 32, 64, 81)
+- Answers should be integers
+
+MEDIUM (8 variants) — simplify expressions, apply index laws lightly
+Archetypes:
+- Simplify: a^(p/q) * a^(r/q) = a^((p+r)/q)
+- Simplify: (a^m)^(p/q) = a^(m*p/q)
+- Simplify: (ab)^(1/2) to √(ab) and numeric evaluation when possible
+Constraints:
+- Keep final answers in simplest index form (prefer fractional index unless app expects radicals)
+- Allow non-integer results ONLY if expressible exactly (e.g., 2^(1/2) is acceptable as "sqrt(2)" or "2^(1/2)" per existing style)
+
+HARD (7 variants) — negative fractional indices, division, rationalisation
+Archetypes:
+- Simplify: a^(-p/q) = 1 / a^(p/q)
+- Simplify: a^(p/q) / a^(r/q) = a^((p-r)/q)
+- Simplify with numeric coefficients: 2 * 8^(2/3), 3 * 16^(-1/2)
+- Rationalise denominator when expression ends as 1/√a or 1/(a^(1/2))
+Constraints:
+- Denominators ≤ 12
+- Final answers should be simplified and consistent with app conventions:
+  - If app uses "sqrt(a)" use that; else keep as a^(1/2)
+- Include at least 3 questions that require converting negative fractional indices
+
+CHALLENGE (7 variants) — mixed expressions + “prove/simplify to” style
+Archetypes:
+- Simplify fully: (a^(1/2) * a^(1/3)) / a^(1/6)
+- Simplify to a single power: a^(p/q)
+- Simplify expressions involving multiple bases:
+  e.g., 8^(1/3) * 4^(1/2) / 2^(1/6)
+- “Show that …” style (but still autogradable):
+  Prompt: "Simplify and express as 2^k" or "express as a single index"
+Constraints:
+- Ensure exact simplification is possible
+- Provide worked_solution steps that explicitly show index-law reasoning
+
+--------------------------------------------------------------------
+
+ANSWER & WORKED SOLUTION RULES
+
+- Provide final answer in one consistent format:
+  Prefer "a^(p/q)" for symbolic answers, and "sqrt(a)" / "cuberoot(a)" only if the app already uses them.
+- worked_solution must include:
+  1) Convert fractional index to radical OR explain the law used
+  2) Apply index laws step-by-step (no jumps)
+  3) Final simplified result
+
+Add skill tags appropriately:
+- "convert_to_radical"
+- "evaluate_perfect_power"
+- "apply_index_laws"
+- "handle_negative_index"
+- "rationalise_denominator"
+- "simplify_to_single_power"
+
+--------------------------------------------------------------------
+
+ID GENERATION
+
+The "id" field must be deterministic and derived from:
+(difficulty + archetype + sorted params)
+Use a short hash (e.g., first 8 chars of md5 or sha1).
+
+No duplicate IDs within a generated pool.
+
+generate_pool(... ensure_unique=True) must retry up to 50 attempts to avoid duplicates.
+
+--------------------------------------------------------------------
+
+PRACTICE INTEGRATION
+
+1) Add topic entry to central topic registry/config:
+   {
+     id: "fractional_indices",
+     slug: "fractional-indices",
+     title: "Fractional Indices",
+     subject: "math",
+     hasInteractive: true,
+     hasPractice: true
+   }
+
+2) Ensure Practice page:
+   - Loads generator based on topic slug
+   - Header shows "Math – Fractional Indices"
+   - Regenerate button refreshes pool with new seed
+   - Default difficulty mix:
+        3 easy
+        3 medium
+        2 hard
+   - Optional: Add a "Challenge" toggle (off by default)
+
+3) Warm-up + Exit Ticket (if present and already topic-aware):
+   - Warm-up default: 2 easy + 2 medium
+   - Exit ticket default: 1 medium + 1 hard
+
+--------------------------------------------------------------------
+
+TESTS
+
+Add:
+tests/test_fractional_indices_generator.py
+
+Verify:
+- Required keys exist
+- Seeded output deterministic
+- Pool uniqueness
+- At least one hard question includes negative fractional index handling
+- Challenge questions simplify to a single power as expected
+
+--------------------------------------------------------------------
+
+DO NOT
+- Do not change database schema
+- Do not modify existing generators
+- Do not introduce new dependencies
+- Do not hardcode topic anywhere
+- Do not output decimal approximations (keep exact forms)
+
+--------------------------------------------------------------------
+
+DELIVERABLES
+- Generator module implemented
+- Topic registry entry
+- Practice works end-to-end for Fractional Indices
+- Tests passing
+- Update docs/question_engine.md with notes for this topic and formatting conventions

@@ -251,6 +251,9 @@ export async function runAutoSeed() {
     const { seedInequalities } = await import("./inequalities");
     await seedInequalities();
 
+    const { seedFractionalIndices } = await import("./fractionalIndices");
+    await seedFractionalIndices();
+
     console.log("Auto-seed: complete.");
   } catch (error) {
     console.error("Auto-seed error (non-fatal):", error);
