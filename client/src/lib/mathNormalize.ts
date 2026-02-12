@@ -37,9 +37,17 @@ export function normalizeMathInput(s: string): string {
 
   r = r.replace(/(\d)(sqrt\()/g, "$1*$2");
 
-  r = r.replace(/\)\(/g, ")*(");
-
   r = r.toLowerCase();
+
+  const SQRT_PH = "\x00SQRT\x00";
+  r = r.replace(/sqrt\(/g, SQRT_PH);
+
+  r = r.replace(/\)\(/g, ")*(");
+  r = r.replace(/(\d)\(/g, "$1*(");
+  r = r.replace(/([a-z])\(/g, "$1*(");
+  r = r.replace(/\)([a-z0-9])/g, ")*$1");
+
+  r = r.replace(new RegExp(SQRT_PH.replace(/\x00/g, "\\x00"), "g"), "sqrt(");
 
   r = r.replace(/^m=/i, "");
 

@@ -272,6 +272,9 @@ export async function runAutoSeed() {
     const { seedGradientAndParallelLines } = await import("./gradientAndParallelLines");
     await seedGradientAndParallelLines();
 
+    const { seedFactorisingCommonFactors } = await import("./factorisingCommonFactors");
+    await seedFactorisingCommonFactors();
+
     console.log("Auto-seed: complete.");
   } catch (error) {
     console.error("Auto-seed error (non-fatal):", error);

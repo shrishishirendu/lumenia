@@ -1,0 +1,223 @@
+You are working in the Lumenia (Mentora) codebase on Replit.
+
+GOAL
+Add a new interactive + practice chapter: “Factorising Common Factors” using the existing topic-aware template-based question engine (registry + generatorKey + resolver). Do not redesign the engine. Follow the established schema used by other topics.
+
+Also ensure full integration with the global MathAnswerInput + normalize_math_input() so students can type answers easily (e.g., 3(x+2), x(x-5), 2x(3x+1)).
+
+--------------------------------------------------------------------
+1) TOPIC REGISTRY ENTRY (SINGLE SOURCE OF TRUTH)
+
+Add to the central topic registry/config:
+
+{
+  id: "factorising_common_factors",
+  slug: "factorising-common-factors",
+  title: "Factorising Common Factors",
+  subject: "math",
+  hasInteractive: true,
+  hasPractice: true,
+  generatorKey: "factorising_common_factors"
+}
+
+--------------------------------------------------------------------
+2) GLOBAL MATH INPUT ENGINE (MUST)
+
+All answer input boxes for this topic must use MathAnswerInput and comparisons must use normalize_math_input().
+
+Normalization should accept common student variants:
+- "3(x+2)" equals "3*(x+2)"
+- "x(x-5)" equals "x*(x-5)"
+- "2x(3x+1)" equals "2*x*(3*x+1)" (if your normalizer inserts implicit multiplications)
+Do NOT implement topic-specific parsing; rely on the shared normalizer.
+
+If implicit multiplication handling is not yet supported globally, extend normalize_math_input() to:
+- insert "*" between a number and "("  e.g., "3(x+2)" -> "3*(x+2)"
+- insert "*" between a variable and "(" e.g., "x(x-5)" -> "x*(x-5)"
+- insert "*" between a number and a variable e.g., "2x" -> "2*x" (optional, only if your checker expects it)
+
+--------------------------------------------------------------------
+3) GENERATOR MODULE
+
+Create:
+  src/question_engine/factorising_common_factors.py
+
+Export:
+  - generate_question(difficulty: str, seed: Optional[int] = None) -> dict
+  - generate_pool(difficulty: str, n: int, seed: Optional[int] = None, ensure_unique: bool = True) -> list[dict]
+
+Use random.Random(seed) for deterministic generation.
+IDs must be deterministic from (difficulty + archetype + sorted params). Avoid duplicates in a pool.
+
+--------------------------------------------------------------------
+4) QUESTION SCHEMA (MUST MATCH EXISTING GENERATORS)
+
+Return dict:
+
+{
+  "id": "<deterministic short hash>",
+  "topic": "factorising_common_factors",
+  "difficulty": "easy|medium|hard|challenge",
+  "archetype": "<string>",
+  "prompt": "<question text>",
+  "answer": "<factorised expression string>",
+  "worked_solution": ["Step 1", "Step 2", "...", "Final factorised form"],
+  "metadata": {
+      "params": {...},
+      "skills": [...],
+      "estimated_time_sec": <int>
+  }
+}
+
+Answer format rules:
+- Use parentheses for factors, e.g., 3(x+2), x(x-5), 2x(3x+1)
+- Keep factorised form “fully factorised” by common factor only (do not factor further by special products unless required in higher difficulty)
+- No decimals
+
+--------------------------------------------------------------------
+5) CONTENT SCOPE: FACTORISING COMMON FACTORS
+
+This topic covers:
+- Taking out a numerical common factor: 6x + 9 = 3(2x + 3)
+- Taking out a variable common factor: x^2 + 5x = x(x + 5)
+- Taking out a monomial common factor: 6x^2 + 9x = 3x(2x + 3)
+- Common factor with negatives: -4x - 8 = -4(x + 2) (medium/hard)
+- Factorising with 3 or more terms where a common factor exists: 3x + 6 + 9y = 3(x + 2 + 3y) (hard/challenge)
+
+Avoid:
+- Quadratic trinomials factoring (that’s a different chapter)
+- Difference of squares factoring (different chapter)
+
+--------------------------------------------------------------------
+6) ARCHETYPES & DIFFICULTY BANDS (Cambridge-style)
+
+EASY (8)
+Archetypes:
+- numeric_factor_only: k*a + k*b -> k(a+b) (no variables)
+- variable_factor_x: ax + bx -> x(a+b) or kx + mx
+Constraints:
+- Keep factors small (2..9)
+- Keep results clean integers
+Examples:
+- 6x + 9x
+- 8a + 12a
+Skills tags:
+- ["identify_common_factor", "factorise"]
+
+MEDIUM (8)
+Archetypes:
+- numeric_and_variable: 6x + 9 -> 3(2x + 3)
+- monomial_factor: 6x^2 + 9x -> 3x(2x + 3)
+- negative_common_factor: -6x - 9 -> -3(2x + 3)
+Constraints:
+- Include at least 2 negative factor questions
+- Keep inside bracket simplified
+Skills tags:
+- ["identify_common_factor", "factorise", "handle_negatives"]
+
+HARD (7)
+Archetypes:
+- three_terms_common: ax + ay + a -> a(x + y + 1)
+- higher_power_common: 12x^3 + 18x^2 -> 6x^2(2x + 3)
+- mixed_vars_common: 6xy + 9x -> 3x(2y + 3)
+Constraints:
+- At least 3 questions with 3 terms
+- At least 2 questions with mixed variables (x and y)
+Skills tags:
+- ["factorise", "simplify_expression", "monomial_gcf"]
+
+CHALLENGE (7)
+Archetypes:
+- factorise_then_simplify: Factorise first then simplify an expression:
+  e.g., 6x + 9 over 3  (only if your platform supports such questions)
+- common_factor_in_context: word-ish prompt like “Factorise to simplify calculation” (still autogradable)
+- mixed_complex: 15x^2y - 10xy + 5xy^2 -> 5xy(3x - 2 + y)
+Constraints:
+- Multi-step; must still be autogradable
+- Provide worked_solution clearly
+Skills tags:
+- ["greatest_common_factor", "factorise", "multi_step"]
+
+--------------------------------------------------------------------
+7) WORKED SOLUTION REQUIREMENTS
+
+worked_solution must show:
+- Step: identify greatest common factor (GCF) / common factor
+- Step: divide each term by the common factor to form bracket
+- Step: write final factorised expression
+Example:
+- "Common factor is 3x"
+- "6x^2 ÷ 3x = 2x, 9x ÷ 3x = 3"
+- "So 6x^2 + 9x = 3x(2x + 3)"
+
+Keep it short, clear, and consistent.
+
+--------------------------------------------------------------------
+8) PRACTICE + WARM-UP + EXIT INTEGRATION
+
+Assume Warm-up and Exit Ticket are already topic-aware via registry + resolver.
+
+Ensure:
+- Practice loads this topic via generatorKey "factorising_common_factors"
+- Header shows "Math – Factorising Common Factors"
+- Regenerate changes seed and refreshes
+
+Default Practice mix:
+- 3 easy + 3 medium + 2 hard
+Challenge toggle off by default
+
+Warm-up default:
+- 2 easy + 2 medium
+
+Exit ticket default:
+- 1 medium + 1 hard
+
+--------------------------------------------------------------------
+9) UI: OPTIONAL “FORMAT HINT” (Recommended)
+
+On the answer input for this topic, show a small hint:
+"Answer format example: 3(x+2) or x(x-5)"
+
+Do not require special characters.
+
+--------------------------------------------------------------------
+10) TESTS
+
+Add:
+  tests/test_factorising_common_factors_generator.py
+
+Verify:
+- required keys exist
+- deterministic with seed
+- uniqueness in pool
+- factorised answers actually expand back to original expression (basic check using a simple symbolic or numeric substitution test without new dependencies)
+- at least 2 negative common factor cases present in medium/hard
+
+If you cannot do symbolic expansion safely without dependencies, do numeric substitution checks:
+- pick random x,y values and verify LHS == RHS when evaluated.
+
+--------------------------------------------------------------------
+11) DOCUMENTATION
+
+Update:
+  docs/question_engine.md
+Add entry for "Factorising Common Factors" including:
+- expected answer format
+- common pitfalls
+- examples of accepted input due to normalize_math_input()
+
+--------------------------------------------------------------------
+DO NOT
+
+- Do not change DB schema
+- Do not introduce new dependencies
+- Do not redesign the engine
+- Do not output LaTeX
+- Do not bypass normalization
+
+DELIVERABLES
+- Topic registry entry
+- Generator module implemented
+- Practice works end-to-end
+- Tests passing
+- Docs updated

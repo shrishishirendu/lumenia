@@ -192,6 +192,18 @@ export const TOPIC_CATALOG: Record<string, SubjectConfig> = {
         generatorKey: "gradient_and_parallel_lines",
       },
       {
+        id: "factorising_common_factors",
+        slug: "factorising-common-factors",
+        name: "Factorising Common Factors",
+        description: "Factorise expressions by identifying and extracting common numerical, variable, and monomial factors",
+        gradeRange: [8, 10],
+        prerequisites: ["expanding_brackets"],
+        estimatedMinutes: 30,
+        hasInteractive: true,
+        hasPractice: true,
+        generatorKey: "factorising_common_factors",
+      },
+      {
         id: "geometry_basics",
         slug: "geometry-basics",
         name: "Geometry Basics",
