@@ -19,16 +19,22 @@ const GENERATOR_REGISTRY: Record<string, GeneratorFn> = {
   simplifying_surds: generateSimplifyingSurdsPool,
   operations_with_surds: generateOpsWithSurdsPool,
   expanding_binomial_products: generateExpandBinomialPool,
-  perfect_and_difference_of_squares: generatePerfectDiffSqPool,
+  perfect_squares_and_difference_of_squares: generatePerfectDiffSqPool,
   gradient_and_parallel_lines: generateGradientParallelPool,
 };
 
+const GENERATOR_ALIASES: Record<string, string> = {
+  perfect_and_difference_of_squares: "perfect_squares_and_difference_of_squares",
+};
+
 export function getGenerator(topicKey: string): GeneratorFn | null {
-  return GENERATOR_REGISTRY[topicKey] || null;
+  const normalized = topicKey.toLowerCase().replace(/\s+/g, "_");
+  return GENERATOR_REGISTRY[normalized] || GENERATOR_REGISTRY[GENERATOR_ALIASES[normalized] || ""] || null;
 }
 
 export function hasGenerator(topicKey: string): boolean {
-  return topicKey in GENERATOR_REGISTRY;
+  const normalized = topicKey.toLowerCase().replace(/\s+/g, "_");
+  return normalized in GENERATOR_REGISTRY || normalized in GENERATOR_ALIASES;
 }
 
 export function getRegisteredTopicKeys(): string[] {

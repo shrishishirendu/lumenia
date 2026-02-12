@@ -406,7 +406,10 @@ export default function SessionFlow() {
         ? `/api/question-engine/warmup?seed=${Date.now()}${topicParam}`
         : `/api/question-engine/exit-ticket?seed=${Date.now()}${topicParam}`;
       const res = await fetch(endpoint, { credentials: "include" });
-      if (!res.ok) return;
+      if (!res.ok) {
+        console.error(`[regenerate] ${section} failed: ${res.status} for key="${currentGeneratorKey}"`);
+        return;
+      }
       const data = await res.json();
       const mapped: Question[] = data.questions.map((g: any) => ({
         id: g.id,
