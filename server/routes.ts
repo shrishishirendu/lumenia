@@ -16,6 +16,7 @@ import { generatePool as generateIneqPool, generateMixedPool as generateIneqMixe
 import { generatePool as generateFracIdxPool, generateMixedPool as generateFracIdxMixedPool } from "./services/questionEngine/fractionalIndices";
 import { generatePool as generateSurdsPool, generateMixedPool as generateSurdsMixedPool } from "./services/questionEngine/surdsIntro";
 import { generatePool as generateSimplSurdsPool, generateMixedPool as generateSimplSurdsMixedPool } from "./services/questionEngine/simplifyingSurds";
+import { generatePool as generateOpsSurdsPool, generateMixedPool as generateOpsSurdsMixedPool } from "./services/questionEngine/operationsWithSurds";
 import { getGenerator, resolveTopicSlug } from "./services/questionEngine/registry";
 import { getTopicBySlug } from "@shared/topicCatalog";
 
@@ -1858,6 +1859,34 @@ export async function registerRoutes(
       res.json({ questions, count: questions.length, seed });
     } catch (error) {
       console.error("Error generating simplifying surds questions:", error);
+      res.status(500).json({ error: "Failed to generate questions" });
+    }
+  });
+
+  app.get("/api/question-engine/operations-with-surds/generate", async (req: any, res) => {
+    try {
+      const userId = req.user?.claims?.sub;
+      if (!userId) return res.status(401).json({ error: "Unauthorized" });
+
+      const difficulty = req.query.difficulty as string;
+      const n = parseInt(req.query.n as string) || 4;
+      const seed = req.query.seed ? parseInt(req.query.seed as string) : undefined;
+
+      const validDiffs = ["easy", "medium", "hard", "challenge"] as const;
+      if (difficulty && !validDiffs.includes(difficulty as any)) {
+        return res.status(400).json({ error: "Invalid difficulty. Must be: easy, medium, hard, challenge" });
+      }
+
+      if (difficulty) {
+        const questions = generateOpsSurdsPool(difficulty as any, Math.min(n, 20), seed, true);
+        return res.json({ questions, count: questions.length, difficulty, seed });
+      }
+
+      const config = JSON.parse((req.query.config as string) || '[{"difficulty":"easy","count":2},{"difficulty":"medium","count":2}]');
+      const questions = generateOpsSurdsMixedPool(config, seed);
+      res.json({ questions, count: questions.length, seed });
+    } catch (error) {
+      console.error("Error generating operations with surds questions:", error);
       res.status(500).json({ error: "Failed to generate questions" });
     }
   });

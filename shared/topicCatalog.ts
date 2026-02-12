@@ -144,6 +144,18 @@ export const TOPIC_CATALOG: Record<string, SubjectConfig> = {
         generatorKey: "simplifying_surds",
       },
       {
+        id: "operations_with_surds",
+        slug: "operations-with-surds",
+        name: "Operations with Surds",
+        description: "Add, subtract, multiply surds, expand brackets with surds, and apply difference of squares",
+        gradeRange: [9, 11],
+        prerequisites: ["simplifying_surds"],
+        estimatedMinutes: 35,
+        hasInteractive: true,
+        hasPractice: true,
+        generatorKey: "operations_with_surds",
+      },
+      {
         id: "geometry_basics",
         slug: "geometry-basics",
         name: "Geometry Basics",
