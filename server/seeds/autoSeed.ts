@@ -284,6 +284,9 @@ export async function runAutoSeed() {
     const { seedSimultaneousEquationsGraphical } = await import("./simultaneousEquationsGraphical");
     await seedSimultaneousEquationsGraphical();
 
+    const { seedSimultaneousEquationsSubstitution } = await import("./simultaneousEquationsSubstitution");
+    await seedSimultaneousEquationsSubstitution();
+
     console.log("Auto-seed: complete.");
   } catch (error) {
     console.error("Auto-seed error (non-fatal):", error);
