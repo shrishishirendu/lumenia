@@ -55,3 +55,44 @@ export function normalizeMathInput(s: string): string {
 
   return r;
 }
+
+function safeEvalPoly(expr: string, xVal: number): number | null {
+  let s = normalizeMathInput(expr);
+  s = s.replace(/\^/g, "**");
+  s = s.replace(/(\d)(x)/g, "$1*$2");
+  s = s.replace(/(x)(\d)/g, "$1*$2");
+  s = s.replace(/(x)(x)/g, "$1*$2");
+  s = s.replace(/x/g, `(${xVal})`);
+  if (/[^0-9+\-*/()._ ]/.test(s)) return null;
+  try {
+    const result = Function(`"use strict"; return (${s})`)() as number;
+    if (!isFinite(result)) return null;
+    return result;
+  } catch {
+    return null;
+  }
+}
+
+export function mathExpressionsEquivalent(a: string, b: string): boolean {
+  const na = normalizeMathInput(a);
+  const nb = normalizeMathInput(b);
+  if (na === nb) return true;
+
+  const testValues = [-3, -2, -1, 0, 1, 2, 3, 5, 7];
+  let matched = 0;
+  let tested = 0;
+
+  for (const x of testValues) {
+    const va = safeEvalPoly(a, x);
+    const vb = safeEvalPoly(b, x);
+    if (va === null || vb === null) continue;
+    tested++;
+    if (Math.abs(va - vb) < 0.001) {
+      matched++;
+    } else {
+      return false;
+    }
+  }
+
+  return tested >= 3;
+}

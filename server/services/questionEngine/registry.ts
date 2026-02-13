@@ -8,6 +8,7 @@ import { generateMixedPool as generateExpandBinomialPool } from "./expandingBino
 import { generateMixedPool as generatePerfectDiffSqPool } from "./perfectAndDifferenceOfSquares";
 import { generateMixedPool as generateGradientParallelPool } from "./gradientAndParallelLines";
 import { generateMixedPool as generateFactorisingCFPool } from "./factorisingCommonFactors";
+import { generateMixedPool as generateFactorisingQuadPool } from "./factorisingQuadratics";
 
 export type DifficultyConfig = { difficulty: "easy" | "medium" | "hard" | "challenge"; count: number };
 export type GeneratorFn = (config: DifficultyConfig[], seed?: number) => any[];
@@ -23,6 +24,7 @@ const GENERATOR_REGISTRY: Record<string, GeneratorFn> = {
   perfect_squares_and_difference_of_squares: generatePerfectDiffSqPool,
   gradient_and_parallel_lines: generateGradientParallelPool,
   factorising_common_factors: generateFactorisingCFPool,
+  factorising_quadratics: generateFactorisingQuadPool,
 };
 
 const GENERATOR_ALIASES: Record<string, string> = {

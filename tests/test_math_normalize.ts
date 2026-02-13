@@ -1,4 +1,4 @@
-import { normalizeMathInput } from "../client/src/lib/mathNormalize";
+import { normalizeMathInput, mathExpressionsEquivalent } from "../client/src/lib/mathNormalize";
 
 let passed = 0;
 let failed = 0;
@@ -144,6 +144,22 @@ console.log("\n15. Equation normalization for gradient topic");
   assertEq(norm("y = -x + 5"), "y=-x+5", "equation with -x");
   assertEq(norm("y = 3x - 1"), "y=3x-1", "equation with subtraction");
   assert(norm("y = 2x + 3") === norm("y=2x+3"), "equation equivalence");
+}
+
+console.log("\n16. mathExpressionsEquivalent for factorised quadratics");
+{
+  assert(mathExpressionsEquivalent("(x+3)(x-2)", "(x-2)(x+3)"), "swapped monic factors");
+  assert(mathExpressionsEquivalent("(x+3)(x+2)", "(x+2)(x+3)"), "swapped positive factors");
+  assert(mathExpressionsEquivalent("(2x+1)(x+3)", "(x+3)(2x+1)"), "swapped non-monic factors");
+  assert(mathExpressionsEquivalent("(x-5)(x+5)", "(x+5)(x-5)"), "swapped diff of squares");
+  assert(mathExpressionsEquivalent("2(x+1)(x+3)", "2(x+3)(x+1)"), "swapped with gcf");
+  assert(mathExpressionsEquivalent("(3x-2)(x+4)", "(x+4)(3x-2)"), "swapped non-monic neg");
+  assert(!mathExpressionsEquivalent("(x+3)(x-2)", "(x+3)(x+2)"), "different expressions not equal");
+  assert(!mathExpressionsEquivalent("(x+1)(x+2)", "(x+1)(x+3)"), "different second factor not equal");
+  assert(mathExpressionsEquivalent("(x+3)(x-2)", "(x+3)(x-2)"), "identical expressions equal");
+  assert(mathExpressionsEquivalent("x^2+5x+6", "(x+2)(x+3)"), "expanded vs factorised");
+  assert(mathExpressionsEquivalent("x^2-9", "(x-3)(x+3)"), "diff of squares expanded vs factorised");
+  assert(mathExpressionsEquivalent("2x^2+7x+3", "(2x+1)(x+3)"), "non-monic expanded vs factorised");
 }
 
 console.log(`\n=== Results: ${passed} passed, ${failed} failed ===`);

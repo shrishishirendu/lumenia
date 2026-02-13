@@ -204,6 +204,18 @@ export const TOPIC_CATALOG: Record<string, SubjectConfig> = {
         generatorKey: "factorising_common_factors",
       },
       {
+        id: "factorising_quadratics",
+        slug: "factorising-quadratics",
+        name: "Factorising Quadratics",
+        description: "Factorise monic and non-monic quadratic trinomials, difference of squares, and expressions with common factors",
+        gradeRange: [9, 11],
+        prerequisites: ["factorising_common_factors", "expanding_binomial_products"],
+        estimatedMinutes: 35,
+        hasInteractive: true,
+        hasPractice: true,
+        generatorKey: "factorising_quadratics",
+      },
+      {
         id: "geometry_basics",
         slug: "geometry-basics",
         name: "Geometry Basics",

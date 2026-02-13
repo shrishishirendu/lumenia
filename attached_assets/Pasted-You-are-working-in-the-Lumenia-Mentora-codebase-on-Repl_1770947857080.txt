@@ -1,0 +1,247 @@
+You are working in the Lumenia (Mentora) codebase on Replit.
+
+GOAL
+Add a new interactive + practice chapter: “Factorising Quadratics” using the existing topic-aware template-based question engine (registry + generatorKey + resolver). Do not redesign the engine. Follow the established schema used by other topics.
+
+Also ensure full integration with the global MathAnswerInput + normalize_math_input() so students can type answers easily (e.g., (x+3)(x-2), (2x+1)(x+4)).
+
+--------------------------------------------------------------------
+1) TOPIC REGISTRY ENTRY (SINGLE SOURCE OF TRUTH)
+
+Add to the central topic registry/config:
+
+{
+  id: "factorising_quadratics",
+  slug: "factorising-quadratics",
+  title: "Factorising Quadratics",
+  subject: "math",
+  hasInteractive: true,
+  hasPractice: true,
+  generatorKey: "factorising_quadratics"
+}
+
+--------------------------------------------------------------------
+2) GLOBAL MATH INPUT ENGINE (MUST)
+
+All answer input boxes for this topic must use MathAnswerInput and comparisons must use normalize_math_input().
+
+Normalization must accept common student variants:
+- "(x+3)(x-2)" equals "(x+3)*(x-2)"
+- "x^2+ x - 6" etc spacing variants (for expansion checks if any)
+- "2(x+3)(x-2)" equals "2*(x+3)*(x-2)" (if coefficients appear)
+Do NOT implement topic-specific parsing; rely on the shared normalizer.
+
+If the checker currently uses strict string compare only, implement a robust equivalence check for factorised forms using numeric substitution (see section 9).
+
+--------------------------------------------------------------------
+3) GENERATOR MODULE
+
+Create:
+  src/question_engine/factorising_quadratics.py
+
+Export:
+  - generate_question(difficulty: str, seed: Optional[int] = None) -> dict
+  - generate_pool(difficulty: str, n: int, seed: Optional[int] = None, ensure_unique: bool = True) -> list[dict]
+
+Use random.Random(seed) for deterministic generation.
+IDs must be deterministic from (difficulty + archetype + sorted params). Avoid duplicates in a pool.
+
+--------------------------------------------------------------------
+4) QUESTION SCHEMA (MUST MATCH EXISTING GENERATORS)
+
+Return dict:
+
+{
+  "id": "<deterministic short hash>",
+  "topic": "factorising_quadratics",
+  "difficulty": "easy|medium|hard|challenge",
+  "archetype": "<string>",
+  "prompt": "<question text>",
+  "answer": "<factorised form string>",
+  "worked_solution": ["Step 1", "Step 2", "...", "Final factorised form"],
+  "metadata": {
+      "params": {...},
+      "skills": [...],
+      "estimated_time_sec": <int>
+  }
+}
+
+Answer format rules:
+- Return factorised form using parentheses:
+  (x+a)(x+b) or (mx+a)(nx+b)
+- Use "^" for powers if needed (x^2), but prompts likely show expanded quadratic already.
+- No decimals, no LaTeX.
+- Prefer leading coefficient positive and factors ordered consistently.
+
+--------------------------------------------------------------------
+5) CONTENT SCOPE: FACTORISING QUADRATICS
+
+Cover the common school progression:
+
+A) Monic trinomials (a=1):
+  x^2 + bx + c = (x+p)(x+q)
+
+B) Difference of squares:
+  x^2 - a^2 = (x-a)(x+a)
+
+C) Non-monic trinomials (a≠1) (hard/challenge):
+  ax^2 + bx + c, factor by splitting the middle term (AC method) / inspection
+  e.g., 2x^2 + 7x + 3 = (2x+1)(x+3)
+
+D) Factorising with a common factor first (hard/challenge):
+  2x^2 + 4x = 2x(x+2)   (include a few so students learn “GCF first”)
+
+Avoid:
+- Completing the square (separate chapter)
+- Quadratic formula (separate chapter)
+
+--------------------------------------------------------------------
+6) ARCHETYPES & DIFFICULTY BANDS (Cambridge-style)
+
+EASY (8) — monic, small integers, mostly positive c
+Archetypes:
+- monic_pos: x^2 + bx + c with integer factors
+- monic_neg: x^2 + bx - c with opposite sign factors
+Constraints:
+- Choose p,q in [-9..9], p*q = c, p+q = b
+- Keep |b| <= 12, |c| <= 36
+Skills tags:
+- ["factorise_monic", "find_factor_pairs"]
+
+MEDIUM (8) — include difference of squares + trickier signs
+Archetypes:
+- diff_of_squares: x^2 - a^2
+- monic_mixed: x^2 - bx + c
+- gcf_then_monic: kx^2 + kbx + kc = k(x+p)(x+q) (small k)
+Constraints:
+- At least 2 difference_of_squares items
+- Include at least 2 with negative b
+Skills tags:
+- ["difference_of_squares", "factorise_monic", "take_common_factor"]
+
+HARD (7) — non-monic trinomials (a≠1) with integer factors
+Archetypes:
+- non_monic: ax^2 + bx + c where a in [2..6] and factorises nicely
+- ac_method: requires splitting middle term (show in worked_solution)
+- gcf_then_non_monic: take out common factor first, then factorise
+Constraints:
+- Ensure factors are integer linear factors
+- Avoid huge coefficients
+Skills tags:
+- ["factorise_non_monic", "ac_method", "take_common_factor", "simplify_expression"]
+
+CHALLENGE (7) — multi-step + structure recognition
+Archetypes:
+- non_monic_negative: ax^2 + bx - c
+- rearranged: bx + x^2 + c (require reordering to standard form first)
+- factorise_then_simplify: factorise and then use factors for a quick evaluation (optional if supported)
+Constraints:
+- Must still be autogradable
+- Provide clear worked_solution steps
+Skills tags:
+- ["structure_recognition", "reorder_terms", "factorise_non_monic", "multi_step"]
+
+--------------------------------------------------------------------
+7) WORKED SOLUTION REQUIREMENTS
+
+For monic:
+- "Find two numbers that multiply to c and add to b."
+- "Those numbers are p and q."
+- "So x^2 + bx + c = (x+p)(x+q)."
+
+For difference of squares:
+- "Recognise x^2 - a^2."
+- "Use identity: x^2 - a^2 = (x-a)(x+a)."
+
+For non-monic (AC method):
+- "Compute a*c."
+- "Find two numbers that multiply to a*c and add to b."
+- "Split middle term."
+- "Factor by grouping."
+- "Write final factorised form."
+
+Keep steps short but explicit.
+
+--------------------------------------------------------------------
+8) PRACTICE + WARM-UP + EXIT INTEGRATION
+
+Assume Warm-up and Exit Ticket are already topic-aware via registry + resolver.
+
+Ensure:
+- Practice loads this topic via generatorKey "factorising_quadratics"
+- Header shows "Math – Factorising Quadratics"
+- Regenerate changes seed and refreshes
+
+Default Practice mix:
+- 3 easy + 3 medium + 2 hard
+Challenge toggle off by default
+
+Warm-up default:
+- 2 easy + 2 medium
+
+Exit ticket default:
+- 1 medium + 1 hard
+
+Add a small hint near the input:
+"Answer format: (x+3)(x-2) or (2x+1)(x+4)"
+
+--------------------------------------------------------------------
+9) ANSWER CHECKING (CRITICAL FOR FACTORISING)
+
+Do NOT rely only on strict string equality for factorised answers.
+Students may enter equivalent factor orderings:
+- (x+3)(x-2) vs (x-2)(x+3)
+- -(x-2)(x+3) vs (2-x)(x+3) (less common but possible)
+
+Implement a robust equivalence check WITHOUT new heavy dependencies:
+- Evaluate the student expression and expected expression at multiple integer x values (e.g., x in [-3,-2,-1,1,2,3])
+- If all evaluations match, accept as correct
+- Use a safe expression evaluator already in codebase if available; otherwise implement a minimal safe parser limited to:
+  numbers, x, +, -, *, ^, parentheses
+- Run normalize_math_input() before evaluation
+- Do not allow arbitrary code execution
+
+If you already have a safe evaluator for polynomial answers, reuse it.
+
+--------------------------------------------------------------------
+10) TESTS
+
+Add:
+  tests/test_factorising_quadratics_generator.py
+
+Verify:
+- required keys exist
+- deterministic with seed
+- uniqueness in pool
+- hard/challenge include non-monic factorisation
+- equivalence checker accepts swapped factor order:
+  expected "(x+3)(x-2)" should accept "(x-2)(x+3)"
+
+Also verify diff-of-squares archetype exists.
+
+--------------------------------------------------------------------
+11) DOCUMENTATION
+
+Update:
+  docs/question_engine.md
+Add entry for "Factorising Quadratics":
+- archetypes
+- expected answer formats
+- note: equivalence checking uses numeric substitution
+
+--------------------------------------------------------------------
+DO NOT
+
+- Do not change DB schema
+- Do not introduce new dependencies unless already present
+- Do not output decimals or LaTeX
+- Do not bypass normalization engine
+- Do not redesign core architecture
+
+DELIVERABLES
+- Topic registry entry
+- Generator module implemented
+- Practice works end-to-end
+- Robust factorised-answer equivalence checking
+- Tests passing
+- Docs updated

@@ -8,7 +8,7 @@ import { Progress } from "@/components/ui/progress";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import MathAnswerInput from "@/components/MathAnswerInput";
-import { normalizeMathInput } from "@/lib/mathNormalize";
+import { normalizeMathInput, mathExpressionsEquivalent } from "@/lib/mathNormalize";
 import { 
   Zap, 
   BookOpen, 
@@ -383,7 +383,7 @@ export default function SessionFlow() {
     const correct = questions.filter(q => {
       const ans = answers[q.id];
       if (!ans) return false;
-      return normalizeMathInput(ans) === normalizeMathInput(q.correctAnswer);
+      return mathExpressionsEquivalent(ans, q.correctAnswer);
     }).length;
     return Math.round((correct / questions.length) * 100);
   };
@@ -461,7 +461,7 @@ export default function SessionFlow() {
     if (q.questionType === "short_answer" || q.options.length === 0) {
       const currentAnswer = answers[q.id] || "";
       const isSubmitted = !!currentAnswer;
-      const isCorrect = isSubmitted && normalizeMathInput(currentAnswer) === normalizeMathInput(q.correctAnswer);
+      const isCorrect = isSubmitted && mathExpressionsEquivalent(currentAnswer, q.correctAnswer);
       return (
         <div>
           <div className="max-w-xs">
@@ -495,8 +495,8 @@ export default function SessionFlow() {
           ))}
         </RadioGroup>
         {answers[q.id] && section !== "exit_ticket" && (
-          <div className={`mt-2 p-2 rounded text-sm ${normalizeMathInput(answers[q.id] || "") === normalizeMathInput(q.correctAnswer) ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>
-            {normalizeMathInput(answers[q.id] || "") === normalizeMathInput(q.correctAnswer) ? "Correct!" : `The answer is ${q.correctAnswer}. ${q.explanation}`}
+          <div className={`mt-2 p-2 rounded text-sm ${mathExpressionsEquivalent(answers[q.id] || "", q.correctAnswer) ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>
+            {mathExpressionsEquivalent(answers[q.id] || "", q.correctAnswer) ? "Correct!" : `The answer is ${q.correctAnswer}. ${q.explanation}`}
           </div>
         )}
       </div>

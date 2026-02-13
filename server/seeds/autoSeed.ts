@@ -275,6 +275,9 @@ export async function runAutoSeed() {
     const { seedFactorisingCommonFactors } = await import("./factorisingCommonFactors");
     await seedFactorisingCommonFactors();
 
+    const { seedFactorisingQuadratics } = await import("./factorisingQuadratics");
+    await seedFactorisingQuadratics();
+
     console.log("Auto-seed: complete.");
   } catch (error) {
     console.error("Auto-seed error (non-fatal):", error);

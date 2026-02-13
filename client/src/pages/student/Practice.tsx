@@ -26,7 +26,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import TopicNotesDrawer from "@/components/TopicNotesDrawer";
 import { useStudentProfile } from "@/hooks/useStudentProfile";
 import MathAnswerInput from "@/components/MathAnswerInput";
-import { normalizeMathInput } from "@/lib/mathNormalize";
+import { normalizeMathInput, mathExpressionsEquivalent } from "@/lib/mathNormalize";
 
 interface PracticeQuestion {
   id: number;
@@ -148,7 +148,7 @@ export default function Practice() {
     if (!userAnswer.trim()) return;
     const current = quizQuestions[currentIndex];
     const normalise = (s: string) => normalizeMathInput(s).replace(/^x=/i, "");
-    const isCorrect = normalise(userAnswer) === normalise(current.correctAnswer);
+    const isCorrect = normalise(userAnswer) === normalise(current.correctAnswer) || mathExpressionsEquivalent(userAnswer, current.correctAnswer);
     setResults(prev => [...prev, { questionId: current.id, correct: isCorrect, userAnswer: userAnswer.trim() }]);
     setAnswered(true);
     setShowExplanation(true);
