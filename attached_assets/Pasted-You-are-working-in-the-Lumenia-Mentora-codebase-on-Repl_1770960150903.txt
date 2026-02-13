@@ -1,0 +1,276 @@
+You are working in the Lumenia (Mentora) codebase on Replit.
+
+GOAL
+Add a new interactive + practice chapter: “Trigonometric Ratios” using the existing topic-aware template-based question engine (registry + generatorKey + resolver).
+
+This topic MUST include:
+1) Visual right-triangle diagrams (inline SVG)
+2) Some coordinate-plane angle visuals
+3) A chapter intro explainer card with diagrams
+4) Integration with global MathAnswerInput + normalize_math_input()
+
+Do NOT redesign the engine.
+
+--------------------------------------------------------------------
+1) TOPIC REGISTRY ENTRY (SINGLE SOURCE OF TRUTH)
+
+Add:
+
+{
+  id: "trigonometric_ratios",
+  slug: "trigonometric-ratios",
+  title: "Trigonometric Ratios",
+  subject: "math",
+  hasInteractive: true,
+  hasPractice: true,
+  generatorKey: "trigonometric_ratios"
+}
+
+--------------------------------------------------------------------
+2) GLOBAL MATH INPUT ENGINE
+
+All answer inputs must use MathAnswerInput and normalize_math_input().
+
+Students must be able to type:
+- Fractions: 3/5
+- Decimals: 0.6 (if allowed)
+- sqrt(3)/2
+- "0.75"
+
+Normalization rules:
+- Remove spaces
+- Accept equivalent decimal and fraction forms (if checker supports numeric tolerance)
+- Convert unicode √ to sqrt
+- Allow both decimal and exact answers (depending on question type)
+
+If numeric comparison is used:
+- Compare floats with tolerance 1e-6
+
+--------------------------------------------------------------------
+3) GENERATOR MODULE
+
+Create:
+  src/question_engine/trigonometric_ratios.py
+
+Export:
+  - generate_question(difficulty: str, seed: Optional[int] = None) -> dict
+  - generate_pool(difficulty: str, n: int, seed: Optional[int] = None, ensure_unique: bool = True) -> list[dict]
+
+Use random.Random(seed).
+IDs deterministic from (difficulty + archetype + sorted params).
+
+--------------------------------------------------------------------
+4) QUESTION SCHEMA (MUST MATCH EXISTING STRUCTURE)
+
+Return dict:
+
+{
+  "id": "<deterministic short hash>",
+  "topic": "trigonometric_ratios",
+  "difficulty": "easy|medium|hard|challenge",
+  "archetype": "<string>",
+  "prompt": "<question text>",
+  "answer": "<canonical answer>",
+  "worked_solution": ["Step 1", "Step 2", "...", "Final answer"],
+  "metadata": {
+      "params": {...},
+      "skills": [...],
+      "estimated_time_sec": <int>,
+
+      "visual": {
+          "type": "svg",
+          "svg": "<inline SVG>",
+          "alt": "<accessible description>",
+          "width": 420,
+          "height": 320
+      }
+  }
+}
+
+All questions in this topic should include metadata.visual.
+
+--------------------------------------------------------------------
+5) CONTENT SCOPE: TRIGONOMETRIC RATIOS
+
+Focus on right-angled triangles and the definitions:
+
+sin θ = opposite / hypotenuse  
+cos θ = adjacent / hypotenuse  
+tan θ = opposite / adjacent  
+
+Include:
+- Finding a ratio given side lengths
+- Finding missing side given angle and one side
+- Finding angle given ratio (inverse trig optional medium+)
+- Basic special angles (30°, 45°, 60°) in challenge
+
+Avoid:
+- Sine rule / cosine rule (separate topic)
+- Radians (unless optional challenge)
+
+--------------------------------------------------------------------
+6) VISUAL REQUIREMENTS (MANDATORY)
+
+Every question must include an inline SVG right triangle:
+
+Right triangle diagram must:
+- Clearly show right angle box
+- Label angle θ
+- Label sides: opposite, adjacent, hypotenuse (or lengths)
+- Include side length values when relevant
+- Be proportionally correct but not to scale strictly
+- Work responsively
+
+Use consistent orientation:
+- Base horizontal
+- Height vertical
+- Hypotenuse diagonal
+- Angle θ at bottom-left (default), vary occasionally
+
+Add alt text describing:
+- angle value
+- side lengths
+- what is being asked
+
+--------------------------------------------------------------------
+7) DIFFICULTY ARCHETYPES
+
+EASY (8)
+Archetypes:
+- identify_ratio: Given labeled triangle, compute sinθ, cosθ, or tanθ
+- ratio_from_lengths: sinθ = ? given opposite and hypotenuse
+Constraints:
+- Use Pythagorean triples (3-4-5, 5-12-13)
+- Answers as simplified fractions
+Skills:
+- ["identify_opposite_adjacent", "basic_ratio"]
+
+MEDIUM (8)
+Archetypes:
+- find_missing_side: Given θ and one side, find another side
+- find_ratio_decimal: Round to 2 decimal places (if allowed)
+- inverse_ratio_simple: Given sinθ = 0.5, find θ (30°, 45°, 60° only)
+Constraints:
+- Keep angles to common special or easy calculator values
+Skills:
+- ["apply_sin_cos_tan", "solve_for_side"]
+
+HARD (7)
+Archetypes:
+- algebraic_side_expression: Opposite = 2x, adjacent = 3x, find tanθ
+- two_step: Use Pythagoras first, then trig ratio
+- coordinate_triangle: Triangle plotted on coordinate grid
+Constraints:
+- Keep arithmetic manageable
+Skills:
+- ["pythagoras", "multi_step_trig"]
+
+CHALLENGE (7)
+Archetypes:
+- special_angles_exact: sin30°, cos45°, tan60°
+- prove_identity_numeric: Verify sin^2θ + cos^2θ = 1 for given triangle
+- mixed_visual_reasoning: Given diagram missing label, deduce needed ratio
+Constraints:
+- Provide exact answers using fractions or sqrt forms where appropriate
+Skills:
+- ["exact_values", "trig_identity"]
+
+--------------------------------------------------------------------
+8) CHAPTER INTRO EXPLAINER (MANDATORY)
+
+Add a chapter intro card that includes:
+
+Title: “Understanding Trigonometric Ratios”
+
+Content:
+- Definition of sin, cos, tan
+- SOH CAH TOA mnemonic
+- Small example with numbers
+- Inline SVG right triangle labeled “Opp”, “Adj”, “Hyp”
+
+Render this above the interactive section for this topic only.
+
+Do not create new heavy components.
+Reuse existing card/section layout.
+
+--------------------------------------------------------------------
+9) ANSWER CHECKING
+
+If answer expected is fraction:
+- Compare normalized fraction strings
+OR
+- Convert to float and compare within tolerance
+
+If decimal:
+- Round both expected and student answer to required decimal places
+
+If exact form (e.g., sqrt(3)/2):
+- Normalize and optionally evaluate numerically for comparison
+
+Do NOT allow arbitrary code execution.
+Use restricted safe evaluator for expressions involving:
+numbers, sqrt(), +, -, *, /, ^
+
+--------------------------------------------------------------------
+10) PRACTICE + WARM-UP + EXIT INTEGRATION
+
+Ensure:
+- Practice loads via generatorKey "trigonometric_ratios"
+- Header shows "Math – Trigonometric Ratios"
+- Regenerate works
+
+Default Practice mix:
+- 3 easy + 3 medium + 2 hard
+Challenge toggle off by default
+
+Warm-up:
+- 2 easy + 2 medium
+
+Exit ticket:
+- 1 medium + 1 hard
+
+--------------------------------------------------------------------
+11) TESTS
+
+Add:
+  tests/test_trigonometric_ratios_generator.py
+
+Verify:
+- required keys exist
+- deterministic seed
+- uniqueness in pool
+- all generated questions include metadata.visual.svg
+- at least:
+  - 2 missing side questions
+  - 2 inverse ratio questions
+- numeric answers correct within tolerance
+
+--------------------------------------------------------------------
+12) DOCUMENTATION
+
+Update:
+  docs/question_engine.md
+Add entry for "Trigonometric Ratios":
+- archetypes
+- answer formats
+- visual schema
+- tolerance rules
+
+--------------------------------------------------------------------
+DO NOT
+
+- Do not use external image URLs
+- Do not introduce new dependencies
+- Do not output LaTeX
+- Do not redesign engine
+- Do not bypass normalization engine
+
+DELIVERABLES
+
+- Topic registry entry
+- Generator module implemented
+- Visual right-triangle diagrams
+- Chapter intro explainer card
+- Practice works end-to-end
+- Tests passing
+- Docs updated

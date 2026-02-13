@@ -252,6 +252,18 @@ export const TOPIC_CATALOG: Record<string, SubjectConfig> = {
         generatorKey: "simultaneous_equations_substitution",
       },
       {
+        id: "trigonometric_ratios",
+        slug: "trigonometric-ratios",
+        name: "Trigonometric Ratios",
+        description: "Sine, cosine, and tangent ratios in right-angled triangles, including finding sides, angles, and exact values for special angles",
+        gradeRange: [9, 12],
+        prerequisites: ["geometry_basics"],
+        estimatedMinutes: 40,
+        hasInteractive: true,
+        hasPractice: true,
+        generatorKey: "trigonometric_ratios",
+      },
+      {
         id: "geometry_basics",
         slug: "geometry-basics",
         name: "Geometry Basics",
