@@ -1,0 +1,43 @@
+We have a navigation bug: clicking "Continue today's learning" sometimes routes to a non-existent lesson/topic and shows "Topic Not Found".
+
+GOAL
+Fix the Continue button selection + routing so it NEVER navigates to an invalid route.
+Do NOT change DB schema, do NOT change backend APIs, do NOT remove any learning components.
+
+REPRO
+From the first/home page, click "Continue today's learning" → it sometimes goes to "Topic Not Found".
+
+LIKELY CAUSE
+continueLesson (or selected lesson) has missing/undefined route identifiers (topicId/slug/lessonId) OR the wrong field name is used when building the navigation URL.
+
+WHAT TO DO (SAFE FIX)
+1) Find the component that renders "Continue today's learning" and locate the handler that constructs the navigation link/route.
+2) Inspect the lesson/topic object used for navigation and identify the required route params used elsewhere in the app for valid navigation.
+   - Search for existing code paths that navigate to a lesson successfully (e.g. clicking a lesson card).
+   - Reuse that SAME navigation helper / same URL builder.
+3) Add a strict validation guard BEFORE navigation:
+   - Determine the route requirements: e.g. (topicId OR topicSlug) AND (lessonId OR lessonSlug).
+   - If any required param is missing/undefined/empty string, do NOT navigate.
+4) Improve continueLesson selection logic:
+   - Only select from lessons that are "navigable".
+   - Create a helper: isNavigableLesson(lesson) that returns true only if required route params exist.
+   - continueLesson selection order:
+     a) most recent in_progress AND navigable
+     b) first not_started AND navigable
+     c) first lesson AND navigable
+     d) if none navigable: hide/disable Continue button and show a subtle message like "Pick a lesson to begin" and scroll to lesson list or focus it.
+5) Ensure the Continue button either:
+   - navigates to a valid lesson route, OR
+   - safely falls back to the MySubject page / subject overview route (existing route) without showing Topic Not Found.
+   Important: do not introduce new routes; reuse existing ones.
+6) Keep all existing tracking/analytics calls intact if they exist.
+
+OUTPUT
+- Provide the files changed.
+- Explain exactly what field(s) were wrong and what validation/fallback was added.
+- Confirm no backend or DB changes were made.
+
+TESTS (MANUAL)
+- Load home page, click Continue: should open a valid lesson every time.
+- If lesson data is missing route params: Continue should not break; it should disable or fallback.
+- Clicking lessons from the lesson list should still work exactly as before.

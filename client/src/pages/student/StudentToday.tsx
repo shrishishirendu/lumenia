@@ -53,6 +53,15 @@ interface DashboardData {
   nextSession: { subject: string; topic: string; scheduledAt: string } | null;
 }
 
+interface GradeTopicInfo {
+  id: number;
+  title: string;
+  description: string | null;
+  gradeLevel: number;
+  orderIndex: number;
+  lessonCount: number;
+}
+
 const SESSION_FLAG_KEY = "lumenia_session_started";
 const CLOSURE_SHOWN_KEY = "lumenia_closure_shown";
 
@@ -118,6 +127,53 @@ export default function StudentToday() {
 
   const memory = dashboardData?.memory;
   const studentGrade = dashboardData?.grade || 9;
+
+  const lastSubjectSlug = memory?.lastSubject || "math";
+  const subjectIdForLookup = lastSubjectSlug.includes("math") ? 1 : 2;
+
+  const { data: gradeTopics, isLoading: topicsLoading } = useQuery<GradeTopicInfo[]>({
+    queryKey: ["/api/topics/by-grade", studentGrade, subjectIdForLookup],
+    queryFn: async () => {
+      const res = await fetch(`/api/topics/by-grade?grade=${studentGrade}&subjectId=${subjectIdForLookup}`, { credentials: "include" });
+      if (!res.ok) return [];
+      const data = await res.json();
+      return data.topics || [];
+    },
+    enabled: !!dashboardData,
+  });
+
+  const resolveTopicRoute = (subjectSlug: string): string | null => {
+    const topicName = memory?.lastTopicName;
+    const topicSlugFromMemory = memory?.lastTopicId;
+    if (!topicName && !topicSlugFromMemory) return null;
+
+    const topics = gradeTopics || [];
+    if (topics.length === 0) return null;
+
+    const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+
+    let matched: GradeTopicInfo | undefined;
+    if (topicName) {
+      matched = topics.find(t => normalize(t.title) === normalize(topicName));
+    }
+    if (!matched && topicSlugFromMemory) {
+      matched = topics.find(t => normalize(t.title) === normalize(decodeURIComponent(topicSlugFromMemory)));
+    }
+    if (!matched && topicName) {
+      matched = topics.find(t => normalize(t.title).includes(normalize(topicName)) || normalize(topicName).includes(normalize(t.title)));
+    }
+
+    if (!matched && topics.length > 0) {
+      matched = topics[0];
+    }
+
+    if (matched) {
+      const topicParam = encodeURIComponent(matched.title);
+      return `/student/session/${subjectSlug}/${topicParam}?year=${studentGrade}&topicId=${matched.id}`;
+    }
+
+    return null;
+  };
   const streakCount = memory?.streakCount || 0;
   const dailyGoalMinutes = memory?.dailyGoalMinutes || 15;
   const todayMinutesCompleted = memory?.todayMinutesCompleted || 0;
@@ -144,17 +200,13 @@ export default function StudentToday() {
   const handleStartTodaysSession = () => {
     localStorage.setItem(SESSION_FLAG_KEY, "true");
     localStorage.removeItem(CLOSURE_SHOWN_KEY);
-    
+
     const subject = memory?.lastSubject || "math";
-    const topic = memory?.lastTopicId;
-    
-    if (topic) {
-      setLocation(`/student/session/${subject}/${topic}?year=${studentGrade}`);
+    const resolvedRoute = resolveTopicRoute(subject);
+
+    if (resolvedRoute) {
+      setLocation(resolvedRoute);
     } else {
-      toast({
-        title: "Session flow coming soon",
-        description: "For now, continue with your last activity or try a warm-up.",
-      });
       setLocation(`/student/session/${subject}/warmup?year=${studentGrade}`);
     }
   };
@@ -169,9 +221,15 @@ export default function StudentToday() {
   const handleContinueLearning = () => {
     localStorage.setItem(SESSION_FLAG_KEY, "true");
     localStorage.removeItem(CLOSURE_SHOWN_KEY);
+
     const subject = memory?.lastSubject || "math";
-    const topic = memory?.lastTopicId || "linear_equations";
-    setLocation(`/student/session/${subject}/${topic}?year=${studentGrade}`);
+    const resolvedRoute = resolveTopicRoute(subject);
+
+    if (resolvedRoute) {
+      setLocation(resolvedRoute);
+    } else {
+      setLocation(`/student/session/${subject}/warmup?year=${studentGrade}`);
+    }
   };
 
   const updateGoalMutation = useMutation({
