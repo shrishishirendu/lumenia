@@ -1,0 +1,101 @@
+You are working on the "MySubject" page (student-facing subject lessons page) in this Replit project.
+
+GOAL
+Redesign the MySubject page UI to be more learning-driven and modern, WITHOUT breaking anything:
+- Do NOT change database schema.
+- Do NOT change existing APIs, endpoints, queries, or server logic.
+- Do NOT remove any existing learning components or routes (lesson view, practice, warmup, exit ticket, Mentora notes, etc.).
+- Do NOT rename existing data fields coming from backend.
+- Focus only on UI layout, state, and rendering. Keep behavior intact.
+
+NON-NEGOTIABLE SAFETY RULES
+1) Zero DB changes, zero migrations.
+2) Zero backend route changes.
+3) All existing navigation must still work exactly as before.
+4) If a lesson is clicked today and it routes to lesson page, it must still route the same way.
+5) Keep all telemetry/tracking calls intact if they exist.
+6) No new external dependencies unless already present in package.json.
+
+WHAT TO BUILD (UI ONLY)
+Update the MySubject page to this structure:
+
+A) Top "Hero" Section (compact)
+- Subject title and optional chapter name if present.
+- Show progress summary using whatever data exists (e.g., completed lessons count / total).
+  If exact progress fields are not available, compute from existing lesson status fields (completed/in_progress) without adding backend logic.
+- Primary CTA button: "Continue" which deep-links to the most recent in-progress lesson; if none, first not-started lesson; else first lesson.
+  IMPORTANT: Use existing lesson route/navigation helpers. Do NOT change URLs.
+
+B) Quick Practice Strip (non-invasive)
+- Add a horizontal strip with 2–3 buttons/cards:
+  - "Quick Practice (5)" 
+  - "Trap Practice (5)" (only show if topic supports it or just show as disabled with tooltip "Coming soon")
+  - "Timed Challenge (10)" (optional)
+- These buttons should call existing practice routes or existing "practice session" components if they already exist.
+- If no practice route exists, keep these as UI-only placeholders (disabled) rather than creating new backend.
+
+C) Filter Chips + Search (front-end only)
+- Add filter chips above the lesson list:
+  All | In Progress | Not Started | Completed | Challenge
+- Add a search input that filters lessons by title client-side.
+- These filters must not require backend calls; filter the already-loaded lessons array.
+
+D) Lesson Cards Grid (replace plain rows)
+- Render lessons as responsive cards (2–3 columns on desktop, 1 column on mobile).
+- Each card shows:
+  - Lesson title
+  - small badge for difficulty if available (else omit gracefully)
+  - status (Completed / In progress / Not started) based on existing lesson fields
+  - estimated time if available (else omit)
+  - a "Start" or "Resume" button
+- Clicking the card or button must behave exactly like current behavior (same navigation function).
+
+E) Optional Right-side Preview Panel (SAFE + OPTIONAL)
+- If the codebase already has a Drawer/Modal component, use it.
+- When a lesson card is clicked, ALSO show a small preview panel/drawer with:
+  - Lesson title
+  - short description if available
+  - buttons: Start/Resume
+- But do NOT block the existing navigation flow.
+  If navigation currently happens immediately on click, keep it immediate.
+  Implement preview only if it does not conflict; otherwise skip.
+
+VISUAL STYLE (do not overdesign)
+- Modern, clean, minimal.
+- Soft shadows, rounded corners, subtle hover.
+- Use existing design system / Tailwind classes / CSS modules already in repo.
+- Do not introduce new global CSS that could affect other pages.
+
+IMPLEMENTATION STEPS
+1) Locate MySubject page component and identify how lessons are loaded and rendered.
+2) Keep the data loading code unchanged.
+3) Introduce local UI state:
+   - selectedFilter
+   - searchQuery
+4) Build derivedLessons = lessons filtered by search + filter.
+5) Build continueLesson = pick most relevant lesson using existing status fields:
+   - prefer in_progress most recent (if there is a lastAccessed/updatedAt use it; else first in_progress)
+   - else first not_started
+   - else first lesson
+6) Replace current list rendering with card grid rendering.
+7) Ensure keyboard accessibility: buttons are real <button>, cards are clickable but do not trap focus.
+8) Test:
+   - page loads
+   - filters work
+   - search works
+   - clicking lessons still routes correctly
+   - no console errors
+   - responsive layout works
+
+EDGE CASES
+- If lessons array is empty: show friendly empty state and keep any existing CTA.
+- If some lesson fields are missing: omit those UI elements gracefully (no crashes).
+- Do not assume difficulty/time fields exist.
+
+DELIVERABLE
+- Only modify the MySubject page and any small local UI components it uses.
+- Provide a short summary of changes and file list after completing.
+
+IMPORTANT
+Do NOT touch DB, do NOT change APIs, do NOT change authentication, do NOT remove learning components.
+This is purely a UI/UX upgrade with safe front-end logic only.
