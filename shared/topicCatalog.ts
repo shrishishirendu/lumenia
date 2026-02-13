@@ -240,6 +240,18 @@ export const TOPIC_CATALOG: Record<string, SubjectConfig> = {
         generatorKey: "simultaneous_equations_graphical",
       },
       {
+        id: "simultaneous_equations_substitution",
+        slug: "simultaneous-equations-substitution",
+        name: "Simultaneous Equations – Substitution",
+        description: "Solve simultaneous equations algebraically using the substitution method, including rearranging, fractional coefficients, and special cases (parallel, coincident)",
+        gradeRange: [9, 11],
+        prerequisites: ["simultaneous_equations_graphical"],
+        estimatedMinutes: 35,
+        hasInteractive: true,
+        hasPractice: true,
+        generatorKey: "simultaneous_equations_substitution",
+      },
+      {
         id: "geometry_basics",
         slug: "geometry-basics",
         name: "Geometry Basics",

@@ -11,6 +11,7 @@ import { generateMixedPool as generateFactorisingCFPool } from "./factorisingCom
 import { generateMixedPool as generateFactorisingQuadPool } from "./factorisingQuadratics";
 import { generateMixedPool as generateFindingEqLinesPool } from "./findingEquationsOfLines";
 import { generateMixedPool as generateSimEqGraphPool } from "./simultaneousEquationsGraphical";
+import { generateMixedPool as generateSimEqSubPool } from "./simultaneousEquationsSubstitution";
 
 export type DifficultyConfig = { difficulty: "easy" | "medium" | "hard" | "challenge"; count: number };
 export type GeneratorFn = (config: DifficultyConfig[], seed?: number) => any[];
@@ -29,6 +30,7 @@ const GENERATOR_REGISTRY: Record<string, GeneratorFn> = {
   factorising_quadratics: generateFactorisingQuadPool,
   finding_equations_of_lines: generateFindingEqLinesPool,
   simultaneous_equations_graphical: generateSimEqGraphPool,
+  simultaneous_equations_substitution: generateSimEqSubPool,
 };
 
 const GENERATOR_ALIASES: Record<string, string> = {

@@ -1,0 +1,302 @@
+You are working in the Lumenia (Mentora) codebase on Replit.
+
+GOAL
+Add a new interactive + practice chapter: “Simultaneous Equations – Substitution” using the existing topic-aware template-based question engine (registry + generatorKey + resolver). Do not redesign the engine. Follow the established schema used by other topics.
+
+IMPORTANT: This topic must include:
+1) Core substitution questions (solve algebraically)
+2) Some VISUAL/GRAPHICAL content (inline SVG) that illustrates what substitution means and how it matches the intersection point of two lines
+3) Interactive-style explanation blocks for the chapter intro (lightweight, no heavy new framework)
+
+Also ensure integration with global MathAnswerInput + normalize_math_input().
+
+--------------------------------------------------------------------
+1) TOPIC REGISTRY ENTRY (SINGLE SOURCE OF TRUTH)
+
+Add to the central topic registry/config:
+
+{
+  id: "simultaneous_equations_substitution",
+  slug: "simultaneous-equations-substitution",
+  title: "Simultaneous Equations – Substitution",
+  subject: "math",
+  hasInteractive: true,
+  hasPractice: true,
+  generatorKey: "simultaneous_equations_substitution"
+}
+
+--------------------------------------------------------------------
+2) GLOBAL MATH INPUT ENGINE (MUST)
+
+All answer input boxes must use MathAnswerInput and normalize_math_input().
+
+Students should be able to enter solutions in simple formats:
+- "(2,3)"
+- "x=2, y=3"
+- "2,3"
+
+Use a shared canonical format for expected answers:
+- "(x,y)" e.g., "(2,3)" with no spaces
+
+Use a shared helper (create if not already):
+- normalize_coordinate_pair_input(raw: string) -> "(x,y)" OR "no solution" OR "infinitely many solutions"
+This helper should be reused from the graphical topic if it already exists.
+
+Do NOT create topic-specific input parsing.
+
+--------------------------------------------------------------------
+3) GENERATOR MODULE
+
+Create:
+  src/question_engine/simultaneous_equations_substitution.py
+
+Export:
+  - generate_question(difficulty: str, seed: Optional[int] = None) -> dict
+  - generate_pool(difficulty: str, n: int, seed: Optional[int] = None, ensure_unique: bool = True) -> list[dict]
+
+Use random.Random(seed) for deterministic generation.
+IDs must be deterministic from (difficulty + archetype + sorted params). Avoid duplicates in a pool.
+
+--------------------------------------------------------------------
+4) QUESTION SCHEMA (MUST MATCH EXISTING GENERATORS)
+
+Return dict:
+
+{
+  "id": "<deterministic short hash>",
+  "topic": "simultaneous_equations_substitution",
+  "difficulty": "easy|medium|hard|challenge",
+  "archetype": "<string>",
+  "prompt": "<question text>",
+  "answer": "<canonical answer string, e.g. '(2,3)'>",
+  "worked_solution": ["Step 1", "Step 2", "...", "Final answer"],
+  "metadata": {
+      "params": {...},
+      "skills": [...],
+      "estimated_time_sec": <int>,
+
+      # OPTIONAL visual support for some questions:
+      "visual": {
+          "type": "svg",
+          "svg": "<inline SVG string>",
+          "alt": "<accessible description>",
+          "width": 460,
+          "height": 320
+      },
+
+      # OPTIONAL for interactive explainer cards:
+      "explain": {
+          "title": "<short title>",
+          "bullets": ["...", "..."],
+          "example": "<short worked example text>"
+      }
+  }
+}
+
+Only include metadata.visual or metadata.explain when relevant.
+Do not break other topics.
+
+--------------------------------------------------------------------
+5) CONTENT SCOPE: SUBSTITUTION METHOD
+
+Students should learn:
+- Rearrange one equation to make a variable the subject (usually y = ...)
+- Substitute into the other equation
+- Solve the resulting single-variable equation
+- Substitute back to find the other variable
+- Present answer as (x,y)
+- Understand the link: solution = intersection point of two lines (visual support)
+
+Include cases like:
+- y expressed already: y = 2x + 3 and y = -x + 1
+- x expressed already: x = 3y - 2 (medium/hard)
+Avoid messy fractions in easy/medium; allow simple fractions in hard/challenge.
+
+--------------------------------------------------------------------
+6) VISUAL/GRAPHICAL REQUIREMENT (MANDATORY)
+
+Include visual elements in TWO places:
+
+A) Chapter Intro (Interactive explanation block)
+Add a lightweight “chapter intro” rendering in the UI for this topic:
+- An explainer card that shows:
+  - substitution concept (replace y with expression)
+  - link to intersection point
+- Include a simple inline SVG with two lines and intersection point
+This can be stored as a static chapter asset OR generated once with fixed parameters.
+
+B) Practice Questions (Visual questions)
+At least:
+- 2 MEDIUM questions include metadata.visual (show both lines and intersection)
+- 2 HARD questions include metadata.visual
+- 2 CHALLENGE questions include metadata.visual
+These visuals should reinforce that the algebraic solution equals the intersection on the graph.
+
+Use inline SVG only (no external images). Make responsive.
+
+--------------------------------------------------------------------
+7) DIFFICULTY ARCHETYPES (Cambridge-style)
+
+EASY (8)
+Archetypes:
+- y_equals_expression_both:
+  y = mx + c and y = nx + d (substitute by equating or substituting directly)
+- one_eq_y_form_other_standard:
+  y = mx + c and ax + by = k (substitute y into second)
+Constraints:
+- m,n integers in [-3..3], avoid equal slopes
+- intersection at integer point within [-5..5]
+Answer format:
+- "(x,y)"
+Skills tags:
+- ["substitution", "solve_linear", "substitute_back"]
+
+MEDIUM (8)
+Archetypes:
+- x_equals_expression:
+  x = py + q paired with ax + by = k (substitute x)
+- substitution_requires_rearrange:
+  ax + by = c and dx + ey = f (rearrange first into y=...)
+- visual_substitution_link (must include metadata.visual):
+  show graph + equations; solve by substitution (not by reading graph)
+Constraints:
+- Mostly integer solutions; allow simple halves rarely
+Skills tags:
+- ["rearrange", "substitution", "solve_linear", "interpret_graph"]
+
+HARD (7)
+Archetypes:
+- fractional_coefficients_light:
+  e.g., 2x + 3y = 12 with y = (x+1)/2
+- negative_and_rearrange:
+  -x + 2y = 7 and 3x + y = 5
+- visual_hard (must include metadata.visual):
+  show graph to confirm/check the algebra result
+Constraints:
+- Allow some fractional solutions (denominator <= 4)
+Skills tags:
+- ["substitution", "fractions", "rearrange", "verify_solution"]
+
+CHALLENGE (7)
+Archetypes:
+- special_cases_parallel:
+  two equations yield parallel lines => "no solution"
+- special_cases_coincident:
+  same line => "infinitely many solutions"
+- visual_classify:
+  show graph and equations; solve by substitution OR classify solution count
+Constraints:
+- Include at least 1 "no solution" and 1 "infinitely many solutions"
+Canonical answers:
+- "no solution"
+- "infinitely many solutions"
+Skills tags:
+- ["classify_solutions", "parallel_lines", "coincident_lines", "substitution"]
+
+--------------------------------------------------------------------
+8) VISUAL SVG GENERATION DETAILS
+
+For visual questions and intro diagram:
+- Draw axes with tick labels -6..6
+- Plot both lines clearly (different styles)
+- Mark intersection point with a dot and label it (optional)
+- Keep lines within viewport, readable on mobile
+- Add SVG <title> or use metadata.visual.alt
+
+Use line parameters from metadata.params to generate SVG consistently.
+
+--------------------------------------------------------------------
+9) ANSWER CHECKING
+
+Use normalize_coordinate_pair_input() for student answers and expected answers.
+
+Expected answer strings:
+- "(x,y)" e.g., "(2,3)"
+- "no solution"
+- "infinitely many solutions"
+
+For special cases:
+- Parallel lines => "no solution"
+- Coincident lines => "infinitely many solutions"
+
+--------------------------------------------------------------------
+10) PRACTICE + WARM-UP + EXIT INTEGRATION
+
+Assume Warm-up and Exit Ticket are topic-aware via registry + resolver.
+
+Ensure:
+- Practice loads via generatorKey "simultaneous_equations_substitution"
+- Header shows "Math – Simultaneous Equations (Substitution)"
+- Regenerate changes seed and refreshes
+
+Default Practice mix:
+- 3 easy + 3 medium + 2 hard
+Challenge toggle off by default
+
+Warm-up default:
+- 2 easy + 2 medium
+
+Exit ticket default:
+- 1 medium + 1 hard
+
+Add hint near input:
+"Answer format: (x,y) e.g., (2,3). For special cases: no solution / infinitely many solutions."
+
+--------------------------------------------------------------------
+11) UI: CHAPTER INTRO EXPLAINER (LIGHTWEIGHT)
+
+Implement for this topic (and reusable for future topics):
+- If a topic has a chapterIntro definition (static config or in registry):
+  render a card at the top of the interactive page with:
+  - title
+  - 3–5 bullet points
+  - small example
+  - inline SVG diagram
+
+Do NOT add new heavy dependencies.
+Use existing UI components.
+
+--------------------------------------------------------------------
+12) TESTS
+
+Add:
+  tests/test_simultaneous_equations_substitution_generator.py
+
+Verify:
+- required keys exist
+- deterministic with seed
+- uniqueness in pool
+- at least 6 questions include metadata.visual.svg
+- includes at least 1 parallel/no-solution and 1 coincident/infinite case
+- generated solutions are correct by verifying substitution algebra using computed intersection:
+  compute intersection from equation parameters and compare to expected answer
+
+Also test normalize_coordinate_pair_input() (if not already tested).
+
+--------------------------------------------------------------------
+13) DOCUMENTATION
+
+Update:
+  docs/question_engine.md
+Add entry for "Simultaneous Equations – Substitution":
+- archetypes
+- expected answer format
+- visual schema usage
+- chapter intro explainer card behavior
+
+--------------------------------------------------------------------
+DO NOT
+
+- Do not change DB schema
+- Do not introduce new dependencies
+- Do not use external image URLs; inline SVG only
+- Do not redesign the engine
+- Do not bypass normalization engine
+
+DELIVERABLES
+- Topic registry entry
+- Generator module implemented
+- Visual questions + intro visual explainer supported and rendered
+- Practice works end-to-end
+- Tests passing
+- Docs updated
