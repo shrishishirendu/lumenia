@@ -1,4 +1,4 @@
-import { normalizeMathInput, mathExpressionsEquivalent } from "../client/src/lib/mathNormalize";
+import { normalizeMathInput, mathExpressionsEquivalent, normalizeCoordinatePairInput } from "../client/src/lib/mathNormalize";
 
 let passed = 0;
 let failed = 0;
@@ -172,6 +172,25 @@ console.log("\n17. mathExpressionsEquivalent for line equations (y=mx+c)");
   assert(!mathExpressionsEquivalent("y=2x+3", "y=2x+4"), "different intercepts not equal");
   assert(!mathExpressionsEquivalent("y=2x+3", "y=3x+3"), "different slopes not equal");
   assert(mathExpressionsEquivalent("y=-2x+1", "y=-2x+1"), "negative slope identical");
+}
+
+{
+  console.log("\n--- normalizeCoordinatePairInput ---");
+  assertEq(normalizeCoordinatePairInput("x=2, y=3"), "(2,3)", "labeled x=2 y=3");
+  assertEq(normalizeCoordinatePairInput("x = -1 ; y = 4"), "(-1,4)", "labeled with semicolon and spaces");
+  assertEq(normalizeCoordinatePairInput("( 2 , -1 )"), "(2,-1)", "brackets with spaces");
+  assertEq(normalizeCoordinatePairInput("(2,3)"), "(2,3)", "already canonical");
+  assertEq(normalizeCoordinatePairInput("2,3"), "(2,3)", "bare pair");
+  assertEq(normalizeCoordinatePairInput("-3,5"), "(-3,5)", "negative x bare pair");
+  assertEq(normalizeCoordinatePairInput("No Solution"), "no solution", "no solution case-insensitive");
+  assertEq(normalizeCoordinatePairInput("NO SOLUTION"), "no solution", "no solution uppercase");
+  assertEq(normalizeCoordinatePairInput("  no solution  "), "no solution", "no solution with whitespace");
+  assertEq(normalizeCoordinatePairInput("infinite solutions"), "infinitely many solutions", "infinite keyword");
+  assertEq(normalizeCoordinatePairInput("Infinitely many solutions"), "infinitely many solutions", "full infinite phrase");
+  assertEq(normalizeCoordinatePairInput("x=0, y=0"), "(0,0)", "origin labeled");
+  assertEq(normalizeCoordinatePairInput("(0,0)"), "(0,0)", "origin brackets");
+  assertEq(normalizeCoordinatePairInput("x=-2, y=-3"), "(-2,-3)", "negative labeled pair");
+  assertEq(normalizeCoordinatePairInput("1.5,2"), "(1.5,2)", "decimal value");
 }
 
 console.log(`\n=== Results: ${passed} passed, ${failed} failed ===`);

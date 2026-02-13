@@ -228,6 +228,18 @@ export const TOPIC_CATALOG: Record<string, SubjectConfig> = {
         generatorKey: "finding_equations_of_lines",
       },
       {
+        id: "simultaneous_equations_graphical",
+        slug: "simultaneous-equations-graphical",
+        name: "Simultaneous Equations – Graphical",
+        description: "Solve simultaneous equations by reading the intersection point from graphs of two lines, including special cases (parallel, coincident)",
+        gradeRange: [9, 11],
+        prerequisites: ["finding_equations_of_lines"],
+        estimatedMinutes: 30,
+        hasInteractive: true,
+        hasPractice: true,
+        generatorKey: "simultaneous_equations_graphical",
+      },
+      {
         id: "geometry_basics",
         slug: "geometry-basics",
         name: "Geometry Basics",

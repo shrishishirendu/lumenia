@@ -1,0 +1,264 @@
+You are working in the Lumenia (Mentora) codebase on Replit.
+
+GOAL
+Add a new interactive + practice chapter: “Simultaneous Equations – Graphical” using the existing topic-aware template-based question engine (registry + generatorKey + resolver). Do not redesign the engine. Follow the established schema used by other topics.
+
+This chapter MUST include visual questions with graphs of two lines, and questions where students find the solution (intersection point) from the graph.
+
+Also ensure integration with global MathAnswerInput + normalize_math_input().
+
+--------------------------------------------------------------------
+1) TOPIC REGISTRY ENTRY (SINGLE SOURCE OF TRUTH)
+
+Add to the central topic registry/config:
+
+{
+  id: "simultaneous_equations_graphical",
+  slug: "simultaneous-equations-graphical",
+  title: "Simultaneous Equations – Graphical",
+  subject: "math",
+  hasInteractive: true,
+  hasPractice: true,
+  generatorKey: "simultaneous_equations_graphical"
+}
+
+--------------------------------------------------------------------
+2) GLOBAL MATH INPUT ENGINE (MUST)
+
+All answer input boxes must use MathAnswerInput and normalize_math_input().
+
+Students should be able to enter solutions in simple formats:
+- "(2,3)"
+- "x=2, y=3"
+- "x = 2 ; y = 3"
+- "2,3"
+
+Implement a consistent canonical solution format for expected answers, and normalize student input into that format before checking.
+
+Recommended canonical expected answer format:
+- "(x,y)" as "(2,3)" with no spaces.
+
+Normalization rules (extend normalize_math_input() or add a shared helper):
+- Remove spaces
+- Accept brackets optional
+- Accept "x=" and "y=" labels
+- Extract two numbers in order (x then y)
+- Return "(x,y)" canonical string
+
+Do NOT create topic-specific parsing in the UI; keep it reusable.
+
+--------------------------------------------------------------------
+3) GENERATOR MODULE
+
+Create:
+  src/question_engine/simultaneous_equations_graphical.py
+
+Export:
+  - generate_question(difficulty: str, seed: Optional[int] = None) -> dict
+  - generate_pool(difficulty: str, n: int, seed: Optional[int] = None, ensure_unique: bool = True) -> list[dict]
+
+Use random.Random(seed) for deterministic generation.
+IDs must be deterministic from (difficulty + archetype + sorted params). Avoid duplicates in a pool.
+
+--------------------------------------------------------------------
+4) QUESTION SCHEMA (MUST MATCH EXISTING GENERATORS)
+
+Return dict:
+
+{
+  "id": "<deterministic short hash>",
+  "topic": "simultaneous_equations_graphical",
+  "difficulty": "easy|medium|hard|challenge",
+  "archetype": "<string>",
+  "prompt": "<question text>",
+  "answer": "<canonical answer string, e.g. '(2,3)'>",
+  "worked_solution": ["Step 1", "Step 2", "...", "Final answer"],
+  "metadata": {
+      "params": {...},
+      "skills": [...],
+      "estimated_time_sec": <int>,
+
+      # REQUIRED for this topic:
+      "visual": {
+          "type": "svg",
+          "svg": "<inline SVG string showing BOTH lines on a coordinate grid>",
+          "alt": "<accessible description>",
+          "width": 460,
+          "height": 340
+      }
+  }
+}
+
+Every question for this topic should include a visual (SVG). If some are non-visual, keep them minimal and still aligned, but aim for visual-first.
+
+--------------------------------------------------------------------
+5) CONTENT SCOPE: GRAPHICAL SOLUTIONS OF SIMULTANEOUS EQUATIONS
+
+Students should learn:
+- Each equation represents a line.
+- The solution is the intersection point (x,y).
+- Interpret intersection from graph (read coordinates).
+- Identify special cases:
+  - One solution (lines intersect once)
+  - No solution (parallel lines)
+  - Infinite solutions (same line) — optional challenge
+
+No need to teach drawing the graph from scratch (optional later); focus on reading and interpreting.
+
+--------------------------------------------------------------------
+6) VISUAL REQUIREMENTS (IMPORTANT)
+
+SVG graphs must:
+- Show x and y axes with tick marks and integer labels (at least -5 to 5)
+- Plot two lines clearly distinguished (different stroke styles or thickness)
+- Include a visible intersection point marker when there is a single solution
+- Keep scale consistent and readable on mobile
+- Include alt text describing:
+  - the two line equations
+  - whether they intersect / are parallel / same
+  - and what the question asks
+
+No external images; inline SVG only.
+
+--------------------------------------------------------------------
+7) ARCHETYPES & DIFFICULTY BANDS (Cambridge-style)
+
+EASY (8)
+Archetypes:
+- integer_intersection_small: two lines with an integer intersection within [-4..4]
+Prompt:
+- “From the graph, find the solution (x,y) where the two lines intersect.”
+Constraints:
+- Choose lines so intersection is clean integer
+Skills tags:
+- ["read_intersection", "coordinate_reading"]
+
+MEDIUM (8)
+Archetypes:
+- intersection_with_given_equations: show graph + provide equations y=mx+c for both lines
+- verify_solution: graph shows intersection; ask to confirm by substitution (optional)
+Constraints:
+- intersection integer; slopes may be fractional but still plot cleanly
+Skills tags:
+- ["read_intersection", "interpret_line_equation"]
+
+HARD (7)
+Archetypes:
+- fractional_intersection: intersection at simple halves (e.g., (1.5, -2)) OR keep integer but harder reading
+- near_ticks: intersection not at origin and requires careful reading
+- parallel_lines_no_solution: lines parallel; student answers “no solution”
+Constraints:
+- If using fractional intersections, keep to .5 only and clearly mark half-ticks OR avoid fractions and increase complexity another way.
+- Include at least 2 “no solution” parallel cases
+Answer format for no-solution:
+- canonical answer string "no solution"
+Skills tags:
+- ["read_intersection", "parallel_lines", "no_solution_case"]
+
+CHALLENGE (7)
+Archetypes:
+- same_line_infinite_solutions: two identical lines; answer “infinitely many solutions”
+- choose_correct_graph: show graph and ask which pair of equations match (only if your platform supports MCQ)
+- determine_number_of_solutions: based on graph (1 / 0 / infinite)
+Answer format canonical:
+- "infinitely many solutions"
+Skills tags:
+- ["classify_solutions", "coincident_lines", "parallel_lines"]
+
+--------------------------------------------------------------------
+8) ANSWER CANONICALIZATION (CRITICAL)
+
+Expected answers should be one of:
+- "(x,y)" e.g., "(2,3)"
+- "no solution"
+- "infinitely many solutions"
+
+Implement a shared normalizer helper (reusable):
+- normalize_coordinate_pair_input(raw: string) -> string
+Rules:
+- If text contains “no solution” (case-insensitive) => "no solution"
+- If contains “infinite” => "infinitely many solutions"
+- Else extract two numbers (allow negatives, allow decimals if you allow .5)
+- Return "(x,y)" with no spaces
+This helper should be used by the checker for this topic and could be reused in other coordinate topics later.
+
+--------------------------------------------------------------------
+9) PRACTICE + WARM-UP + EXIT INTEGRATION
+
+Assume Warm-up and Exit Ticket are topic-aware via registry + resolver.
+
+Ensure:
+- Practice loads topic via generatorKey "simultaneous_equations_graphical"
+- Header shows "Math – Simultaneous Equations (Graphical)"
+- Regenerate changes seed and refreshes
+
+Default Practice mix:
+- 3 easy + 3 medium + 2 hard
+Challenge toggle off by default
+
+Warm-up default:
+- 2 easy + 2 medium
+
+Exit ticket default:
+- 1 medium + 1 hard
+
+Add hint near input:
+"Answer format: (x,y) e.g., (2,3). For special cases type: no solution / infinitely many solutions."
+
+--------------------------------------------------------------------
+10) UI RENDERING FOR VISUAL QUESTIONS
+
+Ensure the shared renderer already supports metadata.visual.svg.
+If not, implement:
+- Render SVG above prompt
+- Responsive sizing (max-width: 100%)
+- Provide alt text (aria-label or <title> in SVG)
+
+--------------------------------------------------------------------
+11) TESTS
+
+Add:
+  tests/test_simultaneous_equations_graphical_generator.py
+
+Verify:
+- required keys exist
+- deterministic with seed
+- uniqueness in pool
+- all generated questions contain metadata.visual.svg with non-empty SVG
+- intersection answers correct (spot check by computing intersection from line params)
+- includes at least:
+  - 2 parallel/no-solution cases
+  - 1 coincident/infinite case (challenge)
+
+Also test normalize_coordinate_pair_input():
+- "x=2, y=3" -> "(2,3)"
+- "( 2 , -1 )" -> "(2,-1)"
+- "No Solution" -> "no solution"
+- "infinite solutions" -> "infinitely many solutions"
+
+--------------------------------------------------------------------
+12) DOCUMENTATION
+
+Update:
+  docs/question_engine.md
+Add entry for "Simultaneous Equations – Graphical":
+- visual schema requirements
+- accepted answer formats
+- special cases
+
+--------------------------------------------------------------------
+DO NOT
+
+- Do not change DB schema
+- Do not introduce new dependencies
+- Do not use external image URLs; inline SVG only
+- Do not redesign engine
+- Do not bypass normalization engine
+
+DELIVERABLES
+- Topic registry entry
+- Generator module implemented (visual-first)
+- Coordinate-pair input normalizer
+- Practice works end-to-end
+- Tests passing
+- Docs updated

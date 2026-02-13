@@ -10,6 +10,7 @@ import { generateMixedPool as generateGradientParallelPool } from "./gradientAnd
 import { generateMixedPool as generateFactorisingCFPool } from "./factorisingCommonFactors";
 import { generateMixedPool as generateFactorisingQuadPool } from "./factorisingQuadratics";
 import { generateMixedPool as generateFindingEqLinesPool } from "./findingEquationsOfLines";
+import { generateMixedPool as generateSimEqGraphPool } from "./simultaneousEquationsGraphical";
 
 export type DifficultyConfig = { difficulty: "easy" | "medium" | "hard" | "challenge"; count: number };
 export type GeneratorFn = (config: DifficultyConfig[], seed?: number) => any[];
@@ -27,6 +28,7 @@ const GENERATOR_REGISTRY: Record<string, GeneratorFn> = {
   factorising_common_factors: generateFactorisingCFPool,
   factorising_quadratics: generateFactorisingQuadPool,
   finding_equations_of_lines: generateFindingEqLinesPool,
+  simultaneous_equations_graphical: generateSimEqGraphPool,
 };
 
 const GENERATOR_ALIASES: Record<string, string> = {

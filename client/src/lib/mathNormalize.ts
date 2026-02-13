@@ -80,6 +80,26 @@ function stripEquationLHS(expr: string): string {
   return norm;
 }
 
+export function normalizeCoordinatePairInput(raw: string): string {
+  const s = raw.trim().toLowerCase();
+  if (/no\s*solution/.test(s)) return "no solution";
+  if (/infinite/.test(s)) return "infinitely many solutions";
+
+  const cleaned = s.replace(/[()]/g, "").replace(/\s/g, "");
+
+  const labeled = cleaned.match(/x\s*=\s*(-?[\d.]+(?:\/\d+)?).*?y\s*=\s*(-?[\d.]+(?:\/\d+)?)/);
+  if (labeled) {
+    return `(${labeled[1]},${labeled[2]})`;
+  }
+
+  const pair = cleaned.match(/^(-?[\d.]+(?:\/\d+)?)[,;]\s*(-?[\d.]+(?:\/\d+)?)$/);
+  if (pair) {
+    return `(${pair[1]},${pair[2]})`;
+  }
+
+  return raw.trim();
+}
+
 export function mathExpressionsEquivalent(a: string, b: string): boolean {
   const na = normalizeMathInput(a);
   const nb = normalizeMathInput(b);
