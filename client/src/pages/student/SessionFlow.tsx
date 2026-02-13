@@ -8,6 +8,7 @@ import { Progress } from "@/components/ui/progress";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import MathAnswerInput from "@/components/MathAnswerInput";
+import MarkdownContent from "@/components/MarkdownContent";
 import { normalizeMathInput, mathExpressionsEquivalent } from "@/lib/mathNormalize";
 import { 
   Zap, 
@@ -570,9 +571,7 @@ export default function SessionFlow() {
         {explanationSegments.map((seg) => (
           <Card key={seg.id} className="p-6" data-testid={`segment-explanation-${seg.id}`}>
             <h3 className="text-lg font-semibold mb-4">{seg.title}</h3>
-            <div className="prose prose-sm max-w-none whitespace-pre-line">
-              {seg.content}
-            </div>
+            <MarkdownContent content={seg.content} />
             {seg.tutorScript && (
               <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-100">
                 <p className="text-sm text-blue-800 flex items-start gap-2">
@@ -587,9 +586,7 @@ export default function SessionFlow() {
         {exampleSegments.map((seg) => (
           <Card key={seg.id} className="p-6 bg-blue-50" data-testid={`segment-example-${seg.id}`}>
             <h3 className="text-lg font-semibold mb-3">{seg.title}</h3>
-            <div className="prose prose-sm max-w-none whitespace-pre-line">
-              {seg.content}
-            </div>
+            <MarkdownContent content={seg.content} />
             {seg.whiteboardContent && (() => {
               try {
                 const wb = JSON.parse(seg.whiteboardContent);
@@ -622,9 +619,7 @@ export default function SessionFlow() {
         {practiceSegments.map((seg) => (
           <Card key={seg.id} className="p-6 bg-green-50" data-testid={`segment-practice-${seg.id}`}>
             <h3 className="text-lg font-semibold mb-3">{seg.title}</h3>
-            <div className="prose prose-sm max-w-none whitespace-pre-line">
-              {seg.content}
-            </div>
+            <MarkdownContent content={seg.content} />
             {seg.tutorScript && (
               <div className="mt-4 p-3 bg-white/70 rounded-lg border border-green-100">
                 <p className="text-sm text-green-800 flex items-start gap-2">
