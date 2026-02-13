@@ -287,6 +287,9 @@ export async function runAutoSeed() {
     const { seedSimultaneousEquationsSubstitution } = await import("./simultaneousEquationsSubstitution");
     await seedSimultaneousEquationsSubstitution();
 
+    const { seedTrigonometricRatios } = await import("./trigonometricRatios");
+    await seedTrigonometricRatios();
+
     console.log("Auto-seed: complete.");
   } catch (error) {
     console.error("Auto-seed error (non-fatal):", error);
