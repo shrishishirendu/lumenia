@@ -216,6 +216,18 @@ export const TOPIC_CATALOG: Record<string, SubjectConfig> = {
         generatorKey: "factorising_quadratics",
       },
       {
+        id: "finding_equations_of_lines",
+        slug: "finding-equations-of-lines",
+        name: "Finding Equations of Lines",
+        description: "Find the equation of a line from gradient and intercept, two points, parallel or perpendicular lines, and coordinate diagrams",
+        gradeRange: [9, 11],
+        prerequisites: ["gradient_and_parallel_lines"],
+        estimatedMinutes: 35,
+        hasInteractive: true,
+        hasPractice: true,
+        generatorKey: "finding_equations_of_lines",
+      },
+      {
         id: "geometry_basics",
         slug: "geometry-basics",
         name: "Geometry Basics",

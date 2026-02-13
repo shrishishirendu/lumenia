@@ -162,6 +162,18 @@ console.log("\n16. mathExpressionsEquivalent for factorised quadratics");
   assert(mathExpressionsEquivalent("2x^2+7x+3", "(2x+1)(x+3)"), "non-monic expanded vs factorised");
 }
 
+console.log("\n17. mathExpressionsEquivalent for line equations (y=mx+c)");
+{
+  assert(mathExpressionsEquivalent("y=2x+3", "y = 2x + 3"), "line eq with spaces");
+  assert(mathExpressionsEquivalent("y=2x+3", "y=2x+3"), "identical line eq");
+  assert(mathExpressionsEquivalent("y=-x+5", "y = -x + 5"), "negative slope line eq");
+  assert(mathExpressionsEquivalent("y=3x", "y = 3x"), "no intercept line eq");
+  assert(mathExpressionsEquivalent("y=1/2x+3", "y = 1/2x + 3"), "fractional slope line eq");
+  assert(!mathExpressionsEquivalent("y=2x+3", "y=2x+4"), "different intercepts not equal");
+  assert(!mathExpressionsEquivalent("y=2x+3", "y=3x+3"), "different slopes not equal");
+  assert(mathExpressionsEquivalent("y=-2x+1", "y=-2x+1"), "negative slope identical");
+}
+
 console.log(`\n=== Results: ${passed} passed, ${failed} failed ===`);
 if (failed === 0) {
   console.log("All tests passed!");

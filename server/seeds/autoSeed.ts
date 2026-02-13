@@ -278,6 +278,9 @@ export async function runAutoSeed() {
     const { seedFactorisingQuadratics } = await import("./factorisingQuadratics");
     await seedFactorisingQuadratics();
 
+    const { seedFindingEquationsOfLines } = await import("./findingEquationsOfLines");
+    await seedFindingEquationsOfLines();
+
     console.log("Auto-seed: complete.");
   } catch (error) {
     console.error("Auto-seed error (non-fatal):", error);

@@ -73,10 +73,41 @@ function safeEvalPoly(expr: string, xVal: number): number | null {
   }
 }
 
+function stripEquationLHS(expr: string): string {
+  const norm = normalizeMathInput(expr);
+  const m = norm.match(/^y=(.*)/);
+  if (m) return m[1];
+  return norm;
+}
+
 export function mathExpressionsEquivalent(a: string, b: string): boolean {
   const na = normalizeMathInput(a);
   const nb = normalizeMathInput(b);
   if (na === nb) return true;
+
+  const isEqA = na.includes("y=");
+  const isEqB = nb.includes("y=");
+  if (isEqA || isEqB) {
+    const exprA = isEqA ? stripEquationLHS(a) : na;
+    const exprB = isEqB ? stripEquationLHS(b) : nb;
+    if (exprA === exprB) return true;
+
+    const testValues = [-3, -2, -1, 0, 1, 2, 3, 5, 7];
+    let matched = 0;
+    let tested = 0;
+    for (const x of testValues) {
+      const va = safeEvalPoly(exprA, x);
+      const vb = safeEvalPoly(exprB, x);
+      if (va === null || vb === null) continue;
+      tested++;
+      if (Math.abs(va - vb) < 0.001) {
+        matched++;
+      } else {
+        return false;
+      }
+    }
+    return tested >= 3;
+  }
 
   const testValues = [-3, -2, -1, 0, 1, 2, 3, 5, 7];
   let matched = 0;

@@ -1,0 +1,263 @@
+You are working in the Lumenia (Mentora) codebase on Replit.
+
+GOAL
+Add a new interactive + practice chapter: “Finding Equations of Lines” using the existing topic-aware template-based question engine (registry + generatorKey + resolver). Do not redesign the engine. Follow the established schema used by other topics.
+
+This chapter should support both non-visual and VISUAL questions (simple coordinate diagrams) and integrate with the global MathAnswerInput + normalize_math_input().
+
+--------------------------------------------------------------------
+1) TOPIC REGISTRY ENTRY (SINGLE SOURCE OF TRUTH)
+
+Add to the central topic registry/config:
+
+{
+  id: "finding_equations_of_lines",
+  slug: "finding-equations-of-lines",
+  title: "Finding Equations of Lines",
+  subject: "math",
+  hasInteractive: true,
+  hasPractice: true,
+  generatorKey: "finding_equations_of_lines"
+}
+
+--------------------------------------------------------------------
+2) GLOBAL MATH INPUT ENGINE (MUST)
+
+All answer input boxes for this topic must use MathAnswerInput and comparisons must use normalize_math_input().
+
+Answer formats students should be able to type:
+- "y = 2x + 3", "y=2x+3"
+- "y = -3/2 x + 5" (allow fractions)
+- "y = mx + c" not as answer; answers must be specific numeric m and c
+Normalization should:
+- remove extra spaces
+- accept optional "y=" prefix
+- accept "y=mx+c" with +/- variants
+
+If the system currently uses strict string comparison, implement a robust equivalence check for line equations using numeric substitution (see section 9), because:
+- Students may write y = 2x + 3 or y - 3 = 2x
+- Or 2y = 4x + 6 (equivalent)
+
+Start with slope-intercept form as canonical output, but accept equivalent forms if feasible.
+
+--------------------------------------------------------------------
+3) GENERATOR MODULE
+
+Create:
+  src/question_engine/finding_equations_of_lines.py
+
+Export:
+  - generate_question(difficulty: str, seed: Optional[int] = None) -> dict
+  - generate_pool(difficulty: str, n: int, seed: Optional[int] = None, ensure_unique: bool = True) -> list[dict]
+
+Use random.Random(seed) for deterministic generation.
+IDs must be deterministic from (difficulty + archetype + sorted params). Avoid duplicates in a pool.
+
+--------------------------------------------------------------------
+4) QUESTION SCHEMA (MUST MATCH EXISTING GENERATORS)
+
+Return dict:
+
+{
+  "id": "<deterministic short hash>",
+  "topic": "finding_equations_of_lines",
+  "difficulty": "easy|medium|hard|challenge",
+  "archetype": "<string>",
+  "prompt": "<question text>",
+  "answer": "<canonical answer string>",
+  "worked_solution": ["Step 1", "Step 2", "...", "Final equation"],
+  "metadata": {
+      "params": {...},
+      "skills": [...],
+      "estimated_time_sec": <int>,
+
+      # OPTIONAL for visual questions:
+      "visual": {
+          "type": "svg",
+          "svg": "<inline SVG string>",
+          "alt": "<accessible description>",
+          "width": 420,
+          "height": 280
+      }
+  }
+}
+
+If not visual, omit metadata.visual.
+
+Canonical answer format:
+- Prefer slope-intercept: y = mx + c
+- Use simplified fractions for m and integer c where possible
+- Use "^" only if needed (usually not needed here)
+- No decimals unless explicitly intended
+
+--------------------------------------------------------------------
+5) CONTENT SCOPE: FINDING EQUATIONS OF LINES
+
+Students should learn to find an equation in the form y = mx + c from:
+- Given m and c directly
+- Given two points
+- Given gradient and one point
+- Given a point and a parallel line (same gradient)
+- Given a point and a perpendicular line (optional challenge)
+
+Also include reading info from a graph/diagram for visual questions.
+
+--------------------------------------------------------------------
+6) ARCHETYPES & DIFFICULTY BANDS (Cambridge-style)
+
+EASY (8)
+Archetypes:
+- from_m_and_c: given m and c, write equation
+- from_graph_y_intercept: given y-intercept and gradient as integers (no fractions)
+Constraints:
+- m in {-3,-2,-1,0,1,2,3}
+- c in [-8..8]
+Skills tags:
+- ["slope_intercept_form", "identify_m", "identify_c"]
+
+MEDIUM (8)
+Archetypes:
+- from_two_points: find m using (y2-y1)/(x2-x1), then find c
+- from_point_and_gradient: given point (x1,y1) and m, solve for c
+- parallel_through_point: parallel to y=mx+c through point
+Constraints:
+- Use simple fractions for m sometimes (e.g., 1/2, -2/3)
+- Keep c as integer or simple fraction if unavoidable
+Skills tags:
+- ["gradient_from_points", "solve_for_c", "parallel_lines", "line_equation"]
+
+HARD (7)
+Archetypes:
+- two_points_fractional_slope: two points that yield fractional slope
+- parallel_and_intercept: given a line and x-intercept/y-intercept constraints (keep manageable)
+- choose_correct_equation: give 3 candidate equations; pick which matches given point + gradient (autogradable as option selection if supported)
+Constraints:
+- Ensure final equation can be expressed cleanly in y=mx+c
+Skills tags:
+- ["fraction_slope", "rearrange_to_slope_intercept", "multi_step"]
+
+CHALLENGE (7)
+Archetypes:
+- perpendicular_optional: line perpendicular to given line through a point (m_perp = -1/m)
+- visual_from_graph: read two points from a drawn line, then find equation
+- mixed_constraints: line passes through two points and is parallel to another (redundant check)
+Constraints:
+- Include at least 2 visual questions in challenge
+Skills tags:
+- ["perpendicular_lines", "interpret_graph", "multi_step_reasoning"]
+
+--------------------------------------------------------------------
+7) VISUAL QUESTIONS (REQUIRED)
+
+Add at least:
+- 2 MEDIUM visual questions
+- 2 HARD visual questions
+- 2 CHALLENGE visual questions
+
+Use inline SVG only (no external images).
+Examples:
+A) Coordinate grid with a line drawn and two labelled points on it. Ask:
+   "Find the equation of the line in the form y = mx + c."
+B) Show a line with y-intercept labeled and a slope triangle (rise/run). Ask for equation.
+C) Show a line and a point P not on the line. Ask for equation of line parallel through P.
+
+SVG requirements:
+- Provide metadata.visual.svg with width/height and alt text
+- Keep diagram simple and readable on mobile
+- Label points clearly (A, B, P) and include their coordinates in the diagram or prompt
+
+--------------------------------------------------------------------
+8) PRACTICE + WARM-UP + EXIT INTEGRATION
+
+Assume Warm-up and Exit Ticket are already topic-aware via registry + resolver.
+
+Ensure:
+- Practice loads this topic via generatorKey "finding_equations_of_lines"
+- Header shows "Math – Finding Equations of Lines"
+- Regenerate changes seed and refreshes
+
+Default Practice mix:
+- 3 easy + 3 medium + 2 hard
+Challenge toggle off by default
+
+Warm-up default:
+- 2 easy + 2 medium
+
+Exit ticket default:
+- 1 medium + 1 hard
+
+Add hint near input:
+"Answer format: y = mx + c (e.g., y = 2x - 3). Fractions allowed: y = -3/2 x + 5"
+
+--------------------------------------------------------------------
+9) ANSWER CHECKING (IMPORTANT)
+
+Do NOT rely only on strict string equality for line equations.
+
+Implement an equivalence check WITHOUT heavy dependencies:
+- Parse both expected and student equation into a function f(x) for multiple x values OR convert to a standard form.
+Minimum approach:
+- Force canonical form acceptance: accept answers only in y=mx+c and parse m and c from normalized input.
+Better approach (recommended):
+- Evaluate equivalence at 4-6 x values (e.g., x in [-2,-1,0,1,2,3]) and compare y outputs.
+- For student equations not in slope-intercept, attempt to rearrange OR reject with feedback “Please give answer as y = mx + c”.
+
+Pick one approach and implement consistently across this topic.
+
+Safety:
+- Use a safe evaluator or a restricted parser:
+  numbers, x, y, +, -, *, /, ^, parentheses, '='
+- Do not allow arbitrary code execution.
+
+--------------------------------------------------------------------
+10) UI RENDERING FOR VISUAL QUESTIONS
+
+Update the shared question renderer so that:
+- If metadata.visual exists and type=="svg", render inline SVG above the prompt.
+- Responsive sizing (max-width: 100%)
+
+Do not break other topics.
+
+--------------------------------------------------------------------
+11) TESTS
+
+Add:
+  tests/test_finding_equations_of_lines_generator.py
+
+Verify:
+- required keys exist
+- deterministic with seed
+- uniqueness in pool
+- at least 6 visual questions across all difficulties contain valid SVG strings
+- equation formation correct (spot check via substituting generated points)
+- equivalence checker:
+  accepts "y=2x+3" when expected "y = 2x + 3"
+
+--------------------------------------------------------------------
+12) DOCUMENTATION
+
+Update:
+  docs/question_engine.md
+Add entry for "Finding Equations of Lines":
+- archetypes
+- expected answer formats
+- visual schema usage
+- notes on accepted input forms
+
+--------------------------------------------------------------------
+DO NOT
+
+- Do not change DB schema
+- Do not introduce new dependencies
+- Do not output LaTeX
+- Do not bypass normalization engine
+- Do not use external image URLs; inline SVG only
+
+DELIVERABLES
+- Topic registry entry
+- Generator module implemented
+- Visual questions supported + rendered
+- Practice works end-to-end
+- Answer checking robust
+- Tests passing
+- Docs updated
