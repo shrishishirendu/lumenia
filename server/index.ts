@@ -4,12 +4,31 @@ import { serveStatic } from "./static";
 import { createServer } from "http";
 import { runAutoSeed } from "./seeds/autoSeed";
 
-process.on("uncaughtException", (err) => {
+let allowExit = false;
+
+process.on("uncaughtException", (err: any) => {
+  const fatal = ["EADDRINUSE", "EACCES", "MODULE_NOT_FOUND"];
+  if (fatal.includes(err?.code)) {
+    console.error("Fatal error, exiting:", err.message);
+    allowExit = true;
+    process.exit(1);
+  }
   console.error("Uncaught Exception (kept alive):", err);
 });
 process.on("unhandledRejection", (reason) => {
   console.error("Unhandled Rejection (kept alive):", reason);
 });
+
+if (process.env.NODE_ENV !== "production") {
+  const originalExit = process.exit;
+  process.exit = function (code?: number) {
+    if (allowExit || code === 0) {
+      return originalExit.call(process, code);
+    }
+    console.error(`process.exit(${code}) intercepted — keeping server alive`);
+    return undefined as never;
+  } as typeof process.exit;
+}
 
 const app = express();
 const httpServer = createServer(app);

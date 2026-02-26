@@ -55,10 +55,13 @@ interface CourseResponse {
 
 type FilterType = "all" | "available" | "coming_soon";
 
+const subjectNameToId: Record<string, string> = { math: "1", mathematics: "1", english: "2" };
+
 export default function StudentCourse() {
   const [, setLocation] = useLocation();
   const params = useParams<{ subject: string }>();
-  const subjectId = params.subject;
+  const rawSubject = params.subject || "";
+  const subjectId = subjectNameToId[rawSubject.toLowerCase()] || rawSubject;
   const [expandedUnits, setExpandedUnits] = useState<Set<string>>(new Set());
   const [selectedFilter, setSelectedFilter] = useState<FilterType>("all");
   const [searchQuery, setSearchQuery] = useState("");
