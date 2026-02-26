@@ -9,6 +9,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { FileText, AlertTriangle, Calculator } from "lucide-react";
+import MarkdownContent from "@/components/MarkdownContent";
 
 interface TopicNotesData {
   id: number;
@@ -23,57 +24,6 @@ interface TopicNotesDrawerProps {
   topicId: number;
   topicTitle?: string;
   triggerVariant?: "icon" | "button";
-}
-
-function MarkdownRenderer({ content }: { content: string }) {
-  const lines = content.split("\n");
-  return (
-    <div className="prose prose-sm max-w-none dark:prose-invert space-y-2">
-      {lines.map((line, i) => {
-        if (line.startsWith("## ")) {
-          return <h2 key={i} className="text-lg font-semibold mt-4 mb-2 text-foreground">{line.slice(3)}</h2>;
-        }
-        if (line.startsWith("### ")) {
-          return <h3 key={i} className="text-base font-semibold mt-3 mb-1 text-foreground">{line.slice(4)}</h3>;
-        }
-        if (/^\d+\.\s/.test(line)) {
-          const text = line.replace(/^\d+\.\s/, "");
-          return (
-            <div key={i} className="flex gap-2 ml-2">
-              <span className="text-muted-foreground font-medium shrink-0">{line.match(/^\d+/)?.[0]}.</span>
-              <span className="text-foreground/90">{renderInline(text)}</span>
-            </div>
-          );
-        }
-        if (line.startsWith("- ")) {
-          return (
-            <div key={i} className="flex gap-2 ml-4">
-              <span className="text-muted-foreground shrink-0">•</span>
-              <span className="text-foreground/90">{renderInline(line.slice(2))}</span>
-            </div>
-          );
-        }
-        if (line.trim() === "") return <div key={i} className="h-1" />;
-        return <p key={i} className="text-foreground/90 leading-relaxed">{renderInline(line)}</p>;
-      })}
-    </div>
-  );
-}
-
-function renderInline(text: string) {
-  const parts = text.split(/(`[^`]+`|\*\*[^*]+\*\*|\*[^*]+\*)/g);
-  return parts.map((part, i) => {
-    if (part.startsWith("`") && part.endsWith("`")) {
-      return <code key={i} className="bg-muted px-1.5 py-0.5 rounded text-sm font-mono text-primary">{part.slice(1, -1)}</code>;
-    }
-    if (part.startsWith("**") && part.endsWith("**")) {
-      return <strong key={i} className="font-semibold">{part.slice(2, -2)}</strong>;
-    }
-    if (part.startsWith("*") && part.endsWith("*")) {
-      return <em key={i}>{part.slice(1, -1)}</em>;
-    }
-    return part;
-  });
 }
 
 export default function TopicNotesDrawer({ topicId, topicTitle, triggerVariant = "button" }: TopicNotesDrawerProps) {
@@ -122,7 +72,7 @@ export default function TopicNotesDrawer({ topicId, topicTitle, triggerVariant =
             </div>
 
             <div data-testid="notes-content">
-              <MarkdownRenderer content={notes.notesMarkdown} />
+              <MarkdownContent content={notes.notesMarkdown} className="dark:prose-invert" />
             </div>
 
             {notes.keyFormulas && notes.keyFormulas.length > 0 && (

@@ -1,0 +1,91 @@
+You are debugging a Replit full-stack app that keeps crashing. The crash happens while loading notes for a topic. In the logs, /api/topics/:id/notes returns 200 and the JSON includes a field notesMarkdown that contains raw HTML/SVG like <svg xmlns="http://www.w3.org/2000/svg" ...>. The UI/app crashes after that response.
+
+Goals
+
+Identify whether the crash is in frontend render or backend server.
+
+Fix the crash without changing database schema and without removing existing content.
+
+Notes must still support markdown, and if SVG/HTML exists, it should be handled safely.
+
+Steps
+
+Reproduce reliably
+
+Run the app and open the topic that triggers /api/topics/18/notes (or any failing topic).
+
+Confirm: does the Node server exit, or does only the frontend crash? Capture stack trace.
+
+Add crash visibility
+
+Backend: add a global error handler for Express (or your server framework) and log stack traces.
+
+Frontend: add a React Error Boundary around the notes rendering area and log the error + component stack.
+
+Print the length of notesMarkdown and detect if it contains <svg or <html tags.
+
+Locate the rendering path
+
+Find where notesMarkdown is rendered (likely react-markdown, markdown-it, marked, or dangerouslySetInnerHTML).
+
+Confirm if raw HTML is being allowed (e.g., rehypeRaw, dangerouslySetInnerHTML, marked with sanitize: false, etc.).
+
+Implement safe rendering (recommended approach)
+
+If using react-markdown:
+
+Disable raw HTML rendering by default (remove rehypeRaw if present).
+
+Add sanitization using rehype-sanitize.
+
+Then add a controlled way to support SVG:
+
+Option A (safest): detect <svg blocks in notesMarkdown, replace them with a placeholder like [SVG_DIAGRAM_1], and render those diagrams separately as an <img> using a data URI (base64 encoded).
+
+Option B: allow limited SVG tags/attributes via a sanitize schema (only if you’re confident).
+
+If using marked/markdown-it:
+
+Ensure output is sanitized via DOMPurify (frontend) or sanitize-html (backend).
+
+Do not pass unsanitized HTML to dangerouslySetInnerHTML.
+
+Add content hardening
+
+Put a max size guard: if notesMarkdown is extremely large, show “Content too large to render” instead of crashing.
+
+Ensure the API response is valid JSON and not accidentally returning unescaped content.
+
+Add unit test or quick dev assertion: rendering notes with embedded <svg> must not crash.
+
+Verify
+
+Open multiple topics (including the failing one).
+
+Confirm: app doesn’t crash; notes render; SVG either renders as image or shows a safe placeholder.
+
+Commit changes and explain exactly what caused the crash and what fix was applied.
+
+Constraints
+
+Do NOT change the DB schema.
+
+Do NOT remove notes content.
+
+Keep existing endpoints and topic navigation intact.
+
+Prefer minimal code changes with maximum safety.
+
+Deliverables
+
+A short root cause summary (1–3 bullets).
+
+A patch with:
+
+error boundary + logging,
+
+sanitized markdown rendering,
+
+safe SVG handling strategy (data URI image or placeholder),
+
+verification steps.
