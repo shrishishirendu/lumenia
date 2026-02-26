@@ -232,9 +232,28 @@ Always substitute your answer back into the **original** equation to verify:
   console.log(`  Created topic notes for topic ${topicId}`);
 }
 
+const EXPECTED_TOPIC_COUNT = 17;
+
+async function isSeeded(): Promise<boolean> {
+  try {
+    const topicCount = await db.select({ id: topics.id }).from(topics);
+    const questionCount = await db.select({ id: quizQuestions.id }).from(quizQuestions).limit(1);
+    return topicCount.length >= EXPECTED_TOPIC_COUNT && questionCount.length > 0;
+  } catch {
+    return false;
+  }
+}
+
 export async function runAutoSeed() {
   try {
     console.log("Auto-seed: checking for required data...");
+
+    if (await isSeeded()) {
+      console.log("Auto-seed: all data present, skipping.");
+      return;
+    }
+
+    console.log("Auto-seed: seeding missing data...");
     await ensureSubjects();
     const topicId = await ensureLinearEquationsTopic();
     if (topicId) {
@@ -242,53 +261,28 @@ export async function runAutoSeed() {
       await ensureTopicNotes(topicId);
     }
 
-    const { seedIndexLaws } = await import("./indexLaws");
-    await seedIndexLaws();
+    const seedModules = [
+      () => import("./indexLaws").then(m => m.seedIndexLaws()),
+      () => import("./expandingBrackets").then(m => m.seedExpandingBrackets()),
+      () => import("./inequalities").then(m => m.seedInequalities()),
+      () => import("./fractionalIndices").then(m => m.seedFractionalIndices()),
+      () => import("./surdsIntro").then(m => m.seedSurdsIntro()),
+      () => import("./simplifyingSurds").then(m => m.seedSimplifyingSurds()),
+      () => import("./operationsWithSurds").then(m => m.seedOperationsWithSurds()),
+      () => import("./expandingBinomialProducts").then(m => m.seedExpandingBinomialProducts()),
+      () => import("./perfectAndDifferenceOfSquares").then(m => m.seedPerfectAndDifferenceOfSquares()),
+      () => import("./gradientAndParallelLines").then(m => m.seedGradientAndParallelLines()),
+      () => import("./factorisingCommonFactors").then(m => m.seedFactorisingCommonFactors()),
+      () => import("./factorisingQuadratics").then(m => m.seedFactorisingQuadratics()),
+      () => import("./findingEquationsOfLines").then(m => m.seedFindingEquationsOfLines()),
+      () => import("./simultaneousEquationsGraphical").then(m => m.seedSimultaneousEquationsGraphical()),
+      () => import("./simultaneousEquationsSubstitution").then(m => m.seedSimultaneousEquationsSubstitution()),
+      () => import("./trigonometricRatios").then(m => m.seedTrigonometricRatios()),
+    ];
 
-    const { seedExpandingBrackets } = await import("./expandingBrackets");
-    await seedExpandingBrackets();
-
-    const { seedInequalities } = await import("./inequalities");
-    await seedInequalities();
-
-    const { seedFractionalIndices } = await import("./fractionalIndices");
-    await seedFractionalIndices();
-
-    const { seedSurdsIntro } = await import("./surdsIntro");
-    await seedSurdsIntro();
-
-    const { seedSimplifyingSurds } = await import("./simplifyingSurds");
-    await seedSimplifyingSurds();
-
-    const { seedOperationsWithSurds } = await import("./operationsWithSurds");
-    await seedOperationsWithSurds();
-
-    const { seedExpandingBinomialProducts } = await import("./expandingBinomialProducts");
-    await seedExpandingBinomialProducts();
-
-    const { seedPerfectAndDifferenceOfSquares } = await import("./perfectAndDifferenceOfSquares");
-    await seedPerfectAndDifferenceOfSquares();
-
-    const { seedGradientAndParallelLines } = await import("./gradientAndParallelLines");
-    await seedGradientAndParallelLines();
-
-    const { seedFactorisingCommonFactors } = await import("./factorisingCommonFactors");
-    await seedFactorisingCommonFactors();
-
-    const { seedFactorisingQuadratics } = await import("./factorisingQuadratics");
-    await seedFactorisingQuadratics();
-
-    const { seedFindingEquationsOfLines } = await import("./findingEquationsOfLines");
-    await seedFindingEquationsOfLines();
-
-    const { seedSimultaneousEquationsGraphical } = await import("./simultaneousEquationsGraphical");
-    await seedSimultaneousEquationsGraphical();
-
-    const { seedSimultaneousEquationsSubstitution } = await import("./simultaneousEquationsSubstitution");
-    await seedSimultaneousEquationsSubstitution();
-
-    const { seedTrigonometricRatios } = await import("./trigonometricRatios");
-    await seedTrigonometricRatios();
+    for (const seedFn of seedModules) {
+      await seedFn();
+    }
 
     console.log("Auto-seed: complete.");
   } catch (error) {
