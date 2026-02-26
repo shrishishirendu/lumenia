@@ -67,3 +67,13 @@ Preferred communication style: Simple, everyday language.
 
 ### Audio Processing
 - **ffmpeg** (for WebM to WAV conversion)
+
+## Stability Features
+- **GlobalErrorBoundary**: Wraps the entire React app to catch unhandled rendering errors with recovery UI (Go to Home / Reload Page buttons)
+- **MarkdownErrorBoundary**: Wraps MarkdownContent components with graceful fallback for SVG/markdown rendering failures
+- **SVG Sanitization**: Strips `<script>` tags and event handler attributes from SVG content before rendering
+- **Content Size Guard**: MarkdownContent rejects content over 500KB to prevent memory issues
+- **Process Crash Handlers**: `uncaughtException` and `unhandledRejection` handlers in server/index.ts keep the server alive
+- **Optimized Logging**: API response bodies are not logged to reduce memory pressure
+- **Fast Auto-Seed**: Checks database before importing seed modules; skips when data already exists
+- **Query Client**: `retry: false` prevents cascading request failures

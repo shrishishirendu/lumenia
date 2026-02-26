@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "./lib/auth";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { GlobalErrorBoundary } from "@/components/GlobalErrorBoundary";
 import { StudentLayout } from "@/layouts/StudentLayout";
 import { ParentLayout } from "@/layouts/ParentLayout";
 import { TutorLayout } from "@/layouts/TutorLayout";
@@ -302,14 +303,16 @@ function Router() {
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Router />
-        </TooltipProvider>
-      </AuthProvider>
-    </QueryClientProvider>
+    <GlobalErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Router />
+          </TooltipProvider>
+        </AuthProvider>
+      </QueryClientProvider>
+    </GlobalErrorBoundary>
   );
 }
 
