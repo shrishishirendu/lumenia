@@ -278,6 +278,7 @@ export async function runAutoSeed() {
       () => import("./simultaneousEquationsGraphical").then(m => m.seedSimultaneousEquationsGraphical()),
       () => import("./simultaneousEquationsSubstitution").then(m => m.seedSimultaneousEquationsSubstitution()),
       () => import("./trigonometricRatios").then(m => m.seedTrigonometricRatios()),
+      () => import("./findingUnknownSidesTrig").then(m => m.seedFindingUnknownSidesTrig()),
     ];
 
     for (const seedFn of seedModules) {

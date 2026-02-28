@@ -264,6 +264,18 @@ export const TOPIC_CATALOG: Record<string, SubjectConfig> = {
         generatorKey: "trigonometric_ratios",
       },
       {
+        id: "finding_unknown_sides_trig",
+        slug: "finding-unknown-sides-trig",
+        name: "Finding Unknown Sides in Trigonometry",
+        description: "Use sine, cosine, and tangent ratios to calculate unknown side lengths in right-angled triangles, including problems with exact values, rounding, and multi-step reasoning",
+        gradeRange: [9, 12],
+        prerequisites: ["trigonometric_ratios"],
+        estimatedMinutes: 40,
+        hasInteractive: true,
+        hasPractice: true,
+        generatorKey: "finding_unknown_sides_trig",
+      },
+      {
         id: "geometry_basics",
         slug: "geometry-basics",
         name: "Geometry Basics",
