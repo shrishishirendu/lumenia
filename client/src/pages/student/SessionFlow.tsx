@@ -532,7 +532,7 @@ export default function SessionFlow() {
           {q.visual?.type === "svg" && (
             <div className="mb-3 flex justify-center" data-testid={`svg-question-${q.id}`} role="img" aria-label={q.visual.alt} dangerouslySetInnerHTML={{ __html: q.visual.svg }} style={{ maxWidth: "100%" }} />
           )}
-          <p className="font-medium mb-3">Q{idx + 1}: {q.text}</p>
+          <div className="font-medium mb-3"><span>Q{idx + 1}: </span><MarkdownContent content={q.text} /></div>
           {renderQuestionInput(q, "warmup", state.warmupResults.answers)}
         </Card>
       ))}
@@ -739,7 +739,7 @@ export default function SessionFlow() {
             <div className="mb-3 flex justify-center" data-testid={`svg-question-${q.id}`} role="img" aria-label={q.visual.alt} dangerouslySetInnerHTML={{ __html: q.visual.svg }} style={{ maxWidth: "100%" }} />
           )}
           <div className="flex justify-between items-start mb-3">
-            <p className="font-medium">Q{idx + 1}: {q.text}</p>
+            <div className="font-medium"><span>Q{idx + 1}: </span><MarkdownContent content={q.text} /></div>
             <Button variant="ghost" size="sm" onClick={requestHint}>
               <HelpCircle className="h-4 w-4 mr-1" /> Hint
             </Button>
@@ -816,7 +816,7 @@ export default function SessionFlow() {
           {q.visual?.type === "svg" && (
             <div className="mb-3 flex justify-center" data-testid={`svg-question-${q.id}`} role="img" aria-label={q.visual.alt} dangerouslySetInnerHTML={{ __html: q.visual.svg }} style={{ maxWidth: "100%" }} />
           )}
-          <p className="font-medium mb-3">Q{idx + 1}: {q.text}</p>
+          <div className="font-medium mb-3"><span>Q{idx + 1}: </span><MarkdownContent content={q.text} /></div>
           {renderQuestionInput(q, "exit_ticket", state.exitTicketResults.answers)}
         </Card>
       ))}
