@@ -288,6 +288,18 @@ export const TOPIC_CATALOG: Record<string, SubjectConfig> = {
         generatorKey: "finding_unknown_angles_trig",
       },
       {
+        id: "trigonometry_applications",
+        slug: "trigonometry-applications",
+        name: "Trigonometry Applications",
+        description: "Apply trigonometric ratios to solve real-world problems involving angles of elevation and depression, bearings, navigation, surveying, and multi-step 2D scenarios",
+        gradeRange: [9, 12],
+        prerequisites: ["finding_unknown_angles_trig"],
+        estimatedMinutes: 45,
+        hasInteractive: true,
+        hasPractice: true,
+        generatorKey: "trigonometry_applications",
+      },
+      {
         id: "geometry_basics",
         slug: "geometry-basics",
         name: "Geometry Basics",
