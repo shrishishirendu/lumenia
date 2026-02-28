@@ -101,6 +101,7 @@ export default function StudentCourse() {
 
     const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
     const topicIndex = new Map(topics.map(t => [normalize(t.title), t]));
+    const topicEntries = topics.map(t => ({ norm: normalize(t.title), topic: t }));
 
     for (const unit of data.curriculum.units) {
       const unitNorm = normalize(unit.title);
@@ -111,8 +112,13 @@ export default function StudentCourse() {
         const exactMatch = topicIndex.get(lessonNorm);
         if (exactMatch) {
           map.set(lesson.id, exactMatch);
-        } else if (unitMatch) {
-          map.set(lesson.id, unitMatch);
+        } else {
+          const startsWith = topicEntries.find(e => e.norm.startsWith(lessonNorm) && lessonNorm.length >= 10);
+          if (startsWith) {
+            map.set(lesson.id, startsWith.topic);
+          } else if (unitMatch) {
+            map.set(lesson.id, unitMatch);
+          }
         }
       }
     }

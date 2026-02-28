@@ -232,7 +232,7 @@ Always substitute your answer back into the **original** equation to verify:
   console.log(`  Created topic notes for topic ${topicId}`);
 }
 
-const EXPECTED_TOPIC_COUNT = 17;
+const EXPECTED_TOPIC_COUNT = 18;
 
 async function isSeeded(): Promise<boolean> {
   try {
