@@ -276,6 +276,18 @@ export const TOPIC_CATALOG: Record<string, SubjectConfig> = {
         generatorKey: "finding_unknown_sides_trig",
       },
       {
+        id: "finding_unknown_angles_trig",
+        slug: "finding-unknown-angles-trig",
+        name: "Finding Unknown Angles",
+        description: "Use inverse trigonometric functions (sin⁻¹, cos⁻¹, tan⁻¹) to calculate unknown angles in right-angled triangles, including exact values, decimal approximations, and multi-step problems",
+        gradeRange: [9, 12],
+        prerequisites: ["finding_unknown_sides_trig"],
+        estimatedMinutes: 40,
+        hasInteractive: true,
+        hasPractice: true,
+        generatorKey: "finding_unknown_angles_trig",
+      },
+      {
         id: "geometry_basics",
         slug: "geometry-basics",
         name: "Geometry Basics",

@@ -14,6 +14,7 @@ import { generateMixedPool as generateSimEqGraphPool } from "./simultaneousEquat
 import { generateMixedPool as generateSimEqSubPool } from "./simultaneousEquationsSubstitution";
 import { generateMixedPool as generateTrigRatiosPool } from "./trigonometricRatios";
 import { generateMixedPool as generateFindUnknownSidesPool } from "./findingUnknownSidesTrig";
+import { generateMixedPool as generateFindUnknownAnglesPool } from "./findingUnknownAngles";
 
 export type DifficultyConfig = { difficulty: "easy" | "medium" | "hard" | "challenge"; count: number };
 export type GeneratorFn = (config: DifficultyConfig[], seed?: number) => any[];
@@ -35,6 +36,7 @@ const GENERATOR_REGISTRY: Record<string, GeneratorFn> = {
   simultaneous_equations_substitution: generateSimEqSubPool,
   trigonometric_ratios: generateTrigRatiosPool,
   finding_unknown_sides_trig: generateFindUnknownSidesPool,
+  finding_unknown_angles_trig: generateFindUnknownAnglesPool,
 };
 
 const GENERATOR_ALIASES: Record<string, string> = {

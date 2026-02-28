@@ -232,7 +232,7 @@ Always substitute your answer back into the **original** equation to verify:
   console.log(`  Created topic notes for topic ${topicId}`);
 }
 
-const EXPECTED_TOPIC_COUNT = 18;
+const EXPECTED_TOPIC_COUNT = 20;
 
 async function isSeeded(): Promise<boolean> {
   try {
@@ -279,6 +279,7 @@ export async function runAutoSeed() {
       () => import("./simultaneousEquationsSubstitution").then(m => m.seedSimultaneousEquationsSubstitution()),
       () => import("./trigonometricRatios").then(m => m.seedTrigonometricRatios()),
       () => import("./findingUnknownSidesTrig").then(m => m.seedFindingUnknownSidesTrig()),
+      () => import("./findingUnknownAngles").then(m => m.seedFindingUnknownAngles()),
     ];
 
     for (const seedFn of seedModules) {
