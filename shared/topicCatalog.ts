@@ -300,6 +300,18 @@ export const TOPIC_CATALOG: Record<string, SubjectConfig> = {
         generatorKey: "trigonometry_applications",
       },
       {
+        id: "surface_area_of_prisms",
+        slug: "surface-area-of-prisms",
+        name: "Surface Area of Prisms",
+        description: "Calculate the total surface area of prisms by identifying faces, using nets, and applying area formulas for rectangular, triangular, and other prisms",
+        gradeRange: [9, 12],
+        prerequisites: ["geometry_basics"],
+        estimatedMinutes: 40,
+        hasInteractive: true,
+        hasPractice: true,
+        generatorKey: "surface_area_of_prisms",
+      },
+      {
         id: "geometry_basics",
         slug: "geometry-basics",
         name: "Geometry Basics",

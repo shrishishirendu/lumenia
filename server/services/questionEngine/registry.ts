@@ -16,6 +16,7 @@ import { generateMixedPool as generateTrigRatiosPool } from "./trigonometricRati
 import { generateMixedPool as generateFindUnknownSidesPool } from "./findingUnknownSidesTrig";
 import { generateMixedPool as generateFindUnknownAnglesPool } from "./findingUnknownAngles";
 import { generateMixedPool as generateTrigApplicationsPool } from "./trigonometryApplications";
+import { generateMixedPool as generateSurfaceAreaPrismsPool } from "./surfaceAreaOfPrisms";
 
 export type DifficultyConfig = { difficulty: "easy" | "medium" | "hard" | "challenge"; count: number };
 export type GeneratorFn = (config: DifficultyConfig[], seed?: number) => any[];
@@ -39,6 +40,7 @@ const GENERATOR_REGISTRY: Record<string, GeneratorFn> = {
   finding_unknown_sides_trig: generateFindUnknownSidesPool,
   finding_unknown_angles_trig: generateFindUnknownAnglesPool,
   trigonometry_applications: generateTrigApplicationsPool,
+  surface_area_of_prisms: generateSurfaceAreaPrismsPool,
 };
 
 const GENERATOR_ALIASES: Record<string, string> = {
